@@ -66,6 +66,20 @@
         </div>
         <label class="row">
           <div>
+            <div class="row-label" data-i18n="setUseCompanion"></div>
+            <div class="row-hint" data-i18n="setUseCompanionHint"></div>
+          </div>
+          <input type="checkbox" class="switch" id="useCompanion" data-setting="useCompanion" data-kind="bool" />
+        </label>
+        <div class="row">
+          <div>
+            <div class="row-label"><label for="connections" data-i18n="setConnections"></label></div>
+            <div class="row-hint" data-i18n="setConnectionsHint"></div>
+          </div>
+          <input type="number" class="number" id="connections" min="1" max="16" step="1" data-setting="connections" data-kind="int" data-min="1" data-max="16" />
+        </div>
+        <label class="row">
+          <div>
             <div class="row-label" data-i18n="setAskWhere"></div>
             <div class="row-hint" data-i18n="setAskWhereHint"></div>
           </div>

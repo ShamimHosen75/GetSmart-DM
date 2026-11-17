@@ -8,6 +8,7 @@
 //   menus.js          context menus (M4)
 //   media.js          media detection for the "This page" tab (M6)
 //   native-bridge.js  companion app connection and video jobs (M7)
+//   file-jobs.js      multi-connection file downloads through the companion (M13)
 //   progress.html     per-download progress window, opened here on start (M11)
 
 import { autoOpenProgress, seedDefaultSettings } from './common.js';
@@ -15,6 +16,7 @@ import { enqueue, pump, registerQueueListeners, removeQueued, setQueuePaused } f
 import { buildMenus, registerMenuListeners } from './menus.js';
 import { registerMediaListeners, overlayHandlers } from './media.js';
 import { videoHandlers } from './native-bridge.js';
+import { fileHandlers, runningFileJobs } from './file-jobs.js';
 
 const BADGE_COLOR = '#6c3ff0';
 
@@ -44,11 +46,12 @@ function updateBadge() {
   badgeTimer = setTimeout(async () => {
     try {
       const active = await chrome.downloads.search({ state: 'in_progress', paused: false });
+      const count = active.length + (await runningFileJobs());
       await chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR });
       if (chrome.action.setBadgeTextColor) {
         await chrome.action.setBadgeTextColor({ color: '#ffffff' });
       }
-      await chrome.action.setBadgeText({ text: active.length ? String(active.length) : '' });
+      await chrome.action.setBadgeText({ text: count ? String(count) : '' });
     } catch (err) {
       console.error('GetSmart DM: badge update failed', err);
     }
@@ -59,6 +62,9 @@ chrome.downloads.onCreated.addListener(updateBadge);
 chrome.downloads.onErased.addListener(updateBadge);
 chrome.downloads.onChanged.addListener((delta) => {
   if (delta.state || delta.paused) updateBadge();
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.fileJobs) updateBadge();
 });
 
 // ---------- Progress window on download start (M11) ----------
@@ -77,6 +83,7 @@ const handlers = {
   setQueuePaused: (msg) => setQueuePaused(msg.paused),
   ...overlayHandlers, // overlayInfo, overlayMedia (content script video button)
   ...videoHandlers, // getVideoState, addVideo, cancelVideo, retryVideo, removeVideo, openVideoFolder
+  ...fileHandlers, // pauseFile, resumeFile, cancelFile, eraseFile, openFile, setFileSpeedLimit
 };
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {

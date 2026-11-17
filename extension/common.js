@@ -15,6 +15,9 @@ export const DEFAULT_SETTINGS = Object.freeze({
   mediaDetection: true, // list video/audio files pages play ("This page" tab)
   minMediaSizeKB: 200, // ignore smaller media responses
   showVideoButton: true, // floating "Download" button over videos (M10)
+  useCompanion: true, // big files through the companion over several connections, when it is installed (M13)
+  connections: 8, // connections per companion file download, 1-16 (M13)
+  speedLimitKBps: 0, // total speed limit for companion file downloads, 0 = none (M14)
   progressWindow: 'ours', // open a progress window: off | ours (downloads GetSmart DM starts) | all (M11)
   disabledSites: [], // hosts where media detection is off
   defaultQuality: 'best', // best | 1080 | 720 | 480 | 360 | audio
@@ -287,7 +290,8 @@ export async function openProgressWindow(id) {
     await chrome.windows.update(open[0].windowId, { focused: true });
     return open[0];
   }
-  return chrome.windows.create({ url, type: 'popup', focused: true, ...PROGRESS_WINDOW_SIZE });
+  const size = String(id).startsWith('f:') ? { ...PROGRESS_WINDOW_SIZE, height: 640 } : PROGRESS_WINDOW_SIZE; // room for the parts table
+  return chrome.windows.create({ url, type: 'popup', focused: true, ...size });
 }
 
 const AUTO_OPEN_LIMIT = 3; // at most this many windows ...
@@ -303,8 +307,10 @@ export async function autoOpenProgress(id, mode) {
   try {
     const { progressWindow } = await cachedSettings();
     if (progressWindow !== mode) return;
-    const [item] = await chrome.downloads.search({ id });
-    if (!item || item.state !== 'in_progress') return; // tiny files can be done already
+    if (typeof id === 'number') {
+      const [item] = await chrome.downloads.search({ id });
+      if (!item || item.state !== 'in_progress') return; // tiny files can be done already
+    }
     const now = Date.now();
     autoOpened = autoOpened.filter((time) => now - time < AUTO_OPEN_WINDOW_MS);
     if (autoOpened.length >= AUTO_OPEN_LIMIT) return;

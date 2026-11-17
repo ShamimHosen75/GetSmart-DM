@@ -53,6 +53,7 @@ import urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXTENSION = os.path.join(ROOT, "extension")
 EXT_ID = "ejkhmcfjnohjikdgfgkhjficmiaoghma"
+HOST_PY = os.path.join(ROOT, "companion", "host.py")
 
 
 # --------------------------------------------------------------------------- test server
@@ -121,14 +122,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         mime = query.get("mime", "application/octet-stream")
         slow = query.get("slow") == "1"
         start, end = 0, size - 1
-        match = re.match(r"bytes=(\d+)-(\d*)", self.headers.get("Range") or "")
+        match = None if query.get("norange") else re.match(r"bytes=(\d+)-(\d*)", self.headers.get("Range") or "")
         if match:
             start = int(match.group(1))
             if match.group(2):
                 end = min(int(match.group(2)), size - 1)
         self.send_response(206 if match else 200)
         self.send_header("Content-Type", mime)
-        self.send_header("Accept-Ranges", "bytes")
+        if not query.get("norange"):
+            self.send_header("Accept-Ranges", "bytes")
         self.send_header("ETag", '"gsdm-test"')
         if query.get("cd") == "bangla":
             self.send_header("Content-Disposition", BANGLA_CD)
@@ -152,6 +154,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 def start_server():
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     server.daemon_threads = True
+    server.handle_error = lambda request, address: None  # clients that hang up mid-transfer are expected
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server, "http://127.0.0.1:%d" % server.server_address[1]
 
@@ -601,6 +604,65 @@ def check_filter_and_clear(b, base):
     return "music/documents chips, search, failed row; Clear finished kept the running download"
 
 
+def register_companion(b):
+    """Register companion/host.py for this profile, saving into the test Downloads folder."""
+    config = os.path.join(b.tmp, "xdg")
+    os.makedirs(config, exist_ok=True)
+    with open(os.path.join(config, "user-dirs.dirs"), "w", encoding="utf-8") as f:
+        f.write('XDG_DOWNLOAD_DIR="%s"\n' % b.downloads)
+    wrapper = os.path.join(b.tmp, "host.sh")
+    with open(wrapper, "w", encoding="utf-8") as f:
+        f.write('#!/bin/sh\nXDG_CONFIG_HOME="%s" exec "%s" "%s" "$@"\n' % (config, sys.executable, HOST_PY))
+    os.chmod(wrapper, 0o755)
+    folder = os.path.join(b.tmp, "profile", "NativeMessagingHosts")
+    os.makedirs(folder, exist_ok=True)
+    with open(os.path.join(folder, "com.getsmartdm.host.json"), "w", encoding="utf-8") as f:
+        json.dump({"name": "com.getsmartdm.host", "description": "test", "path": wrapper, "type": "stdio",
+                   "allowed_origins": ["chrome-extension://%s/" % EXT_ID]}, f)
+
+
+def file_jobs(b):
+    return b.call("async () => Object.values((await chrome.storage.local.get('fileJobs')).fileJobs || {})")
+
+
+def check_companion_files(b, base):
+    if sys.platform == "win32":
+        return "skipped on Windows (the test registers the host for Linux/macOS)"
+    reset(b)
+    register_companion(b)
+    b.message({"type": "getVideoState", "url": ""})
+    wait_for(lambda: (b.call("async () => (await chrome.storage.session.get('companion')).companion") or {}).get("status") == "connected",
+             what="companion connected")
+    enqueue(b, [{"url": base + "/f/bigfile.zip?size=8000000&slow=1"}])
+    job = wait_for(lambda: next((j for j in file_jobs(b) if j.get("connections", 0) >= 2), None),
+                   what="companion job with several connections (jobs: %r)" % file_jobs(b))
+    assert not b.call("() => chrome.downloads.search({})"), "the browser downloaded it too"
+    close_progress_windows(b)  # it may have opened on its own (at most 3 per 10 s)
+    page = b.page("progress.html?id=f:%s" % job["id"])
+    wait_for(lambda: page.locator("#p-segbar > div").count() >= 2, what="segment bar")
+    assert page.locator("#p-conn-rows tr").count() >= 2
+    page.click("#b-pause")
+    wait_for(lambda: page.locator("body").get_attribute("data-state") == "paused", what="companion paused")
+    page.click("#b-resume")
+    done = wait_for(lambda: next((j for j in file_jobs(b) if j["id"] == job["id"] and j["state"] == "done"), None),
+                    timeout=60, what="companion job done")
+    path = os.path.join(b.downloads, "GetSmart DM", "Archives", "bigfile.zip")
+    assert os.path.getsize(path) == 8000000, os.path.getsize(path)
+    assert os.path.realpath(done["filename"]) == os.path.realpath(path), done["filename"]
+    page.close()
+    popup = b.page("popup.html")
+    popup.click("#tab-downloads")
+    popup.wait_for_selector('.dl-row[data-id="f:%s"][data-state=complete]' % job["id"])
+    popup.close()
+    # A server without ranges goes to the browser.
+    enqueue(b, [{"url": base + "/f/plain.zip?size=3000000&norange=1"}])
+    wait_for(lambda: b.call("() => chrome.downloads.search({})"), what="browser took the no-range file")
+    assert len(file_jobs(b)) == 1, file_jobs(b)
+    b.call("() => chrome.storage.local.set({fileJobs: {}})")
+    reset(b)
+    return "8 MB over several connections into GetSmart DM/Archives, parts shown, pause/resume, popup row; no-range file went to the browser"
+
+
 CHECKS = [
     ("media detection and badge", check_media_detection),
     ("YouTube blocked", check_youtube_blocked),
@@ -613,6 +675,7 @@ CHECKS = [
     ("link grabber select + download", check_grabber),
     ("settings save", check_settings),
     ("category filter + clear finished", check_filter_and_clear),
+    ("companion multi-connection download", check_companion_files),  # last: the companion stays registered
 ]
 
 

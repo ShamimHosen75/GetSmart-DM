@@ -11,7 +11,7 @@
 import { t } from './i18n.js';
 import { SpeedTracker, secondsLeft } from './speed.js';
 import { CATEGORIES, categoryOf, fileExtension, formatBytes, formatDuration, openProgressWindow } from './common.js';
-import { STATE_LABEL, displayName, errorLabel, isFinished, isRunning, stateOf, totalBytes } from './download-info.js';
+import { STATE_LABEL, displayName, failureText, fileJobItems, isFinished, isRunning, itemAction, stateOf, totalBytes } from './download-info.js';
 
 const REFRESH_MS = 800;
 const SEARCH_LIMIT = 1000;
@@ -92,6 +92,9 @@ export function initDownloadsView() {
   chrome.downloads.onCreated.addListener(refresh);
   chrome.downloads.onErased.addListener(refresh);
   chrome.downloads.onChanged.addListener(refresh);
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && (changes.fileJobs || changes.queue)) refresh();
+  });
 
   // Labels are built in JS, so rebuild them when the language changes.
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -112,10 +115,12 @@ async function refresh() {
   }
   refreshing = true;
   try {
-    const [items, stored] = await Promise.all([
+    const [downloads, files, stored] = await Promise.all([
       chrome.downloads.search({ orderBy: ['-startTime'], limit: SEARCH_LIMIT }),
+      fileJobItems(),
       chrome.storage.local.get('queue'),
     ]);
+    const items = [...files, ...downloads].sort((a, b) => Date.parse(b.startTime || 0) - Date.parse(a.startTime || 0));
     trackSpeeds(items);
     queued = (stored.queue || [])
       .slice()
@@ -278,7 +283,7 @@ function updateRow(row, item) {
   // State text, with the failure reason when we know it
   let stateText = t(STATE_LABEL[state]);
   if (state === 'failed') {
-    const reason = errorLabel(item.error);
+    const reason = failureText(item);
     if (reason) stateText = `${stateText}: ${reason}`;
   }
   setText(row, 'state', stateText);
@@ -367,25 +372,22 @@ async function onActionClick(event) {
 async function runAction(action, item) {
   switch (action) {
     case 'pause':
-      return chrome.downloads.pause(item.id);
     case 'resume':
-      return chrome.downloads.resume(item.id);
+    case 'open':
+    case 'show':
+      return itemAction(action, item);
     case 'cancel':
       if (item.state === 'queued') return chrome.runtime.sendMessage({ type: 'removeQueued', qid: item.qid });
-      return chrome.downloads.cancel(item.id);
+      return itemAction('cancel', item);
     case 'retry':
       return retry(item);
-    case 'open':
-      return chrome.downloads.open(item.id);
-    case 'show':
-      return chrome.downloads.show(item.id);
     case 'details':
       return openProgressWindow(item.id);
     case 'copy':
       await navigator.clipboard.writeText(item.finalUrl || item.url);
       return showToast(t('linkCopied'));
     case 'remove':
-      return chrome.downloads.erase({ id: item.id });
+      return itemAction('erase', item);
     default:
       return undefined;
   }
@@ -394,18 +396,18 @@ async function runAction(action, item) {
 /** Resume where Chrome allows it, otherwise queue the same URL again. */
 async function retry(item) {
   if (item.state === 'interrupted' && item.canResume) {
-    return chrome.downloads.resume(item.id);
+    return itemAction('resume', item);
   }
   const reply = await chrome.runtime.sendMessage({ type: 'enqueue', items: [{ url: item.url, filename: displayName(item) }] });
   if (!reply?.added) throw new Error(reply?.error || 'not added');
   // The new download replaces the failed row.
-  await chrome.downloads.erase({ id: item.id });
+  await itemAction('erase', item);
   return undefined;
 }
 
 async function clearFinished() {
   const finished = lastItems.filter(isFinished);
-  await Promise.all(finished.map((item) => chrome.downloads.erase({ id: item.id })));
+  await Promise.all(finished.map((item) => itemAction('erase', item)));
   refresh();
 }
 

@@ -72,6 +72,7 @@ python scripts/extension_id.py --pem extension-key.pem --print-key
 | `overlay.js` | Content script: the Download button over videos (closed shadow root) |
 | `progress.html` / `progress.js` | Progress window for one download (`progress.html?id=<id>`) |
 | `manager.html` / `manager.js` | Download manager page: category tree, sortable table, toolbar |
+| `file-jobs.js` | Multi-connection file downloads through the companion (`add_file`), jobs in `storage.local` `fileJobs` |
 | `download-info.js` | State, name, size and error text of a download, shared by the lists |
 | `speed.js` | Transfer rate from byte samples, and time left |
 | `update-check.js` | "Update available" footer link |
@@ -87,6 +88,9 @@ Extension pages talk to the service worker with `chrome.runtime.sendMessage({ ty
 | `enqueue` | `items: [{ url, filename? }]` | `{ added, rejected }` |
 | `removeQueued` | `qid` | `{ ok }` |
 | `setQueuePaused` | `paused` | `{ ok }` (stops or starts taking items from the queue) |
+| `pauseFile` / `resumeFile` / `cancelFile` / `eraseFile` | `id` | `{ ok }` or `{ error }` (companion file downloads) |
+| `openFile` | `id, reveal` | `{ ok }` or `{ error }` (open a finished companion file, or show it in its folder) |
+| `setFileSpeedLimit` | `id, limit` (bytes/s, 0 = none) | `{ ok }` |
 | `getVideoState` | `url` | `{ site, drm, companion, jobs, defaultQuality }` |
 | `addVideo` | `url, quality, title?` | `{ id }` or `{ error }` |
 | `cancelVideo` / `retryVideo` / `removeVideo` / `openVideoFolder` | `id` | `{ ok }` or `{ error }` |

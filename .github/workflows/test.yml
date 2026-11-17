@@ -51,6 +51,9 @@ jobs:
         if: hashFiles('scripts/test_host.py') != ''
         run: python scripts/test_host.py
 
+      - name: Companion file downloads (scripts/test_host_files.py)
+        run: python scripts/test_host_files.py
+
       # Playwright tests. xvfb-run gives them a display in case they run headed.
       - name: Extension (scripts/test_extension.py)
         if: hashFiles('scripts/test_extension.py') != ''

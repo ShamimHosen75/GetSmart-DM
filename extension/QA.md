@@ -159,3 +159,18 @@ Run `python scripts/test_extension.py` first (all PASS), then by hand:
 - [ ] Grabber opens the grabber for the active web tab, or explains that a web page must be open first. Settings opens the settings page.
 - [ ] The status bar shows items, selected, total speed and waiting items. Dark theme and Bangla look right.
 
+## M13 Multi-connection downloads (companion)
+
+Needs the companion installed (install.bat).
+
+- [ ] Settings > Downloads: "Multi-connection downloads" is on, "Connections per download" is 8 (1 to 16).
+- [ ] Add a big file (50 MB or more) from a normal file server: it downloads through the companion. The progress window shows "Connections 8 of 8", a bar with one block per part, and a table of parts that fill up. Speed is clearly higher than a browser download on a server that limits speed per connection.
+- [ ] The file lands in `Downloads\GetSmart DM\<Category>\` with a `.gsdmpart` file while it runs and only the final file afterwards.
+- [ ] Pause, then Resume: it continues from where it stopped (the downloaded amount does not go back to 0). Close the browser while paused, start it again, Resume: it still continues.
+- [ ] Cancel: the `.gsdmpart` and `.gsdmpart.json` files are removed, nothing else in the folder changes.
+- [ ] Open file and Show in folder work for a finished companion download (popup, manager, progress window).
+- [ ] Speed limit tab: turn the limit on at 300 KB/s: the rate drops to about 300 KB/s within a few seconds; turn it off: it goes back up.
+- [ ] Small files (under 1 MB), servers that do not support ranges, links that need a login, and "Ask where to save" all use the browser download as before.
+- [ ] Without the companion installed, everything uses the browser and nothing shows an error.
+- [ ] The toolbar badge counts companion downloads too; the queue limit counts them as running.
+

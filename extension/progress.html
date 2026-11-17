@@ -48,10 +48,36 @@
           <dt data-i18n="progSavedTo"></dt>
           <dd class="p-url" id="f-path"></dd>
         </dl>
+        <div class="p-parts" id="p-parts" hidden>
+          <dl class="p-facts">
+            <dt data-i18n="progConnections"></dt>
+            <dd id="f-conns"></dd>
+          </dl>
+          <div class="p-segbar" id="p-segbar" role="img" data-i18n-title="progPartsTitle"></div>
+          <table class="p-conn-table">
+            <thead>
+              <tr><th>#</th><th data-i18n="progPartRange"></th><th data-i18n="progDownloaded"></th><th data-i18n="progStatus"></th></tr>
+            </thead>
+            <tbody id="p-conn-rows"></tbody>
+          </table>
+        </div>
       </section>
 
       <section class="panel p-panel" data-panel="speed" hidden>
-        <p class="note" data-i18n="progSpeedBrowser"></p>
+        <p class="note" id="p-speed-browser" data-i18n="progSpeedBrowser"></p>
+        <div id="p-speed-companion" hidden>
+          <label class="row">
+            <div>
+              <div class="row-label" data-i18n="progLimitOn"></div>
+              <div class="row-hint" data-i18n="progLimitHint"></div>
+            </div>
+            <input type="checkbox" class="switch" id="sp-on" />
+          </label>
+          <div class="row">
+            <div class="row-label"><label for="sp-limit" data-i18n="progLimitValue"></label></div>
+            <input type="number" class="number" id="sp-limit" min="1" max="1048576" step="50" />
+          </div>
+        </div>
       </section>
 
       <section class="panel p-panel" data-panel="finish" hidden>

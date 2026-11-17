@@ -1425,3 +1425,47 @@ label.row {
 }
 
 .primary-button.danger { background: var(--danger); }
+
+/* Companion parts in the progress window (M13) */
+
+.p-parts { margin-top: 14px; }
+.p-parts[hidden] { display: none; }
+
+.p-segbar {
+  position: relative;
+  height: 14px;
+  margin: 10px 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+.p-segbar > div {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+  border-right: 1px solid var(--surface);
+  transition: width 0.5s linear;
+}
+
+.progress-page[data-state='complete'] .p-segbar > div { background: var(--mint); }
+.progress-page[data-state='paused'] .p-segbar > div { background: var(--text-muted); }
+
+.p-conn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.p-conn-table th,
+.p-conn-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.p-conn-table th { color: var(--text-muted); font-weight: 600; }
+
+#p-speed-companion[hidden], #p-speed-browser[hidden] { display: none; }

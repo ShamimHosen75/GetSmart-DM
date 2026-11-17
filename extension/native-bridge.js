@@ -67,6 +67,18 @@ class NativeBridge {
     this.helloWaiters = [];
     this.helloTimer = 0;
     this.idleTimer = 0;
+    this.missingAt = 0; // when connecting last failed with "not installed"
+    this.listeners = []; // { connected(), progress(msg) -> bool handled, disconnect(), busy() -> Promise<bool> } (file-jobs.js)
+  }
+
+  /** Let another module handle some progress messages and know about disconnects. */
+  addListener(listener) {
+    this.listeners.push(listener);
+  }
+
+  /** True if the companion speaks the optional feature (from hello `features`). */
+  supports(feature) {
+    return this.status === 'connected' && Array.isArray(this.info?.features) && this.info.features.includes(feature);
   }
 
   async saveStatus() {
@@ -133,10 +145,22 @@ class NativeBridge {
       return;
     }
     if (msg.type === 'hello') {
-      this.info = { version: msg.version ?? null, ytdlp: msg.ytdlp ?? null, ffmpeg: msg.ffmpeg ?? null, dir: msg.dir ?? null };
+      this.info = {
+        version: msg.version ?? null,
+        ytdlp: msg.ytdlp ?? null,
+        ffmpeg: msg.ffmpeg ?? null,
+        dir: msg.dir ?? null,
+        downloads: msg.downloads ?? null,
+        features: Array.isArray(msg.features) ? msg.features : [],
+      };
       this.finishConnect('connected');
+      for (const l of this.listeners) l.connected?.();
       this.scheduleIdle();
     } else if (msg.type === 'progress' && msg.id) {
+      if (this.listeners.some((l) => l.progress?.(msg))) {
+        this.scheduleIdle();
+        return;
+      }
       withJobs((jobs) => {
         const job = jobs[msg.id];
         if (!job) return;
@@ -152,10 +176,12 @@ class NativeBridge {
     clearTimeout(this.idleTimer);
     if (this.status === 'connecting' || this.status === 'idle') {
       const missing = /not found|not installed|forbidden|Specified native messaging host/i.test(reason);
+      if (missing) this.missingAt = Date.now();
       this.finishConnect(missing ? 'missing' : 'error', reason);
     } else {
       this.finishConnect('idle', reason);
     }
+    for (const l of this.listeners) l.disconnect?.();
     // Anything still running cannot finish without the companion.
     withJobs((jobs) => {
       for (const job of Object.values(jobs)) {
@@ -182,7 +208,8 @@ class NativeBridge {
   scheduleIdle() {
     clearTimeout(this.idleTimer);
     this.idleTimer = setTimeout(async () => {
-      const running = (await getJobs()).some((job) => job.state === 'running');
+      let running = (await getJobs()).some((job) => job.state === 'running');
+      for (const l of this.listeners) if (!running && l.busy) running = await l.busy();
       if (running) this.scheduleIdle();
       else this.disconnect();
     }, IDLE_DISCONNECT_MS);

@@ -11,7 +11,7 @@
 // Rows are created once per id and patched in place every 800 ms.
 
 import { CATEGORIES, categoryOf, fileExtension, formatBytes, formatDuration, initPage, openProgressWindow } from './common.js';
-import { STATE_LABEL, displayName, errorLabel, isFinished, isRunning, stateOf, totalBytes } from './download-info.js';
+import { STATE_LABEL, displayName, failureText, fileJobItems, isRunning, itemAction, stateOf, totalBytes } from './download-info.js';
 import { SpeedTracker, secondsLeft } from './speed.js';
 import { initAddLinks } from './add-links.js';
 import { t } from './i18n.js';
@@ -70,10 +70,12 @@ async function refresh() {
   if (refreshing) return;
   refreshing = true;
   try {
-    const [downloads, stored] = await Promise.all([
+    const [browserDownloads, files, stored] = await Promise.all([
       chrome.downloads.search({ orderBy: ['-startTime'], limit: SEARCH_LIMIT }),
+      fileJobItems(),
       chrome.storage.local.get(['queue', 'queuePaused']),
     ]);
+    const downloads = [...files, ...browserDownloads];
     const running = new Set();
     for (const item of downloads) {
       if (!isRunning(item)) continue;
@@ -202,7 +204,7 @@ function patch(row, key, value, apply) {
 
 function statusText(rec) {
   let text = t(STATE_LABEL[rec.state]);
-  if (rec.state === 'failed' && errorLabel(rec.item.error)) text = `${text}: ${errorLabel(rec.item.error)}`;
+  if (rec.state === 'failed' && failureText(rec.item)) text = `${text}: ${failureText(rec.item)}`;
   if ((rec.state === 'downloading' || rec.state === 'paused') && rec.percent != null) text = `${rec.percent.toFixed(1)}% · ${text}`;
   return text;
 }
@@ -341,7 +343,7 @@ function onRowClick(event) {
 
 function openRecord(rec) {
   if (!rec) return undefined;
-  if (rec.state === 'complete') return chrome.downloads.open(rec.item.id);
+  if (rec.state === 'complete') return itemAction('open', rec.item);
   if (rec.state === 'downloading' || rec.state === 'paused') return openProgressWindow(rec.item.id);
   return undefined;
 }
@@ -390,10 +392,16 @@ async function confirmDelete(records) {
         await chrome.runtime.sendMessage({ type: 'removeQueued', qid: rec.item.qid });
         continue;
       }
-      if (rec.state === 'downloading' || rec.state === 'paused') await chrome.downloads.cancel(rec.item.id);
-      // Only when asked, and only the file this download made.
-      if (removeFiles && rec.state === 'complete') await chrome.downloads.removeFile(rec.item.id).catch(() => {});
-      await chrome.downloads.erase({ id: rec.item.id });
+      if (rec.item.engine === 'companion') {
+        // Cancels a running or paused file first; the companion removes only its own partial file.
+        // Finished companion files stay on disk: the browser cannot delete files it did not download.
+        await itemAction('erase', rec.item);
+      } else {
+        if (rec.state === 'downloading' || rec.state === 'paused') await chrome.downloads.cancel(rec.item.id);
+        // Only when asked, and only the file this download made.
+        if (removeFiles && rec.state === 'complete') await chrome.downloads.removeFile(rec.item.id).catch(() => {});
+        await chrome.downloads.erase({ id: rec.item.id });
+      }
     } catch (err) {
       showToast(t('actionFailed', { error: err?.message || String(err) }), true);
     }
@@ -404,19 +412,19 @@ async function confirmDelete(records) {
 async function runTool(tool) {
   switch (tool) {
     case 'resume':
-      return eachSelected(['paused', 'failed', 'cancelled'], (r) => chrome.downloads.resume(r.item.id));
+      return eachSelected(['paused', 'failed', 'cancelled'], (r) => itemAction('resume', r.item));
     case 'stop':
-      return eachSelected(['downloading'], (r) => chrome.downloads.pause(r.item.id));
+      return eachSelected(['downloading'], (r) => itemAction('pause', r.item));
     case 'stopAll':
       // Stop the queue first, or pausing would let the next waiting item start.
       await chrome.runtime.sendMessage({ type: 'setQueuePaused', paused: true });
-      for (const rec of items) if (rec.state === 'downloading') await chrome.downloads.pause(rec.item.id).catch(() => {});
+      for (const rec of items) if (rec.state === 'downloading') await itemAction('pause', rec.item).catch(() => {});
       return undefined;
     case 'delete':
       return confirmDelete(selectedRecords());
     case 'deleteCompleted':
       for (const rec of items) {
-        if (rec.state === 'complete' || rec.state === 'deleted') await chrome.downloads.erase({ id: rec.item.id });
+        if (rec.state === 'complete' || rec.state === 'deleted') await itemAction('erase', rec.item);
       }
       return undefined;
     case 'queue':
@@ -485,7 +493,7 @@ async function main() {
   chrome.downloads.onErased.addListener(refresh);
   chrome.downloads.onChanged.addListener(refresh);
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && (changes.queue || changes.queuePaused)) refresh();
+    if (area === 'local' && (changes.queue || changes.queuePaused || changes.fileJobs)) refresh();
     if (area === 'sync' && changes.language) {
       buildTree();
       for (const row of rows.values()) row.last = {};

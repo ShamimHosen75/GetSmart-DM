@@ -26,6 +26,7 @@ import {
   sanitizeFilename,
 } from './common.js';
 import { setLanguage, t } from './i18n.js';
+import { runningFileJobs, setFileJobHooks, startWithCompanion } from './file-jobs.js';
 
 const QUEUE_KEY = 'queue'; // chrome.storage.local: [{ qid, url, filename?, referrer?, addedAt }]
 
@@ -110,7 +111,7 @@ async function pumpUnlocked() {
   const { queuePaused } = await chrome.storage.local.get('queuePaused');
   if (queuePaused) return; // "Stop queue" in the manager (M12) or the scheduler (M14)
   const running = await chrome.downloads.search({ state: 'in_progress', paused: false });
-  let free = limit - running.length;
+  let free = limit - running.length - (await runningFileJobs());
 
   while (free > 0 && queue.length) {
     const next = queue.shift();
@@ -127,6 +128,16 @@ async function pumpUnlocked() {
 }
 
 async function startDownload(entry, settings) {
+  // Big files on servers that send parts go to the companion (M13), the rest to the browser.
+  const job = await startWithCompanion(entry, settings);
+  if (job) {
+    autoOpenProgress(`f:${job.id}`, 'ours');
+    return job.id;
+  }
+  return startBrowserDownload(entry, settings);
+}
+
+async function startBrowserDownload(entry, settings) {
   if (entry.filename) chosenNames.set(entry.url, entry.filename);
   const options = {
     url: entry.url,
@@ -137,6 +148,23 @@ async function startDownload(entry, settings) {
   autoOpenProgress(id, 'ours'); // not awaited: the queue does not wait for a window
   return id;
 }
+
+setFileJobHooks({
+  // The companion turned a file down (no ranges, login needed): the browser downloads it.
+  fallback: async (entry) => {
+    try {
+      await startBrowserDownload(entry, await cachedSettings());
+    } catch (err) {
+      notifyFailure(entry.filename || nameFromUrl(entry.url), err?.message || String(err));
+    }
+  },
+  finished: (job) => {
+    pump();
+    const name = baseName(job.filename) || job.name;
+    if (job.state === 'done') notify(`gsdm-fdone-${job.id}`, 'notifDoneTitle', name);
+    else if (job.state === 'error') notify(`gsdm-ffail-${job.id}`, 'notifFailedTitle', `${name}\n${job.error || ''}`.trim());
+  },
+});
 
 // ---------- File names and folder sorting ----------
 
