@@ -17,12 +17,13 @@ import { enqueue, pump, registerQueueListeners, removeQueued, setQueuePaused } f
 import { buildMenus, registerMenuListeners } from './menus.js';
 import { registerMediaListeners, overlayHandlers } from './media.js';
 import { videoHandlers } from './native-bridge.js';
-import { fileHandlers, runningFileJobs } from './file-jobs.js';
+import { fileHandlers, registerFileJobListeners, runningFileJobs } from './file-jobs.js';
 import { planAlarms, registerSchedulerListeners } from './scheduler.js';
 
 const BADGE_COLOR = '#6c3ff0';
 
 chrome.runtime.onInstalled.addListener(() => {
+  injectIntoOpenTabs();
   seedDefaultSettings().catch((err) => console.error('GetSmart DM: could not save default settings', err));
   updateBadge();
   pump();
@@ -40,6 +41,21 @@ registerQueueListeners();
 registerMenuListeners();
 registerMediaListeners();
 registerSchedulerListeners();
+registerFileJobListeners();
+
+/**
+ * Content scripts only reach pages loaded after install. Add the video button
+ * to the pages already open, so it works without reloading them.
+ */
+async function injectIntoOpenTabs() {
+  try {
+    const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+    await Promise.all(tabs.map((tab) =>
+      chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['overlay.js'] }).catch(() => {})));
+  } catch (err) {
+    console.warn('GetSmart DM: could not add the video button to open tabs', err);
+  }
+}
 
 // ---------- Badge: number of active (running, not paused) downloads ----------
 
@@ -80,13 +96,13 @@ chrome.downloads.onCreated.addListener((item) => autoOpenProgress(item.id, 'all'
 
 // ---------- Messages from extension pages ----------
 
-const CONTENT_SCRIPT_CALLS = new Set(['overlayInfo', 'overlayMedia', 'enqueue', 'addVideo']);
+const CONTENT_SCRIPT_CALLS = new Set(['overlayInfo', 'overlayMedia', 'overlaySawVideo', 'overlayCompanionHelp', 'enqueue', 'addVideo']);
 
 const handlers = {
   enqueue: (msg) => enqueue(msg.items || []),
   removeQueued: (msg) => removeQueued(msg.qid),
   setQueuePaused: (msg) => setQueuePaused(msg.paused),
-  ...overlayHandlers, // overlayInfo, overlayMedia (content script video button)
+  ...overlayHandlers, // overlayInfo, overlayMedia, overlaySawVideo, overlayCompanionHelp (content script video button)
   ...videoHandlers, // getVideoState, addVideo, cancelVideo, retryVideo, removeVideo, openVideoFolder
   ...fileHandlers, // pauseFile, resumeFile, cancelFile, eraseFile, openFile, setFileSpeedLimit
 };

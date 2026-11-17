@@ -198,12 +198,18 @@ function onDisconnect() {
   });
 }
 
-bridge.addListener({
-  connected: () => applyGlobalSpeedLimit(),
-  progress: onProgress,
-  disconnect: onDisconnect,
-  busy: async () => (await runningFileJobs()) > 0,
-});
+/** Called once from background.js (not at import time, so import cycles cannot bite). */
+export function registerFileJobListeners() {
+  bridge.addListener({
+    connected: () => applyGlobalSpeedLimit(),
+    progress: onProgress,
+    disconnect: onDisconnect,
+    busy: async () => (await runningFileJobs()) > 0,
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync' && changes.speedLimitKBps) applyGlobalSpeedLimit();
+  });
+}
 
 // ---------- Actions (from pages) ----------
 
@@ -279,10 +285,6 @@ export async function applyGlobalSpeedLimit() {
   const limit = Math.max(0, Math.round(Number(settings.speedLimitKBps) || 0)) * 1024;
   if (bridge.port) bridge.post({ type: 'set_speed_limit', limit });
 }
-
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'sync' && changes.speedLimitKBps) applyGlobalSpeedLimit();
-});
 
 /** Scheduler stop time: pause every running companion file. */
 export async function pauseRunningFiles() {

@@ -3,7 +3,7 @@
 
 import { t, applyI18n } from './i18n.js';
 import { categoryOf, fileExtension, formatBytes, getSettings } from './common.js';
-import { detectionBlockReason } from './media.js';
+import { detectionBlockReason } from './sites.js';
 import { initVideoCard } from './video-card.js';
 
 const NOTE_KEY = {

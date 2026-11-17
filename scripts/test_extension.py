@@ -80,6 +80,16 @@ fetch("/f/part.mp4?size=300000&mime=video/mp4", {headers: {Range: "bytes=0-99"}}
 <iframe src="/frame.html"></iframe>
 </body></html>""",
     "/frame.html": """<!doctype html><html><body><a href="/f/setup.exe?size=2000&mime=application/octet-stream">Setup</a></body></html>""",
+    # A social-media-like feed: the video sits in an open shadow root, appears after load,
+    # has no plain file address, and its post link is next to it.
+    "/feed.html": """<!doctype html><html><head><title>Feed</title></head><body style="margin:0">
+<article style="margin:30px"><a href="/u/status/12345">A post</a><div id="player"></div></article>
+<script>setTimeout(() => {
+  const root = document.getElementById('player').attachShadow({mode: 'open'});
+  const v = document.createElement('video');
+  v.style.cssText = 'width:480px;height:270px;display:block;background:#123';
+  root.append(v);
+}, 1200);</script></body></html>""",
     "/empty.html": """<!doctype html><html><head><title>Nothing</title></head><body>No links.</body></html>""",
 }
 
@@ -650,6 +660,40 @@ def check_scheduler(b, base):
     return "alarms at 03:30/07:00 Mon-Sat; start alarm ran the stopped queue; queue-done notification; off clears alarms"
 
 
+def open_video_menu(page):
+    """Hover the feed video, click the Download button, focus the first menu entry."""
+    page.wait_for_function("() => document.getElementById('player').shadowRoot?.querySelector('video')")
+    time.sleep(2.5)  # the button's scan runs every 2 s
+    box = page.evaluate("() => { const r = document.getElementById('player').shadowRoot.querySelector('video').getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; }")
+    page.mouse.move((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
+    time.sleep(0.4)
+    page.mouse.move(box[2] - 30, box[1] + 24)
+    page.mouse.click(box[2] - 30, box[1] + 24)
+    time.sleep(3)  # the menu asks the worker, which waits up to 2.5 s for the companion
+    page.keyboard.press("Tab")
+
+
+def check_video_button(b, base):
+    reset(b)
+    page = b.page()
+    page.set_viewport_size({"width": 900, "height": 600})
+    page.goto(base + "/feed.html")
+    tab = tab_id_for(b, base + "/feed.html")
+    open_video_menu(page)
+    wait_for(lambda: b.call("(k) => chrome.storage.session.get(k)", "video:%d" % tab).get("video:%d" % tab),
+             what="page reported a video")
+    # No companion here: the first entry is "How to install it", which opens Settings.
+    page.keyboard.press("Enter")
+    wait_for(lambda: b.call("async () => (await chrome.runtime.getContexts({contextTypes: ['TAB']})).some((c) => c.documentUrl.endsWith('options.html#companion'))"),
+             what="settings opened at the companion section")
+    popup = b.page("popup.html?tab=%d" % tab)
+    popup.click("#tab-page")
+    popup.wait_for_selector("#video-card:not([hidden]) .v-help")
+    popup.close()
+    page.close()
+    return "found in a shadow root after load; menu says install the companion and opens Settings; popup offers the video on an unknown site"
+
+
 def register_companion(b):
     """Register companion/host.py for this profile, saving into the test Downloads folder."""
     config = os.path.join(b.tmp, "xdg")
@@ -717,8 +761,18 @@ def check_companion_files(b, base):
     wait_for(lambda: b.call("() => chrome.downloads.search({})"), what="browser took the no-range file")
     assert not file_jobs(b), file_jobs(b)
     b.call("() => chrome.storage.local.set({fileJobs: {}})")
+    # Video button with the companion: qualities; the first (Best) uses the post's own address.
+    page = b.page()
+    page.set_viewport_size({"width": 900, "height": 600})
+    page.goto(base + "/feed.html")
+    open_video_menu(page)
+    page.keyboard.press("Enter")
+    jobs = wait_for(lambda: b.call("async () => Object.values((await chrome.storage.session.get('videoJobs')).videoJobs || {})"),
+                    what="video job from the button")
+    assert jobs[0]["url"] == base + "/u/status/12345" and jobs[0]["quality"] == "best", jobs[0]
+    page.close()
     reset(b)
-    return "8 MB over several connections into GetSmart DM/Archives, parts shown, pause/resume, popup row; 500 KB/s limit; no-range file went to the browser"
+    return "video button: Best quality for the post address; 8 MB over several connections into GetSmart DM/Archives, parts shown, pause/resume, popup row; 500 KB/s limit; no-range file went to the browser"
 
 
 CHECKS = [
@@ -730,6 +784,7 @@ CHECKS = [
     ("queue limit (max 2)", check_queue_limit),
     ("pause/resume from the UI", check_pause_resume_ui),
     ("manager page", check_manager),
+    ("video button on any site", check_video_button),
     ("link grabber select + download", check_grabber),
     ("settings save", check_settings),
     ("category filter + clear finished", check_filter_and_clear),

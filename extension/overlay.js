@@ -1,8 +1,10 @@
 // GetSmart DM video button (M10). Content script, classic script (not a module).
 //
 // Shows a small "Download" button at the top-right corner of a video while the
-// pointer is over it. Clicking opens a short menu with what can be saved:
-//   - on supported video sites: "Download video" through the companion app,
+// pointer is over it, or for a moment when a video starts playing. Clicking
+// opens a short menu with what can be saved:
+//   - on video sites, and on any other page that plays a video: the qualities
+//     the companion app can download (or how to install it, if it is missing),
 //   - the video/audio files this tab played (from media detection),
 //   - the <video> element's own file address when it is a plain http(s) file.
 // In feeds (Facebook, X, Instagram...) the video's own post link is used.
@@ -17,6 +19,15 @@
   const MIN_WIDTH = 200;
   const MIN_HEIGHT = 112;
   const HIDE_AFTER_MS = 2500;
+  const SCAN_MS = 2000;
+  const QUALITIES = [
+    ['best', 'qualityBest'],
+    ['1080', 'quality1080'],
+    ['720', 'quality720'],
+    ['480', 'quality480'],
+    ['360', 'quality360'],
+    ['audio', 'qualityAudio'],
+  ];
 
   let info = null; // { enabled, site, strings, quality }
   let host;
@@ -26,6 +37,9 @@
   let currentVideo = null;
   let hideTimer = 0;
   let menuOpen = false;
+  let videos = []; // every <video> on the page, including open shadow roots
+  let reportedVideo = false;
+  let scanQueued = false;
 
   const send = (msg) =>
     new Promise((resolve) => {
@@ -110,7 +124,9 @@
   function videoPageUrl(video) {
     if (isPostLink(location.href)) return location.href;
     let node = video;
-    for (let depth = 0; node && depth < 14; depth += 1, node = node.parentElement) {
+    // Walk up, stepping out of shadow roots into their host element.
+    const up = (el) => el.parentElement || el.getRootNode?.().host || null;
+    for (let depth = 0; node && depth < 14; depth += 1, node = up(node)) {
       const own = node.closest?.('a[href]');
       if (own && isPostLink(own.href)) return own.href;
       for (const a of node.querySelectorAll?.('a[href]') || []) {
@@ -120,8 +136,46 @@
     return location.href;
   }
 
+  /** All <video> elements, also inside open shadow roots (custom players). */
+  function findVideos(root, out) {
+    for (const v of root.querySelectorAll('video')) out.push(v);
+    for (const el of root.querySelectorAll('*')) if (el.shadowRoot) findVideos(el.shadowRoot, out);
+    return out;
+  }
+
+  function scan() {
+    scanQueued = false;
+    if (!alive()) return;
+    videos = findVideos(document, []);
+    if (!reportedVideo && videos.some(bigEnough)) {
+      reportedVideo = true;
+      send({ type: 'overlaySawVideo' });
+    }
+  }
+
+  function queueScan() {
+    if (scanQueued) return;
+    scanQueued = true;
+    setTimeout(scan, 300);
+  }
+
+  function bigEnough(v) {
+    const r = v.getBoundingClientRect();
+    return r.width >= MIN_WIDTH && r.height >= MIN_HEIGHT;
+  }
+
+  /** False once the extension was reloaded or removed: then this copy removes itself. */
+  function alive() {
+    if (globalThis.chrome?.runtime?.id) return true;
+    host?.remove();
+    document.removeEventListener('mousemove', onMove, true);
+    document.removeEventListener('play', onPlay, true);
+    return false;
+  }
+
   function visibleVideos() {
-    return [...document.querySelectorAll('video')].filter((v) => {
+    return videos.filter((v) => {
+      if (!v.isConnected) return false;
       const r = v.getBoundingClientRect();
       return r.width >= MIN_WIDTH && r.height >= MIN_HEIGHT && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
     });
@@ -168,7 +222,7 @@
     currentVideo = null;
   }
 
-  function item(name, meta, onClick) {
+  function item(name, meta, onClick, { closeOnly = false } = {}) {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = 'item';
@@ -185,6 +239,11 @@
     }
     el.addEventListener('click', async (event) => {
       event.stopPropagation();
+      if (closeOnly) {
+        await onClick();
+        hide();
+        return;
+      }
       const result = await onClick();
       menu.replaceChildren(note(result?.error || s('overlayStarted'), !result?.error));
       setTimeout(hide, 1600);
@@ -232,9 +291,20 @@
 
     const reply = await send({ type: 'overlayMedia' });
     const parts = [];
-    if (reply?.site === 'video') {
-      parts.push(head(s('overlayVideoSite')));
-      parts.push(item(s('downloadVideo'), s('overlayViaCompanion'), () => send({ type: 'addVideo', url: videoPageUrl(currentVideo), quality: info.quality, title: document.title })));
+    if (reply?.site === 'video' || reply?.site === 'generic') {
+      parts.push(head(reply.site === 'video' ? s('overlayQualities') : s('overlayTryCompanion')));
+      if (reply.companion === 'connected') {
+        const pageUrl = videoPageUrl(currentVideo);
+        for (const [quality, key] of QUALITIES) {
+          const meta = quality === info.quality ? s('overlayDefault') : '';
+          parts.push(item(s(key), meta, () => send({ type: 'addVideo', url: pageUrl, quality, title: document.title })));
+        }
+      } else if (reply.companion === 'missing') {
+        parts.push(note(s('overlayNeedCompanion')));
+        parts.push(item(s('overlayInstallHelp'), '', () => send({ type: 'overlayCompanionHelp' }), { closeOnly: true }));
+      } else {
+        parts.push(note(s('overlayCompanionError')));
+      }
     }
     const seen = new Set();
     const files = [];
@@ -262,15 +332,27 @@
   }
 
   function onMove(event) {
-    if (menuOpen) return;
+    if (menuOpen || !alive()) return;
     if (host && event.composedPath().includes(host)) return;
     const video = videoAt(event.clientX, event.clientY);
     if (video) show(video);
   }
 
+  /** A video started playing: show the button on it for a moment. */
+  function onPlay(event) {
+    const video = event.target;
+    if (menuOpen || !(video instanceof HTMLVideoElement) || !alive()) return;
+    if (!videos.includes(video)) videos.push(video);
+    if (visibleVideos().includes(video)) show(video);
+  }
+
   async function start() {
     info = await send({ type: 'overlayInfo' });
     if (!info?.enabled) return;
+    scan();
+    setInterval(scan, SCAN_MS); // feeds add videos all the time
+    new MutationObserver(queueScan).observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener('play', onPlay, true);
     document.addEventListener('mousemove', onMove, { passive: true, capture: true });
     addEventListener('scroll', () => place(), { passive: true, capture: true });
     addEventListener('resize', () => place(), { passive: true });

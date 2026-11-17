@@ -126,6 +126,7 @@ const STRINGS = {
     companionIdle: 'Companion app not connected yet',
     companionNoYtdlp: 'The companion is missing yt-dlp. Run its installer again.',
     youTubeOffCard: 'YouTube downloads are off. You can turn them on in Settings after reading the Terms of Service warning.',
+    videoGenericHint: 'This site is not on the known list. The companion app will try to download the video playing here.',
     videoErrBadUrl: 'This page address cannot be downloaded.',
     videoErrYouTubeOff: 'YouTube downloads are off in Settings.',
     videoErrGeneric: 'The video could not be started: {error}',
@@ -180,6 +181,12 @@ const STRINGS = {
     overlayNothing: 'Nothing to download yet. Play the video for a few seconds, then try again.',
     overlayStarted: 'Added to GetSmart DM',
     overlayFailed: 'Could not add it',
+    overlayQualities: 'Download this video',
+    overlayTryCompanion: 'Try with the companion app',
+    overlayNeedCompanion: 'To download videos from this site, install the companion app (install.bat in the download ZIP).',
+    overlayInstallHelp: 'How to install it',
+    overlayCompanionError: 'The companion app did not answer. Restart the browser, or run install.bat again.',
+    overlayDefault: 'default',
 
     // Progress window (M11)
     actDetails: 'Progress window',
@@ -420,6 +427,7 @@ const STRINGS = {
     companionIdle: 'সহায়ক অ্যাপ এখনও সংযুক্ত হয়নি',
     companionNoYtdlp: 'সহায়ক অ্যাপে yt-dlp নেই। এর ইনস্টলার আবার চালান।',
     youTubeOffCard: 'YouTube ডাউনলোড বন্ধ আছে। পরিষেবার শর্তাবলীর সতর্কবার্তা পড়ে সেটিংস থেকে চালু করতে পারেন।',
+    videoGenericHint: 'এই সাইটটি পরিচিত তালিকায় নেই। এখানে চলা ভিডিওটি সহায়ক অ্যাপ ডাউনলোড করার চেষ্টা করবে।',
     videoErrBadUrl: 'এই পেজের ঠিকানা ডাউনলোড করা যাবে না।',
     videoErrYouTubeOff: 'সেটিংসে YouTube ডাউনলোড বন্ধ আছে।',
     videoErrGeneric: 'ভিডিও শুরু করা যায়নি: {error}',
@@ -472,6 +480,12 @@ const STRINGS = {
     overlayNothing: 'এখনও ডাউনলোড করার মতো কিছু নেই। ভিডিওটি কয়েক সেকেন্ড চালিয়ে আবার চেষ্টা করুন।',
     overlayStarted: 'GetSmart DM-এ যোগ হয়েছে',
     overlayFailed: 'যোগ করা যায়নি',
+    overlayQualities: 'এই ভিডিও ডাউনলোড করুন',
+    overlayTryCompanion: 'সহায়ক অ্যাপ দিয়ে চেষ্টা করুন',
+    overlayNeedCompanion: 'এই সাইট থেকে ভিডিও নামাতে সহায়ক অ্যাপ ইনস্টল করুন (ডাউনলোড ZIP-এর install.bat)।',
+    overlayInstallHelp: 'কীভাবে ইনস্টল করবেন',
+    overlayCompanionError: 'সহায়ক অ্যাপ সাড়া দেয়নি। ব্রাউজার আবার চালু করুন, অথবা install.bat আবার চালান।',
+    overlayDefault: 'ডিফল্ট',
 
     // Progress window (M11)
     actDetails: 'অগ্রগতির উইন্ডো',

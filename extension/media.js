@@ -7,7 +7,10 @@
 // are skipped. The count shows as a green badge on that tab.
 
 import { cachedSettings, categoryOf, fileExtension, nameFromUrl, sanitizeFilename } from './common.js';
-import { hostMatches, hostOf, isDrmSite, isYouTube, videoSiteStatus } from './sites.js';
+import { detectionBlockReason, hostMatches, hostOf, isDrmSite, isYouTube, videoPageStatus } from './sites.js';
+
+export { detectionBlockReason };
+import { bridge } from './native-bridge.js';
 import { setLanguage, t } from './i18n.js';
 
 export const MAX_PER_TAB = 25;
@@ -162,20 +165,23 @@ export function clearTab(tabId, keepUrl) {
     const list = keepUrl ? (await getTabMedia(tabId)).filter((m) => m.url === keepUrl) : [];
     if (list.length) await chrome.storage.session.set({ [storageKey(tabId)]: list });
     else await chrome.storage.session.remove(storageKey(tabId));
+    await chrome.storage.session.remove(videoKey(tabId));
     await setBadge(tabId, list.length);
   });
 }
 
-// ---------- Blocking rules ----------
-
-/** Why detection is off for a page URL: "youtube", "drm", "disabled", "off" or null. */
-export function detectionBlockReason(pageUrl, settings) {
-  if (!settings.mediaDetection) return 'off';
-  if (isYouTube(pageUrl)) return 'youtube';
-  if (isDrmSite(pageUrl)) return 'drm';
-  if (hostMatches(hostOf(pageUrl), settings.disabledSites || [])) return 'disabled';
-  return null;
+/** storage.session key set when the video button saw a playable <video> in the tab. */
+export function videoKey(tabId) {
+  return `video:${tabId}`;
 }
+
+export async function tabHasVideo(tabId) {
+  if (tabId == null) return false;
+  const key = videoKey(tabId);
+  return Boolean((await chrome.storage.session.get(key))[key]);
+}
+
+// ---------- Blocking rules ----------
 
 // ---------- Listener ----------
 
@@ -240,6 +246,18 @@ const OVERLAY_STRINGS = [
   'overlayStarted',
   'overlayFailed',
   'downloadVideo',
+  'overlayQualities',
+  'overlayTryCompanion',
+  'overlayNeedCompanion',
+  'overlayInstallHelp',
+  'overlayCompanionError',
+  'overlayDefault',
+  'qualityBest',
+  'quality1080',
+  'quality720',
+  'quality480',
+  'quality360',
+  'qualityAudio',
 ];
 
 /** Should the video button run on this page? Never on DRM, disabled sites, or YouTube unless allowed. */
@@ -271,9 +289,28 @@ export const overlayHandlers = {
     const pageUrl = sender.tab?.url || '';
     if (!overlayAllowed(pageUrl, sender.url, settings)) return { site: null, media: [] };
     const media = sender.tab ? await getTabMedia(sender.tab.id) : [];
+    const site = videoPageStatus(pageUrl, settings.allowYouTube, true);
+    let companion = null;
+    if (site === 'video' || site === 'generic') {
+      // Give the companion a moment to answer, so the menu can say whether it is installed.
+      await Promise.race([bridge.ensureConnected(), new Promise((resolve) => setTimeout(resolve, 2500))]);
+      companion = bridge.status;
+    }
     return {
-      site: videoSiteStatus(pageUrl, settings.allowYouTube),
+      site,
+      companion,
       media: media.slice().reverse().map(({ url, name, size, mime }) => ({ url, name, size, mime })),
     };
+  },
+  /** The video button saw a real video on this page (for the popup's video card). */
+  overlaySawVideo: async (msg, sender) => {
+    if (sender.tab?.id == null) return { ok: false };
+    await chrome.storage.session.set({ [videoKey(sender.tab.id)]: true });
+    return { ok: true };
+  },
+  /** "How to install" in the video button menu: Settings at the companion section. */
+  overlayCompanionHelp: async () => {
+    await chrome.tabs.create({ url: chrome.runtime.getURL('options.html#companion') });
+    return { ok: true };
   },
 };

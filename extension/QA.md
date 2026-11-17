@@ -193,3 +193,17 @@ Needs the companion installed (install.bat).
 - [ ] Facebook and X feeds: the Download button over a video in the feed downloads that post's video (its own /videos/, /reel/ or /status/ address), not the feed page.
 - [ ] Netflix, Prime Video, Disney+, Spotify: no button, and video downloads are refused.
 
+## Video button on any site (fix after real-browser feedback)
+
+Real sites cannot be reached from the build machine, so these need a real Chrome on Windows with the companion installed. For each site, play a video and hover it:
+
+- [ ] **X / Twitter** (home feed and a single post): the Download button appears; the menu lists Best, 1080p, 720p, 480p, 360p, Audio only; Best downloads that post's video.
+- [ ] **LinkedIn** feed video: same.
+- [ ] **Facebook** feed video and a Reel: same; the download is that post's video, not the feed.
+- [ ] **Instagram** post or Reel, **TikTok**, **YouTube** (watch page and Shorts), **Vimeo**, **Reddit**, **Pinterest**: same.
+- [ ] A site not on the list that plays a video: the menu says "Try with the companion app" with the same qualities. Some sites will fail; the job then shows the companion's error.
+- [ ] Without the companion installed: the menu says to install it (install.bat) and "How to install it" opens Settings at the companion status.
+- [ ] Tabs that were already open when the extension was installed or updated get the button without reloading.
+- [ ] Right-click on any video: "Download video from this page" sends it to the companion.
+- [ ] Netflix, Prime Video, Disney+, Spotify: no button.
+

@@ -13,9 +13,10 @@
 //   this worker can exit.
 
 import { VIDEO_QUALITIES, cachedSettings, randomId } from './common.js';
-import { isDrmSite, isYouTube, videoSiteStatus, VIDEO_SITES, YOUTUBE_HOSTS } from './sites.js';
+import { isDrmSite, isYouTube, videoPageStatus, VIDEO_SITES, YOUTUBE_HOSTS } from './sites.js';
 import { addMenuBuilder } from './menus.js';
 import { notifyAlways } from './queue.js';
+import { tabHasVideo } from './media.js';
 import { setLanguage, t } from './i18n.js';
 
 export const HOST_NAME = 'com.getsmartdm.host';
@@ -239,11 +240,11 @@ async function notifyFinished(job) {
 // ---------- Requests from the popup and menus ----------
 
 /** State for the "This page" card. Starts a connection attempt if needed. */
-export async function getVideoState({ url } = {}) {
+export async function getVideoState({ url, tabId } = {}) {
   const settings = await cachedSettings();
   if (bridge.status !== 'connected' && bridge.status !== 'connecting') bridge.connect();
   return {
-    site: url ? videoSiteStatus(url, settings.allowYouTube) : null,
+    site: url ? videoPageStatus(url, settings.allowYouTube, await tabHasVideo(tabId)) : null,
     drm: url ? isDrmSite(url) : false,
     companion: bridge.publicStatus(),
     jobs: await getJobs(),
@@ -335,31 +336,40 @@ export async function openVideoFolder({ id }) {
 
 // ---------- Context menu ----------
 
-const VIDEO_MENU_ID = 'gsdm-video';
+const VIDEO_MENU_ID = 'gsdm-video'; // page/frame menu on known video sites
+const VIDEO_ANY_MENU_ID = 'gsdm-video-any'; // right-click on any <video>, on any site
 
 function sitePatterns(domains) {
   return domains.flatMap((d) => [`*://${d}/*`, `*://*.${d}/*`]);
 }
 
+async function videoFromMenu(info, tab) {
+  const settings = await cachedSettings();
+  const result = await addVideo({ url: info.pageUrl || tab?.url, quality: settings.defaultQuality, title: tab?.title });
+  if (result.error) {
+    const key = result.status === 'missing' ? 'companionMissing' : 'companionError';
+    await notifyAlways('notifFailedTitle', result.status ? key : 'videoErrGeneric', { error: result.error });
+  }
+}
+
 addMenuBuilder({
-  ids: [VIDEO_MENU_ID],
+  ids: [VIDEO_MENU_ID, VIDEO_ANY_MENU_ID],
   build: async (settings) => {
     const domains = settings.allowYouTube ? [...VIDEO_SITES, ...YOUTUBE_HOSTS] : VIDEO_SITES;
     chrome.contextMenus.create({
       id: VIDEO_MENU_ID,
       title: t('menuDownloadVideo'),
-      contexts: ['page', 'video', 'frame'],
+      contexts: ['page', 'frame'],
       documentUrlPatterns: sitePatterns(domains),
     });
+    chrome.contextMenus.create({
+      id: VIDEO_ANY_MENU_ID,
+      title: t('menuDownloadVideo'),
+      contexts: ['video'],
+      documentUrlPatterns: ['http://*/*', 'https://*/*'],
+    });
   },
-  onClick: async (info, tab) => {
-    const settings = await cachedSettings();
-    const result = await addVideo({ url: info.pageUrl || tab?.url, quality: settings.defaultQuality, title: tab?.title });
-    if (result.error) {
-      const key = result.status === 'missing' ? 'companionMissing' : 'companionError';
-      await notifyAlways('notifFailedTitle', result.status ? key : 'videoErrGeneric', { error: result.error });
-    }
-  },
+  onClick: videoFromMenu,
 });
 
 // ---------- Messages ----------

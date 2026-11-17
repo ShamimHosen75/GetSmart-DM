@@ -61,7 +61,7 @@ export async function initVideoCard({ currentTab, showToast }) {
 }
 
 async function refresh() {
-  state = await chrome.runtime.sendMessage({ type: 'getVideoState', url: tab?.url || '' });
+  state = await chrome.runtime.sendMessage({ type: 'getVideoState', url: tab?.url || '', tabId: tab?.id });
   if (!state || state.error) return;
   if (!chosenQuality) chosenQuality = state.defaultQuality;
   render();
@@ -186,9 +186,11 @@ function jobRow(job) {
 
 function render() {
   const parts = [];
-  if (state.site === 'video') {
+  if (state.site === 'video' || state.site === 'generic') {
     const box = el('div', 'v-box');
-    box.append(el('div', 'v-title', t('videoCardTitle')), companionLine(state.companion), controls());
+    box.append(el('div', 'v-title', t('videoCardTitle')));
+    if (state.site === 'generic') box.append(el('p', 'v-help', t('videoGenericHint')));
+    box.append(companionLine(state.companion), controls());
     parts.push(box);
   } else if (state.site === 'youtube-off') {
     const box = el('div', 'v-box');
