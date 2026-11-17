@@ -426,6 +426,7 @@ select {
 .dl-row[data-state='cancelled'] .dl-bar,
 .dl-row[data-state='deleted'] .dl-bar { background: var(--danger); opacity: 0.6; }
 
+.dl-row[data-state='queued'] .dl-progress,
 .dl-row[data-state='complete'] .dl-progress,
 .dl-row[data-state='deleted'] .dl-progress,
 .dl-row[data-state='cancelled'] .dl-progress {
@@ -462,6 +463,7 @@ select {
 }
 
 .dl-row[data-state='failed'] .dl-state { color: var(--danger); }
+.dl-row[data-state='queued'] .dl-state { color: var(--accent); }
 .dl-row[data-state='complete'] .dl-state { color: var(--mint); }
 
 .dl-actions {

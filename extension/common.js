@@ -8,12 +8,46 @@ import { setLanguage, applyI18n } from './i18n.js';
 export const DEFAULT_SETTINGS = Object.freeze({
   language: 'auto', // auto | en | bn
   theme: 'auto', // auto | light | dark
+  sortIntoFolders: true, // save into "GetSmart DM/<Category>/<name>"
+  maxSimultaneous: 3, // 1-10 running downloads before our queue waits
+  askWhereToSave: false, // show the Save As dialog for downloads we start
+  notifications: true, // notify when a download finishes or fails
+  mediaDetection: true, // list video/audio files pages play ("This page" tab)
+  minMediaSizeKB: 200, // ignore smaller media responses
+  disabledSites: [], // hosts where media detection is off
+  defaultQuality: 'best', // best | 1080 | 720 | 480 | 360 | audio
+  allowYouTube: false, // off by default; enabling shows a Terms of Service warning
 });
+
+export const MAX_SIMULTANEOUS_RANGE = [1, 10];
+export const VIDEO_QUALITIES = ['best', '1080', '720', '480', '360', 'audio'];
 
 /** Read all settings, with defaults filled in for anything not saved yet. */
 export async function getSettings() {
   const stored = await chrome.storage.sync.get(DEFAULT_SETTINGS);
   return { ...DEFAULT_SETTINGS, ...stored };
+}
+
+/**
+ * Keep an always-current copy of the settings in memory (service worker).
+ * The first call loads them; later calls are instant.
+ */
+let settingsCache = null;
+export async function cachedSettings() {
+  if (!settingsCache) {
+    settingsCache = getSettings();
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'sync') return;
+      settingsCache = settingsCache.then((current) => {
+        const next = { ...current };
+        for (const [key, change] of Object.entries(changes)) {
+          if (key in DEFAULT_SETTINGS) next[key] = change.newValue ?? DEFAULT_SETTINGS[key];
+        }
+        return next;
+      });
+    });
+  }
+  return settingsCache;
 }
 
 /** Save one or more settings. Unknown keys are ignored. */
@@ -155,4 +189,62 @@ export function formatDuration(seconds) {
   const m = Math.floor((s % 3600) / 60);
   const sec = String(s % 60).padStart(2, '0');
   return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+}
+
+// ---------- Safe file names (Windows rules, used on every system) ----------
+
+const RESERVED_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+export const MAX_NAME_LENGTH = 150;
+
+/**
+ * Make a file name safe for Windows: no \\ / : * ? " < > | or control
+ * characters, no trailing dots or spaces, no reserved device names (CON, NUL,
+ * COM1...), at most 150 characters with the extension kept.
+ */
+export function sanitizeFilename(name, fallback = 'download') {
+  let clean = String(name ?? '')
+    .normalize('NFC')
+    .replace(/[\u0000-\u001f\u007f<>:"/\\|?*]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^[.\s]+/, '')
+    .replace(/[.\s]+$/, '');
+  if (!clean) clean = fallback;
+
+  const dot = clean.lastIndexOf('.');
+  let stem = dot > 0 ? clean.slice(0, dot) : clean;
+  let ext = dot > 0 ? clean.slice(dot) : '';
+  if (ext.length > 16) {
+    stem = clean;
+    ext = '';
+  }
+  if (RESERVED_NAMES.test(stem)) stem = `_${stem}`;
+
+  // Cut by code points so Bangla and emoji are not split in half.
+  const stemChars = Array.from(stem);
+  const room = MAX_NAME_LENGTH - Array.from(ext).length;
+  if (stemChars.length > room) stem = stemChars.slice(0, Math.max(1, room)).join('').replace(/[.\s]+$/, '');
+  return stem + ext;
+}
+
+/** Folder name used for each category when sorting is on. */
+export const CATEGORY_FOLDERS = {
+  video: 'Video',
+  music: 'Music',
+  documents: 'Documents',
+  programs: 'Programs',
+  archives: 'Archives',
+  images: 'Images',
+  other: 'Other',
+};
+export const ROOT_FOLDER = 'GetSmart DM';
+
+/** True for http: and https: URLs (the only ones we download). */
+export function isHttpUrl(url) {
+  return /^https?:\/\//i.test(String(url || ''));
+}
+
+/** Short random id. */
+export function randomId() {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
 }

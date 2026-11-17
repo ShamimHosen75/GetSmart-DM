@@ -39,3 +39,13 @@ Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachab
 - [ ] "Clear finished" removes every row that is not running or paused, and hides itself when there is nothing to clear.
 - [ ] While a download runs, open DevTools on the popup (right-click > Inspect), Elements panel: rows flash only in the changed fields; the list is not rebuilt.
 - [ ] Switch Settings to বাংলা and Dark while the popup is open: chips, states and buttons switch at once.
+
+## M3 Folder sorting + queue
+
+- [ ] Download a PDF, an MP4, a ZIP and an EXE from any site: they land in `Downloads/GetSmart DM/Documents`, `/Video`, `/Archives`, `/Programs`. A file with an unknown extension goes to `/Other` (or by its MIME type).
+- [ ] Settings > folder sorting off (M8, or `chrome.storage.sync.set({sortIntoFolders:false})` in the service worker console): new downloads go straight to `Downloads/` again.
+- [ ] A second download with the same name gets ` (1)` added; nothing is overwritten.
+- [ ] Set max simultaneous to 2 and add 4 large links in the "+" panel (M4): 2 run, 2 show "Waiting in queue". Pausing one starts the next. Cancelling a waiting row removes it.
+- [ ] Close and reopen the browser with items waiting: they start again.
+- [ ] Names we choose are made safe for Windows: `a:b?.pdf` saves as `a_b_.pdf`, `CON.txt` as `_CON.txt`, a 300-character name is cut to 150 with the extension kept, and a Bangla name (`বাংলা গান.mp3`) is kept as is.
+- [ ] Notifications (on by default): a finished download shows "Download complete"; clicking it opens the folder. A failed one shows "Download failed" with the reason. Cancelling shows nothing.

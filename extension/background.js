@@ -1,17 +1,31 @@
 // GetSmart DM service worker (Manifest V3, ES module).
-// M2: default settings + toolbar badge with the number of active downloads.
-// Queue, menus, media detection and the companion bridge come in later milestones.
+//
+// Every listener is registered synchronously at the top level, so Chrome can
+// wake the worker for any of these events after it has been asleep.
+//
+// Modules:
+//   queue.js          queue, folder sorting, chosen names, notifications (M3)
+//   menus.js          context menus (M4)
+//   media.js          media detection for the "This page" tab (M6)
+//   native-bridge.js  companion app connection and video jobs (M7)
 
 import { seedDefaultSettings } from './common.js';
+import { enqueue, pump, registerQueueListeners, removeQueued } from './queue.js';
 
 const BADGE_COLOR = '#6c3ff0';
 
 chrome.runtime.onInstalled.addListener(() => {
   seedDefaultSettings().catch((err) => console.error('GetSmart DM: could not save default settings', err));
   updateBadge();
+  pump();
 });
 
-chrome.runtime.onStartup.addListener(updateBadge);
+chrome.runtime.onStartup.addListener(() => {
+  updateBadge();
+  pump();
+});
+
+registerQueueListeners();
 
 // ---------- Badge: number of active (running, not paused) downloads ----------
 
@@ -38,4 +52,21 @@ chrome.downloads.onCreated.addListener(updateBadge);
 chrome.downloads.onErased.addListener(updateBadge);
 chrome.downloads.onChanged.addListener((delta) => {
   if (delta.state || delta.paused) updateBadge();
+});
+
+// ---------- Messages from extension pages ----------
+
+const handlers = {
+  enqueue: (msg) => enqueue(msg.items || []),
+  removeQueued: (msg) => removeQueued(msg.qid),
+};
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  // Only our own pages talk to the worker.
+  if (sender.id !== chrome.runtime.id || !msg || !handlers[msg.type]) return false;
+  Promise.resolve()
+    .then(() => handlers[msg.type](msg, sender))
+    .then((result) => sendResponse(result ?? { ok: true }))
+    .catch((err) => sendResponse({ error: err?.message || String(err) }));
+  return true; // async response
 });

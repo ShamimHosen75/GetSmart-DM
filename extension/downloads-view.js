@@ -57,6 +57,7 @@ const speeds = new Map(); // download id -> { samples: [{t, bytes}], speed }
 let els;
 let filter = { text: '', category: 'all' };
 let lastItems = [];
+let queued = []; // waiting entries from chrome.storage.local "queue", shown first
 let refreshing = false;
 let refreshAgain = false;
 let toastTimer = 0;
@@ -105,9 +106,16 @@ async function refresh() {
   }
   refreshing = true;
   try {
-    const items = await chrome.downloads.search({ orderBy: ['-startTime'], limit: SEARCH_LIMIT });
+    const [items, stored] = await Promise.all([
+      chrome.downloads.search({ orderBy: ['-startTime'], limit: SEARCH_LIMIT }),
+      chrome.storage.local.get('queue'),
+    ]);
     trackSpeeds(items);
-    lastItems = items;
+    queued = (stored.queue || [])
+      .slice()
+      .reverse()
+      .map((q) => ({ id: `q:${q.qid}`, qid: q.qid, url: q.url, filename: q.filename || '', state: 'queued', bytesReceived: 0, totalBytes: -1 }));
+    lastItems = [...queued, ...items];
     render();
   } catch (err) {
     console.error('GetSmart DM: could not read downloads', err);
@@ -152,6 +160,10 @@ function trackSpeeds(items) {
 
 // ---------- Item helpers ----------
 
+function isFinished(item) {
+  return item.state === 'complete' || item.state === 'interrupted';
+}
+
 function isRunning(item) {
   return item.state === 'in_progress' && !item.paused;
 }
@@ -178,14 +190,16 @@ function errorLabel(error) {
   return '';
 }
 
-/** "downloading" | "paused" | "complete" | "deleted" | "cancelled" | "failed" */
+/** "queued" | "downloading" | "paused" | "complete" | "deleted" | "cancelled" | "failed" */
 function stateOf(item) {
+  if (item.state === 'queued') return 'queued';
   if (item.state === 'in_progress') return item.paused ? 'paused' : 'downloading';
   if (item.state === 'complete') return item.exists === false ? 'deleted' : 'complete';
   return item.error === 'USER_CANCELED' ? 'cancelled' : 'failed';
 }
 
 const STATE_LABEL = {
+  queued: 'stateQueued',
   downloading: 'stateDownloading',
   paused: 'statePaused',
   complete: 'stateComplete',
@@ -196,6 +210,7 @@ const STATE_LABEL = {
 
 /** Which buttons a row shows in each state. */
 const VISIBLE_ACTIONS = {
+  queued: ['copy', 'cancel'],
   downloading: ['pause', 'copy', 'cancel'],
   paused: ['resume', 'copy', 'cancel'],
   complete: ['open', 'show', 'copy', 'remove'],
@@ -239,7 +254,7 @@ function render() {
 
   els.empty.hidden = lastItems.length > 0;
   els.noMatch.hidden = lastItems.length === 0 || shown.length > 0;
-  els.clear.hidden = !lastItems.some((item) => item.state !== 'in_progress');
+  els.clear.hidden = !lastItems.some(isFinished);
 }
 
 function svgIcon(path) {
@@ -409,8 +424,8 @@ function relabel() {
 async function onActionClick(event) {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
-  const id = Number(button.closest('.dl-row').dataset.id);
-  const item = lastItems.find((i) => i.id === id);
+  const rawId = button.closest('.dl-row').dataset.id;
+  const item = lastItems.find((i) => String(i.id) === rawId);
   if (!item) return;
   try {
     await runAction(button.dataset.action, item);
@@ -427,6 +442,7 @@ async function runAction(action, item) {
     case 'resume':
       return chrome.downloads.resume(item.id);
     case 'cancel':
+      if (item.state === 'queued') return chrome.runtime.sendMessage({ type: 'removeQueued', qid: item.qid });
       return chrome.downloads.cancel(item.id);
     case 'retry':
       return retry(item);
@@ -444,19 +460,20 @@ async function runAction(action, item) {
   }
 }
 
-/** Resume where Chrome allows it, otherwise download the same URL again. */
+/** Resume where Chrome allows it, otherwise queue the same URL again. */
 async function retry(item) {
   if (item.state === 'interrupted' && item.canResume) {
     return chrome.downloads.resume(item.id);
   }
-  await chrome.downloads.download({ url: item.url });
+  const reply = await chrome.runtime.sendMessage({ type: 'enqueue', items: [{ url: item.url, filename: displayName(item) }] });
+  if (!reply?.added) throw new Error(reply?.error || 'not added');
   // The new download replaces the failed row.
   await chrome.downloads.erase({ id: item.id });
   return undefined;
 }
 
 async function clearFinished() {
-  const finished = lastItems.filter((item) => item.state !== 'in_progress');
+  const finished = lastItems.filter(isFinished);
   await Promise.all(finished.map((item) => chrome.downloads.erase({ id: item.id })));
   refresh();
 }

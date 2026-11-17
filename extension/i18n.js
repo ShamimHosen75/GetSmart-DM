@@ -57,6 +57,11 @@ const STRINGS = {
     actRemove: 'Remove from list',
     linkCopied: 'Link copied',
     actionFailed: 'That did not work: {error}',
+    stateQueued: 'Waiting in queue',
+
+    // Notifications (M3)
+    notifDoneTitle: 'Download complete',
+    notifFailedTitle: 'Download failed',
 
     // Options
     settingsTitle: 'Settings',
@@ -131,6 +136,10 @@ const STRINGS = {
     actRemove: 'তালিকা থেকে সরান',
     linkCopied: 'লিংক কপি হয়েছে',
     actionFailed: 'কাজটি হয়নি: {error}',
+    stateQueued: 'সারিতে অপেক্ষা করছে',
+
+    notifDoneTitle: 'ডাউনলোড সম্পূর্ণ',
+    notifFailedTitle: 'ডাউনলোড ব্যর্থ',
 
     settingsTitle: 'সেটিংস',
     sectionAppearance: 'চেহারা',
