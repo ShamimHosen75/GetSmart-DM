@@ -26,7 +26,7 @@ import threading
 import time
 from urllib.parse import urlparse
 
-VERSION = "0.1.0-dev"
+VERSION = "0.1.0"
 PROTOCOL_V = 1
 HOST_NAME = "com.getsmartdm.host"
 
@@ -350,6 +350,8 @@ class Job:
             self.proc = subprocess.Popen(
                 cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 env=env, creationflags=CREATE_NO_WINDOW, start_new_session=not IS_WIN)
+            if CHILD_JOB is not None:
+                CHILD_JOB.add(self.proc)
         self.progress("running", note=note)
 
         last_sent = 0.0
@@ -456,6 +458,71 @@ class Job:
                     if attempt == 4:
                         log.warning("job %s: could not remove %s: %s", self.id, real, e)
                     time.sleep(0.5)
+
+
+# ---------------------------------------------------------------- Windows job object
+
+class KillOnExitJob:
+    """Windows Job Object with KILL_ON_JOB_CLOSE.
+
+    yt-dlp (and the ffmpeg it starts, which inherits the job) is stopped by
+    Windows as soon as the host process ends, even if the host is killed from
+    Task Manager, so no download keeps running without a companion.
+    Does nothing on other systems, where cancel/shutdown kill the process group.
+    """
+
+    def __init__(self):
+        self.handle = None
+        if not IS_WIN:
+            return
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class Basic(ctypes.Structure):
+                _fields_ = [("PerProcessUserTimeLimit", ctypes.c_int64), ("PerJobUserTimeLimit", ctypes.c_int64),
+                            ("LimitFlags", wintypes.DWORD), ("MinimumWorkingSetSize", ctypes.c_size_t),
+                            ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", wintypes.DWORD),
+                            ("Affinity", ctypes.c_size_t), ("PriorityClass", wintypes.DWORD),
+                            ("SchedulingClass", wintypes.DWORD)]
+
+            class IoCounters(ctypes.Structure):
+                _fields_ = [(name, ctypes.c_uint64) for name in (
+                    "ReadOperationCount", "WriteOperationCount", "OtherOperationCount",
+                    "ReadTransferCount", "WriteTransferCount", "OtherTransferCount")]
+
+            class Extended(ctypes.Structure):
+                _fields_ = [("BasicLimitInformation", Basic), ("IoInfo", IoCounters),
+                            ("ProcessMemoryLimit", ctypes.c_size_t), ("JobMemoryLimit", ctypes.c_size_t),
+                            ("PeakProcessMemoryUsed", ctypes.c_size_t), ("PeakJobMemoryUsed", ctypes.c_size_t)]
+
+            k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            k32.CreateJobObjectW.restype = wintypes.HANDLE
+            k32.CreateJobObjectW.argtypes = (ctypes.c_void_p, wintypes.LPCWSTR)
+            k32.SetInformationJobObject.argtypes = (wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD)
+            k32.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
+            job = k32.CreateJobObjectW(None, None)
+            if not job:
+                raise ctypes.WinError(ctypes.get_last_error())
+            info = Extended()
+            info.BasicLimitInformation.LimitFlags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            if not k32.SetInformationJobObject(job, 9, ctypes.byref(info), ctypes.sizeof(info)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            self.k32, self.handle = k32, job
+        except Exception as e:  # never fatal: cancel still works through taskkill
+            log.warning("could not create the Windows job object: %s", e)
+
+    def add(self, proc):
+        if self.handle is None:
+            return
+        try:
+            if not self.k32.AssignProcessToJobObject(self.handle, int(proc._handle)):
+                log.warning("could not add pid %s to the job object", proc.pid)
+        except Exception as e:
+            log.warning("could not add pid %s to the job object: %s", proc.pid, e)
+
+
+CHILD_JOB = None  # KillOnExitJob, created in main()
 
 
 # ---------------------------------------------------------------- host
@@ -1091,6 +1158,7 @@ def check():
 
 
 def main():
+    global CHILD_JOB
     setup_logging()
     if "--check" in sys.argv[1:]:
         sys.exit(check())
@@ -1099,6 +1167,7 @@ def main():
         msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
         msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
     log.info("host %s starting (python %s, pid %s)", VERSION, sys.version.split()[0], os.getpid())
+    CHILD_JOB = KillOnExitJob()
     channel = Channel(sys.stdin.buffer, sys.stdout.buffer)
     host = Host(channel)
     try:
