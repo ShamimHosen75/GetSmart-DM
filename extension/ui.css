@@ -602,6 +602,90 @@ select {
   margin-top: 3px;
 }
 
+/* ---------- Video card (popup) ---------- */
+
+.video-card[hidden] {
+  display: none;
+}
+
+.v-box {
+  display: grid;
+  gap: 10px;
+  margin: 12px 12px 4px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.v-title {
+  font-weight: 650;
+}
+
+.v-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.v-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.v-status[data-status='connected'] .v-dot { background: var(--mint); }
+.v-status[data-status='connecting'] .v-dot { background: #e0a100; animation: v-pulse 1s ease-in-out infinite; }
+.v-status[data-status='missing'] .v-dot,
+.v-status[data-status='error'] .v-dot { background: var(--danger); }
+
+@keyframes v-pulse {
+  50% { opacity: 0.3; }
+}
+
+.v-help {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.v-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.v-label {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.v-controls .select {
+  min-width: 0;
+  flex: 1;
+}
+
+.v-section {
+  margin: 12px 20px 2px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.v-note {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-style: italic;
+}
+
 /* ---------- Popup ---------- */
 
 body.popup {

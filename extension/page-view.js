@@ -4,6 +4,7 @@
 import { t, applyI18n } from './i18n.js';
 import { categoryOf, fileExtension, formatBytes, getSettings } from './common.js';
 import { detectionBlockReason } from './media.js';
+import { initVideoCard } from './video-card.js';
 
 const NOTE_KEY = {
   off: 'noteDetectionOff',
@@ -16,6 +17,7 @@ let els;
 let tab = null;
 let media = [];
 let onToast = () => {};
+let reasonShown = null;
 
 export async function initPageView({ showToast }) {
   onToast = showToast;
@@ -33,6 +35,7 @@ export async function initPageView({ showToast }) {
     if (area === 'sync') load();
   });
   await load();
+  await initVideoCard({ currentTab: tab, showToast });
   return tab;
 }
 
@@ -53,6 +56,7 @@ async function currentTab() {
 async function load() {
   const settings = await getSettings();
   const reason = tab?.url ? detectionBlockReason(tab.url, settings) : null;
+  reasonShown = reason;
   els.note.hidden = !reason;
   els.note.textContent = reason ? t(NOTE_KEY[reason]) : '';
 
@@ -80,7 +84,7 @@ function render() {
     fragment.append(row);
   }
   els.list.replaceChildren(fragment);
-  els.empty.hidden = media.length > 0;
+  els.empty.hidden = media.length > 0 || Boolean(reasonShown);
 }
 
 async function onClick(event) {

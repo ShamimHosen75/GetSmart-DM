@@ -81,3 +81,17 @@ Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachab
 - [ ] On Netflix, Prime Video, Disney+, Spotify and similar, nothing is detected and "This page" says GetSmart DM does not download from DRM services.
 - [ ] Add a site to "Disabled sites" in Settings (M8): nothing is detected there and "This page" says so.
 - [ ] With no media, the tab shows "Nothing found on this page", and the global badge (number of running downloads) shows instead of the green one.
+
+## M7 Companion bridge (video sites)
+
+Needs the companion installed (`companion/install.bat` on Windows).
+
+- [ ] On a video page of facebook.com, fb.watch, x.com, twitter.com, instagram.com, tiktok.com, vimeo.com, dailymotion.com, reddit.com, twitch.tv, vk.com, ok.ru, bilibili.com or streamable.com, "This page" shows the "Video on this page" card: companion status, quality (Best, 1080p, 720p, 480p, 360p, Audio only) and "Download video".
+- [ ] Status shows "Companion app 0.x connected" with a green dot. Uninstall the companion and reopen the popup: "not installed" with help text, and the button is disabled.
+- [ ] "Download video": a row appears under "Video downloads" with bar, size, speed and time left; when done it says "Saved" and the folder button opens the folder in a tab. A note from the companion (for example ffmpeg missing) shows in italics.
+- [ ] Cancel a running video: "Cancelled"; Retry starts it again; Remove clears finished rows.
+- [ ] End the companion process (Task Manager) during a download: the row turns "Failed: The companion app stopped"; the next "Download video" reconnects.
+- [ ] Right-click on a page of those sites > "Download video from this page with GetSmart DM" starts a job at the default quality. Without the companion, a notification explains how to install it.
+- [ ] YouTube: no card controls, only the note that YouTube downloads are off; no context-menu entry. After turning on "Allow YouTube" in Settings (M8), the card and the menu appear on youtube.com.
+- [ ] Netflix and other DRM sites: no card, no menu; asking the worker for addVideo there returns the DRM refusal.
+- [ ] Leave the browser idle for a minute with no video running: the companion process exits (no zombie host).

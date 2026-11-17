@@ -13,6 +13,7 @@ import { seedDefaultSettings } from './common.js';
 import { enqueue, pump, registerQueueListeners, removeQueued } from './queue.js';
 import { buildMenus, registerMenuListeners } from './menus.js';
 import { registerMediaListeners } from './media.js';
+import { videoHandlers } from './native-bridge.js';
 
 const BADGE_COLOR = '#6c3ff0';
 
@@ -64,6 +65,7 @@ chrome.downloads.onChanged.addListener((delta) => {
 const handlers = {
   enqueue: (msg) => enqueue(msg.items || []),
   removeQueued: (msg) => removeQueued(msg.qid),
+  ...videoHandlers, // getVideoState, addVideo, cancelVideo, retryVideo, removeVideo, openVideoFolder
 };
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
