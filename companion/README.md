@@ -1,8 +1,8 @@
-# GetSmart DM companion (Windows, macOS, Linux)
+# SIDM companion (Windows, macOS, Linux)
 
-The companion is a small helper program that the GetSmart DM extension starts when you download a video from a social site. It runs [yt-dlp](https://github.com/yt-dlp/yt-dlp) to fetch the video and [ffmpeg](https://ffmpeg.org/) to join the video and sound into one MP4.
+The companion is a small helper program that the SIDM extension starts when you download a video from a social site. It runs [yt-dlp](https://github.com/yt-dlp/yt-dlp) to fetch the video and [ffmpeg](https://ffmpeg.org/) to join the video and sound into one MP4.
 
-Videos are saved to **`Downloads\GetSmart DM\Video`** (on Linux, your desktop's Downloads folder, even if it has another name such as `Téléchargements`).
+Videos are saved to **`Downloads\SIDM\Video`** (on Linux, your desktop's Downloads folder, even if it has another name such as `Téléchargements`).
 
 `host.py` is the same on every system; only the installer differs:
 
@@ -19,15 +19,15 @@ Works with **Chrome, Edge and Brave** on **Windows 10 (version 1803 or newer) an
 
 ### Install
 
-1. Extract the companion ZIP to a folder you will keep, for example `%LOCALAPPDATA%\GetSmart DM\companion`. Avoid `Program Files`, because the companion writes its log and tools into its own folder.
+1. Extract the companion ZIP to a folder you will keep, for example `%LOCALAPPDATA%\SIDM\companion`. Avoid `Program Files`, because the companion writes its log and tools into its own folder.
 2. Double-click **`install.bat`**. No admin rights are needed. It:
    - downloads embedded Python 3.12 from python.org into `python\`
    - downloads `yt-dlp.exe` (latest release from GitHub)
    - downloads ffmpeg (yt-dlp's FFmpeg build, about 200 MB) and keeps only `ffmpeg.exe` and `ffprobe.exe`
-   - writes `run_host.bat` and `com.getsmartdm.host.json`
+   - writes `run_host.bat` and `com.sidm.host.json`
    - registers the companion for Chrome, Edge and Brave for your Windows user only
    - checks that Python, yt-dlp and ffmpeg run, and prints `Done`
-3. Restart your browser. In the GetSmart DM popup the companion should show as connected.
+3. Restart your browser. In the SIDM popup the companion should show as connected.
 
 Anything already present is skipped, so running `install.bat` again is safe. If you move the folder, run `install.bat` again.
 
@@ -58,7 +58,7 @@ Needs **Python 3.8 or newer**, which the installer finds itself:
 
 ### Install
 
-1. Extract the Mac/Linux ZIP to a folder you will keep, for example `~/getsmart-dm`.
+1. Extract the Mac/Linux ZIP to a folder you will keep, for example `~/sidm`.
 2. Open Terminal in the `companion` folder and run:
 
    ```
@@ -70,10 +70,10 @@ Needs **Python 3.8 or newer**, which the installer finds itself:
    - gets ffmpeg and ffprobe:
      - **macOS**: if [Homebrew](https://brew.sh) is installed, uses Homebrew's ffmpeg (installs it with `brew install ffmpeg` if needed) and links it here; otherwise downloads the static build from [evermeet.cx](https://evermeet.cx/ffmpeg/). That build is for Intel Macs and needs Rosetta on Apple Silicon; the installer tells you if Rosetta is missing.
      - **Linux**: downloads the static build from [johnvansickle.com](https://johnvansickle.com/ffmpeg/) (about 40 MB); if that site is down, falls back to yt-dlp's FFmpeg build on GitHub
-   - writes `run_host.sh` and `com.getsmartdm.host.json`
+   - writes `run_host.sh` and `com.sidm.host.json`
    - copies the manifest into each browser's `NativeMessagingHosts` folder (below). Chrome is always registered; Chromium, Edge and Brave only if that browser has been opened at least once. Install a browser later? Run `install.sh` again.
    - checks that yt-dlp, ffmpeg and the companion run, and prints `Done`
-3. Restart your browser. In the GetSmart DM popup the companion should show as connected.
+3. Restart your browser. In the SIDM popup the companion should show as connected.
 
 Anything already present is skipped, so running `install.sh` again is safe. If you move the folder, run `install.sh` again. Do not run it with `sudo`; it refuses, because it must register the companion for your own user.
 
@@ -92,7 +92,7 @@ When videos stop downloading, run `./yt-dlp -U` in this folder. On macOS with Ho
 
 ### Uninstall
 
-Run `bash uninstall.sh`. It removes `com.getsmartdm.host.json` from the browser folders above so the browsers can no longer start the companion. Then delete this folder yourself. Your downloaded videos are never touched.
+Run `bash uninstall.sh`. It removes `com.sidm.host.json` from the browser folders above so the browsers can no longer start the companion. Then delete this folder yourself. Your downloaded videos are never touched.
 
 ### Manual setup (if a download in install.sh fails)
 
@@ -127,7 +127,7 @@ If ffmpeg is missing, the companion falls back to a single file that already has
 
 | Problem | What to do |
 |---|---|
-| Popup says the companion is not connected | Run `install.bat` again, then fully close and restart the browser. Check that `com.getsmartdm.host.json` exists in this folder. |
+| Popup says the companion is not connected | Run `install.bat` again, then fully close and restart the browser. Check that `com.sidm.host.json` exists in this folder. |
 | `install.bat` says curl or tar was not found | Your Windows is older than Windows 10 1803. Update Windows. |
 | A download fails in `install.bat` | Check your internet connection and run it again. Antivirus or a company proxy can block downloads: use Manual setup. |
 | "Download failed ... CRYPT_E_NO_REVOCATION_CHECK" or other certificate errors | Your network blocks certificate checks. Use Manual setup with a browser. |
@@ -143,7 +143,7 @@ If ffmpeg is missing, the companion falls back to a single file that already has
 
 | Problem | What to do |
 |---|---|
-| Popup says the companion is not connected | Run `bash install.sh` again, then quit the browser completely (on a Mac: Cmd+Q) and open it again. Check that the browser's `NativeMessagingHosts` folder (table above) has `com.getsmartdm.host.json`. |
+| Popup says the companion is not connected | Run `bash install.sh` again, then quit the browser completely (on a Mac: Cmd+Q) and open it again. Check that the browser's `NativeMessagingHosts` folder (table above) has `com.sidm.host.json`. |
 | "python3 is missing" | Install it as the installer says (macOS: `xcode-select --install`; Linux: your distribution's `python3` package), then run `install.sh` again. |
 | "Permission denied" when running `./install.sh` | Run it as `bash install.sh`, or `chmod +x install.sh` first. |
 | `install.sh` refuses to run with sudo | Run it as your normal user. It never needs sudo. |
@@ -167,8 +167,8 @@ It prints the companion, Python, yt-dlp and ffmpeg versions and the download fol
 
 ## For developers
 
-- `host.py`: the native-messaging host (`com.getsmartdm.host`). Python 3 standard library only. Protocol: `shared/protocol.md`.
+- `host.py`: the native-messaging host (`com.sidm.host`). Python 3 standard library only. Protocol: `shared/protocol.md`.
 - Test without a browser: `python scripts/test_host.py` (needs yt-dlp on PATH or next to `host.py`).
-- Files created by the installers (`python\`, `*.exe`, `yt-dlp`, `ffmpeg`, `ffprobe`, `run_host.bat`, `run_host.sh`, `com.getsmartdm.host.json`, `host.log`) are not committed.
+- Files created by the installers (`python\`, `*.exe`, `yt-dlp`, `ffmpeg`, `ffprobe`, `run_host.bat`, `run_host.sh`, `com.sidm.host.json`, `host.log`) are not committed.
 - On macOS and Linux the browser starts `run_host.sh`, which runs `host.py` with the absolute path of the `python3` that `install.sh` found and puts this folder (plus Homebrew's `bin`) first on `PATH`, because browsers started from the Dock or a launcher get a short `PATH`.
 - `install.sh` is written for the bash 3.2 that ships with macOS. Check it with `shellcheck companion/*.sh`.

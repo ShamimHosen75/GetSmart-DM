@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bump the GetSmart DM version everywhere it is written.
+"""Bump the SIDM version everywhere it is written.
 
     python scripts/bump.py patch     # 0.1.0 -> 0.1.1
     python scripts/bump.py minor     # 0.1.1 -> 0.2.0

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GetSmart DM companion: native-messaging host ``com.getsmartdm.host``.
+"""SIDM companion: native-messaging host ``com.sidm.host``.
 
 Speaks the protocol defined in shared/protocol.md (v1) on stdin/stdout and runs
 yt-dlp (plus ffmpeg for merging) to download videos. It also downloads files
@@ -28,7 +28,7 @@ from urllib.parse import urlparse
 
 VERSION = "0.1.0"
 PROTOCOL_V = 1
-HOST_NAME = "com.getsmartdm.host"
+HOST_NAME = "com.sidm.host"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 IS_WIN = os.name == "nt"
@@ -189,7 +189,7 @@ def xdg_download_dir():
 
 
 def default_dir():
-    return os.path.join(downloads_folder(), "GetSmart DM", "Video")
+    return os.path.join(downloads_folder(), "SIDM", "Video")
 
 
 # ---------------------------------------------------------------- policy
@@ -208,7 +208,7 @@ def policy_error(url, youtube_allowed):
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
         return "This link is not valid. Only http and https links can be downloaded."
     if _host_matches(parsed.hostname, DRM_HOSTS):
-        return "This site uses DRM protection. GetSmart DM does not download DRM-protected content."
+        return "This site uses DRM protection. SIDM does not download DRM-protected content."
     if _host_matches(parsed.hostname, YOUTUBE_HOSTS) and youtube_allowed is not True:
         return "YouTube downloads are off. You can turn them on in Settings after reading the Terms of Service warning."
     return None
@@ -216,7 +216,7 @@ def policy_error(url, youtube_allowed):
 
 ERROR_RULES = (
     (re.compile(r"\bDRM\b", re.I),
-     "This video is DRM-protected. GetSmart DM does not download DRM-protected content."),
+     "This video is DRM-protected. SIDM does not download DRM-protected content."),
     (re.compile(r"private|log ?in|sign ?in|cookies|registered users|members only|"
                 r"authentication|requires? (an )?account|age.restricted|not available in your country", re.I),
      "This video is private or needs you to log in, so it cannot be downloaded."),
@@ -836,7 +836,7 @@ class FileJob:
         self.connections = max(1, min(MAX_CONNECTIONS, int(connections) if isinstance(connections, int) else DEFAULT_CONNECTIONS))
         headers = msg.get("headers") if isinstance(msg.get("headers"), dict) else {}
         self.headers = {k: str(v) for k, v in headers.items() if k in ALLOWED_HEADERS and v}
-        self.headers.setdefault("User-Agent", "Mozilla/5.0 GetSmartDM/" + VERSION)
+        self.headers.setdefault("User-Agent", "Mozilla/5.0 SIDM/" + VERSION)
         self.limiter = RateLimiter(msg.get("speed_limit") or 0)
         self.lock = threading.Lock()
         self.stop = None              # None, "pause" or "cancel"

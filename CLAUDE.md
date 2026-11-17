@@ -1,13 +1,14 @@
-# CLAUDE.md: GetSmart DM
+# CLAUDE.md: SIDM
 
 Permanent rules for anyone (human or AI) working in this repo. Read this first, every session.
 
 ## Project overview
 
-**GetSmart DM** ("Download Smarter. Faster. Better.") is a free download manager for **Chrome, Edge and Brave on Windows**, with a companion installer for **macOS and Linux** too (Step 5).
+**SIDM - Smart Internet Download Manager** ("Download Smarter. Faster. Better."; short name **SIDM**, renamed from "GetSmart DM" on 2026-11-17) is a free download manager for **Chrome, Edge and Brave on Windows**, with a companion installer for **macOS and Linux** too (Step 5).
 
 - Distributed from our own website as a ZIP. It is **not** published on the Chrome Web Store, because it downloads videos from social sites.
-- It is an original product. **Never copy the name, logo, UI, text or code of Internet Download Manager or any other product.**
+- It is an original product. The name SIDM is the owner's choice (2026-11-17), made knowing it is close to Internet Download Manager's name. **Never copy the logo, UI, icons, text or code of Internet Download Manager or any other product**: match features, not the look.
+- Internal names: save folder `Downloads/SIDM/`, native host `com.sidm.host`, release ZIP `sidm-v<version>-<platform>.zip`. The GitHub repo keeps its name (`GetSmart-DM`) and the extension ID never changes.
 
 ## Folder map
 
@@ -72,7 +73,7 @@ Update this section at the end of every milestone.
 
 - The extension and companion protocol is defined **only** in `shared/protocol.md`. Code must match the spec; change the spec first, then the code.
 - Every message has `"type"` and `"v"` (protocol version, **currently 1**).
-- Native messaging host name: `com.getsmartdm.host`.
+- Native messaging host name: `com.sidm.host`.
 
 ## Content rules (non-negotiable)
 

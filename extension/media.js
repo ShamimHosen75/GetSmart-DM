@@ -218,7 +218,7 @@ async function onHeadersReceived(details) {
 export function registerMediaListeners() {
   chrome.webRequest.onHeadersReceived.addListener(
     (details) => {
-      onHeadersReceived(details).catch((err) => console.error('GetSmart DM: media detection failed', err));
+      onHeadersReceived(details).catch((err) => console.error('SIDM: media detection failed', err));
     },
     { urls: ['<all_urls>'], types: RESOURCE_TYPES },
     ['responseHeaders']

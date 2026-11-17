@@ -95,7 +95,7 @@ export function checkQueueDone() {
 
 export function registerSchedulerListeners() {
   chrome.alarms.onAlarm.addListener((alarm) => {
-    onAlarm(alarm).catch((err) => console.error('GetSmart DM: scheduler failed', err));
+    onAlarm(alarm).catch((err) => console.error('SIDM: scheduler failed', err));
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'sync' && SCHEDULE_KEYS.some((key) => changes[key])) planAlarms();

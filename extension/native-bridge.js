@@ -1,7 +1,7 @@
 // Companion bridge (M7). Runs in the service worker.
 //
-// Talks to the GetSmart DM companion app over native messaging
-// (host "com.getsmartdm.host", protocol in shared/protocol.md, v1).
+// Talks to the SIDM companion app over native messaging
+// (host "com.sidm.host", protocol in shared/protocol.md, v1).
 //
 // - Connects on demand (the popup opening on a video site, or a video
 //   download), sends `hello`, and waits for the companion's `hello`.
@@ -19,7 +19,7 @@ import { notifyAlways } from './queue.js';
 import { tabHasVideo } from './media.js';
 import { setLanguage, t } from './i18n.js';
 
-export const HOST_NAME = 'com.getsmartdm.host';
+export const HOST_NAME = 'com.sidm.host';
 export const PROTOCOL_VERSION = 1;
 const JOBS_KEY = 'videoJobs'; // { [id]: job }
 const STATUS_KEY = 'companion'; // { status, info, error }
@@ -142,7 +142,7 @@ class NativeBridge {
   onMessage(msg) {
     if (!msg || typeof msg !== 'object') return;
     if (msg.v !== PROTOCOL_VERSION) {
-      console.warn('GetSmart DM: companion speaks protocol', msg.v, '- ignored');
+      console.warn('SIDM: companion speaks protocol', msg.v, '- ignored');
       return;
     }
     if (msg.type === 'hello') {

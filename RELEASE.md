@@ -1,8 +1,8 @@
-# Releasing GetSmart DM
+# Releasing SIDM
 
 A release is one version number shared by the extension and the companion, one ZIP per platform on the website, and one git tag `v<version>`.
 
-Currently built: **Windows** (`getsmart-dm-v<version>-windows.zip`) and **macOS/Linux** (`getsmart-dm-v<version>-macos-linux.zip`).
+Currently built: **Windows** (`sidm-v<version>-windows.zip`) and **macOS/Linux** (`sidm-v<version>-macos-linux.zip`).
 
 ## Checklist
 
@@ -31,15 +31,15 @@ Copy this list into the release PR or issue and tick it off.
 
 - [ ] `python scripts/release.py`. It refuses to run if the extension and companion versions differ. It prints the ZIP's size and SHA-256, writes `site/version.json`, updates the size, SHA-256 and download link on `site/index.html`, and removes older ZIPs from `site/downloads/` (pass `--keep` to keep them).
 - [ ] `python scripts/test_site.py --strict` passes (the download link points at a ZIP that exists).
-- [ ] Check the ZIP listing: one top folder `getsmart-dm/` with `extension/`, `companion/` and `START-HERE.txt`, and no `.pem`, `host.log`, `python/` or `.exe` files.
+- [ ] Check the ZIP listing: one top folder `sidm/` with `extension/`, `companion/` and `START-HERE.txt`, and no `.pem`, `host.log`, `python/` or `.exe` files.
 
 ### 4. Test the ZIP on a clean Windows account
 
-Use a Windows user account that has never had GetSmart DM (a new local account, or Windows Sandbox).
+Use a Windows user account that has never had SIDM (a new local account, or Windows Sandbox).
 
-- [ ] Download the ZIP from the local site (or copy it over) and check its SHA-256 matches: `certutil -hashfile getsmart-dm-v<version>-windows.zip SHA256`.
+- [ ] Download the ZIP from the local site (or copy it over) and check its SHA-256 matches: `certutil -hashfile sidm-v<version>-windows.zip SHA256`.
 - [ ] Extract it and follow only `START-HERE.txt`.
-- [ ] Fresh Chrome profile: load `getsmart-dm\extension` unpacked; the extension ID shown on `chrome://extensions` is `ejkhmcfjnohjikdgfgkhjficmiaoghma`.
+- [ ] Fresh Chrome profile: load `sidm\extension` unpacked; the extension ID shown on `chrome://extensions` is `ejkhmcfjnohjikdgfgkhjficmiaoghma`.
 - [ ] Run `companion\install.bat` from scratch. It ends with `Done`.
 - [ ] Restart Chrome. The popup shows the companion as connected, a normal file download works, and a video download from a supported site works.
 - [ ] Repeat the extension check in Edge and Brave if they are installed.
@@ -49,9 +49,9 @@ Use a Windows user account that has never had GetSmart DM (a new local account, 
 
 On a Mac and on a Linux desktop (a fresh user account if possible):
 
-- [ ] Check the SHA-256: `shasum -a 256 getsmart-dm-v<version>-macos-linux.zip` (macOS) or `sha256sum ...` (Linux).
-- [ ] Extract it and follow only `START-HERE.txt`. `ls -l getsmart-dm/companion` shows `install.sh` as executable.
-- [ ] Load `getsmart-dm/extension` unpacked; the ID is `ejkhmcfjnohjikdgfgkhjficmiaoghma`.
+- [ ] Check the SHA-256: `shasum -a 256 sidm-v<version>-macos-linux.zip` (macOS) or `sha256sum ...` (Linux).
+- [ ] Extract it and follow only `START-HERE.txt`. `ls -l sidm/companion` shows `install.sh` as executable.
+- [ ] Load `sidm/extension` unpacked; the ID is `ejkhmcfjnohjikdgfgkhjficmiaoghma`.
 - [ ] `bash install.sh` as your normal user ends with `Done`. Restart the browser: companion connected, a video download works.
 - [ ] `bash uninstall.sh` removes the manifests; downloaded files are left alone.
 
@@ -65,7 +65,7 @@ On a Mac and on a Linux desktop (a fresh user account if possible):
 - [ ] Merge to `main`, then tag the merge commit and push the tag:
   ```
   git checkout main && git pull
-  git tag -a v<version> -m "GetSmart DM <version>"
+  git tag -a v<version> -m "SIDM <version>"
   git push origin v<version>
   ```
 - [ ] Optional: create a GitHub release from the tag, paste the `CHANGELOG.md` section, and attach the ZIP.

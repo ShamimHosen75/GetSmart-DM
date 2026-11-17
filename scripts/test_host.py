@@ -156,7 +156,7 @@ class HostTest(unittest.TestCase):
         self.assertTrue(hello["version"])
         self.assertTrue(hello["ytdlp"], "yt-dlp not found by host.py")
         self.assertIn("ffmpeg", hello)
-        self.assertTrue(hello["dir"].replace("\\", "/").endswith("GetSmart DM/Video"), hello["dir"])
+        self.assertTrue(hello["dir"].replace("\\", "/").endswith("SIDM/Video"), hello["dir"])
         self.host.send({"type": "ping", "v": 1})
         self.assertEqual(self.host.next(pred=lambda m: m["type"] != "hello")["type"], "pong")
 

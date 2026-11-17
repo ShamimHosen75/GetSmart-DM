@@ -31,7 +31,7 @@ SITE_HTML = """<!doctype html>
 <html><body>
   <!-- release.py rewrites: <a data-release="windows-zip" href="x"> and
        <span data-release="version">x.y.z</span> -->
-  <h1>GetSmart DM <span id="release-version" data-release="version">0.0.0</span></h1>
+  <h1>SIDM <span id="release-version" data-release="version">0.0.0</span></h1>
   <a id="download-link" class="button" data-release="windows-zip" href="downloads/old.zip">Download</a>
   <p>Size: <span data-release="windows-size">size to be confirmed</span></p>
   <p>SHA-256: <code data-release='windows-sha256'>published with the release</code></p>
@@ -89,18 +89,18 @@ class ReleaseTest(RepoCopy):
         version, builds = self.run_release()
         info = builds["windows"]
         self.assertEqual(version, "1.2.3")
-        self.assertEqual(info["name"], "getsmart-dm-v1.2.3-windows.zip")
+        self.assertEqual(info["name"], "sidm-v1.2.3-windows.zip")
         with zipfile.ZipFile(info["path"]) as zf:
             names = zf.namelist()
-            start_here = zf.read("getsmart-dm/START-HERE.txt").decode()
-            install_bat = zf.read("getsmart-dm/companion/install.bat")
+            start_here = zf.read("sidm/START-HERE.txt").decode()
+            install_bat = zf.read("sidm/companion/install.bat")
 
-        self.assertTrue(all(n.startswith("getsmart-dm/") for n in names), names)
-        self.assertIn("getsmart-dm/extension/manifest.json", names)
-        self.assertIn("getsmart-dm/extension/popup.html", names)
-        self.assertIn("getsmart-dm/extension/icons/icon128.png", names)
-        companion = sorted(n for n in names if n.startswith("getsmart-dm/companion/"))
-        self.assertEqual(companion, [f"getsmart-dm/companion/{n}" for n in
+        self.assertTrue(all(n.startswith("sidm/") for n in names), names)
+        self.assertIn("sidm/extension/manifest.json", names)
+        self.assertIn("sidm/extension/popup.html", names)
+        self.assertIn("sidm/extension/icons/icon128.png", names)
+        companion = sorted(n for n in names if n.startswith("sidm/companion/"))
+        self.assertEqual(companion, [f"sidm/companion/{n}" for n in
                                      ["README.md", "host.py", "install.bat", "uninstall.bat", "update.bat"]])
         for forbidden in (".pem", "tests/", ".test.js", ".log", ".exe", "python/", "run_host"):
             self.assertFalse([n for n in names if forbidden in n], forbidden)
@@ -113,7 +113,7 @@ class ReleaseTest(RepoCopy):
         self.write("companion/update.bat", "@echo off\necho hi\n")
         _, builds = self.run_release()
         with zipfile.ZipFile(builds["windows"]["path"]) as zf:
-            self.assertEqual(zf.read("getsmart-dm/companion/update.bat"), b"@echo off\r\necho hi\r\n")
+            self.assertEqual(zf.read("sidm/companion/update.bat"), b"@echo off\r\necho hi\r\n")
 
     def test_macos_linux_zip(self):
         self.write("companion/install.sh", "#!/usr/bin/env bash\r\necho hi\r\n")  # CRLF checkout
@@ -122,16 +122,16 @@ class ReleaseTest(RepoCopy):
         self.write("companion/run_host.sh", "#!/bin/sh\n")
         _, builds = release.release(self.root, ["macos-linux"], out=self.out.write)
         info = builds["macos-linux"]
-        self.assertEqual(info["name"], "getsmart-dm-v1.2.3-macos-linux.zip")
+        self.assertEqual(info["name"], "sidm-v1.2.3-macos-linux.zip")
         with zipfile.ZipFile(info["path"]) as zf:
             names = zf.namelist()
             infos = {i.filename: i for i in zf.infolist()}
-            start_here = zf.read("getsmart-dm/START-HERE.txt").decode()
-            install_sh = zf.read("getsmart-dm/companion/install.sh")
-        companion = sorted(n for n in names if n.startswith("getsmart-dm/companion/"))
-        self.assertEqual(companion, [f"getsmart-dm/companion/{n}" for n in
+            start_here = zf.read("sidm/START-HERE.txt").decode()
+            install_sh = zf.read("sidm/companion/install.sh")
+        companion = sorted(n for n in names if n.startswith("sidm/companion/"))
+        self.assertEqual(companion, [f"sidm/companion/{n}" for n in
                                      ["README.md", "host.py", "install.sh", "uninstall.sh"]])
-        self.assertIn("getsmart-dm/extension/manifest.json", names)
+        self.assertIn("sidm/extension/manifest.json", names)
         for forbidden in (".pem", ".bat", ".exe", "yt-dlp", "ffmpeg", "run_host", ".log"):
             self.assertFalse([n for n in names if forbidden in n], forbidden)
         self.assertEqual(install_sh, b"#!/usr/bin/env bash\necho hi\n")
@@ -149,7 +149,7 @@ class ReleaseTest(RepoCopy):
             '<code data-release="macos-linux-sha256">?</code></body>'))
         _, builds = release.release(self.root, list(release.PLATFORMS), out=self.out.write)
         html = self.read("site/index.html")
-        self.assertIn('href="downloads/getsmart-dm-v1.2.3-macos-linux.zip"', html)
+        self.assertIn('href="downloads/sidm-v1.2.3-macos-linux.zip"', html)
         self.assertIn(builds["macos-linux"]["sha256"], html)
         self.assertIn(builds["windows"]["sha256"], html)
         self.assertNotIn("warning", self.out.getvalue())
@@ -170,7 +170,7 @@ class ReleaseTest(RepoCopy):
         info = builds["windows"]
         html = self.read("site/index.html")
         self.assertEqual(html.count(">1.2.3</span>"), 2)
-        self.assertIn('href="downloads/getsmart-dm-v1.2.3-windows.zip"', html)
+        self.assertIn('href="downloads/sidm-v1.2.3-windows.zip"', html)
         self.assertIn('id="download-link"', html)
         self.assertIn(f">{info['size_text']}</span>", html)
         self.assertIn(f">{info['sha256']}</code>", html)
@@ -188,7 +188,7 @@ class ReleaseTest(RepoCopy):
         html = self.read("site/index.html")
         self.assertNotIn("warning", self.out.getvalue())
         self.assertIn(builds["windows"]["sha256"], html)
-        self.assertIn('href="downloads/getsmart-dm-v1.2.3-windows.zip"', html)
+        self.assertIn('href="downloads/sidm-v1.2.3-windows.zip"', html)
 
     def test_missing_site_markers_warn(self):
         self.write("site/index.html", "<html><body>nothing marked</body></html>")
@@ -198,24 +198,24 @@ class ReleaseTest(RepoCopy):
     def test_old_zips_removed_unless_keep(self):
         downloads = self.path("site/downloads")
         os.makedirs(downloads)
-        for name in ("getsmart-dm-v1.2.2-windows.zip", "getsmart-dm-v1.2.2-macos-linux.zip", "notes.txt"):
+        for name in ("sidm-v1.2.2-windows.zip", "sidm-v1.2.2-macos-linux.zip", "notes.txt"):
             self.write(f"site/downloads/{name}", "x")
 
         self.run_release(keep=True)
-        self.assertIn("getsmart-dm-v1.2.2-windows.zip", os.listdir(downloads))
+        self.assertIn("sidm-v1.2.2-windows.zip", os.listdir(downloads))
 
         self.run_release()
         self.assertEqual(sorted(os.listdir(downloads)), [
-            "getsmart-dm-v1.2.2-macos-linux.zip",  # other platforms are not touched
-            "getsmart-dm-v1.2.3-windows.zip",
             "notes.txt",
+            "sidm-v1.2.2-macos-linux.zip",  # other platforms are not touched
+            "sidm-v1.2.3-windows.zip",
         ])
 
     def test_version_mismatch_fails(self):
         self.set_versions("1.2.3", host_version="1.2.4-dev")
         with self.assertRaisesRegex(release.ReleaseError, "mismatch"):
             self.run_release()
-        self.assertFalse(os.path.exists(self.path("site/downloads/getsmart-dm-v1.2.3-windows.zip")))
+        self.assertFalse(os.path.exists(self.path("site/downloads/sidm-v1.2.3-windows.zip")))
 
     def test_cli_exit_codes(self):
         self.assertEqual(release.main(["--root", self.root]), 0)

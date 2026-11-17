@@ -1,4 +1,4 @@
-"""Generate the GetSmart DM extension icons.
+"""Generate the SIDM extension icons.
 
 Design: rounded purple square, white down-arrow, mint "tray" line under it.
 Drawn at 8x and downsampled so the edges stay smooth at every size.

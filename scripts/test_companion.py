@@ -9,7 +9,7 @@ talks to the extension's service worker the way the popup does
 - getVideoState on a Facebook URL reports site "video" and the companion as
   connected (with its yt-dlp version)
 - YouTube is off by default (site "youtube-off", addVideo refused)
-- addVideo progresses to done with a .mp4 on disk in Downloads/GetSmart DM/Video
+- addVideo progresses to done with a .mp4 on disk in Downloads/SIDM/Video
 - a 404 gives the friendly "not found" error
 - cancelVideo cancels a running download and leaves no partial files
 - no console errors in the extension page or the service worker
@@ -43,7 +43,7 @@ import test_host  # noqa: E402  (reuses its local HTTP test server)
 EXTENSION = ROOT / "extension"
 HOST_PY = ROOT / "companion" / "host.py"
 EXTENSION_ID = "ejkhmcfjnohjikdgfgkhjficmiaoghma"
-HOST_NAME = "com.getsmartdm.host"
+HOST_NAME = "com.sidm.host"
 CHROMIUM_FALLBACKS = [os.environ.get("CHROMIUM_PATH", ""), "/opt/pw-browsers/chromium"]
 
 
@@ -75,7 +75,7 @@ class CompanionEndToEnd(unittest.TestCase):
         cls.home = os.path.join(cls.tmp, "home")
         cls.profile = os.path.join(cls.tmp, "profile")
         os.makedirs(cls.home)
-        cls.video_dir = os.path.join(cls.home, "Downloads", "GetSmart DM", "Video")
+        cls.video_dir = os.path.join(cls.home, "Downloads", "SIDM", "Video")
 
         # Launcher + host manifest inside the profile.
         launcher = os.path.join(cls.tmp, "run_host.sh")
@@ -85,7 +85,7 @@ class CompanionEndToEnd(unittest.TestCase):
         hosts = os.path.join(cls.profile, "NativeMessagingHosts")
         os.makedirs(hosts)
         with open(os.path.join(hosts, HOST_NAME + ".json"), "w") as f:
-            json.dump({"name": HOST_NAME, "description": "GetSmart DM companion (test)",
+            json.dump({"name": HOST_NAME, "description": "SIDM companion (test)",
                        "path": launcher, "type": "stdio",
                        "allowed_origins": ["chrome-extension://%s/" % EXTENSION_ID]}, f)
 
@@ -178,7 +178,7 @@ class CompanionEndToEnd(unittest.TestCase):
         comp = st["companion"]
         self.assertTrue(comp.get("version"), comp)
         self.assertTrue(comp.get("ytdlp"), "host.py found no yt-dlp: %r" % comp)
-        self.assertTrue(comp["dir"].replace("\\", "/").endswith("GetSmart DM/Video"), comp)
+        self.assertTrue(comp["dir"].replace("\\", "/").endswith("SIDM/Video"), comp)
 
         # A real Facebook tab, served by the local test server through the mapping.
         tab = self.ctx.new_page()

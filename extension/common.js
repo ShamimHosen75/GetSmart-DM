@@ -8,7 +8,7 @@ import { setLanguage, applyI18n } from './i18n.js';
 export const DEFAULT_SETTINGS = Object.freeze({
   language: 'auto', // auto | en | bn
   theme: 'auto', // auto | light | dark
-  sortIntoFolders: true, // save into "GetSmart DM/<Category>/<name>"
+  sortIntoFolders: true, // save into "SIDM/<Category>/<name>"
   maxSimultaneous: 3, // 1-10 running downloads before our queue waits
   askWhereToSave: false, // show the Save As dialog for downloads we start
   notifications: true, // notify when a download finishes or fails
@@ -23,7 +23,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   scheduleStop: '', // HH:MM or "" for no stop time
   scheduleDays: [0, 1, 2, 3, 4, 5, 6], // 0 = Sunday
   whenQueueDone: 'nothing', // nothing | notify | close (close every browser window)
-  progressWindow: 'ours', // open a progress window: off | ours (downloads GetSmart DM starts) | all (M11)
+  progressWindow: 'ours', // open a progress window: off | ours (downloads SIDM starts) | all (M11)
   disabledSites: [], // hosts where media detection is off
   defaultQuality: 'best', // best | 1080 | 720 | 480 | 360 | audio
   allowYouTube: true, // on by default (owner's decision); the first YouTube download shows a one-time notice
@@ -251,7 +251,7 @@ export const CATEGORY_FOLDERS = {
   images: 'Images',
   other: 'Other',
 };
-export const ROOT_FOLDER = 'GetSmart DM';
+export const ROOT_FOLDER = 'SIDM';
 
 /** True for http: and https: URLs (the only ones we download). */
 export function isHttpUrl(url) {
@@ -326,6 +326,6 @@ export async function autoOpenProgress(id, mode) {
     autoOpened.push(now);
     await openProgressWindow(id);
   } catch (err) {
-    console.warn('GetSmart DM: could not open the progress window', err);
+    console.warn('SIDM: could not open the progress window', err);
   }
 }

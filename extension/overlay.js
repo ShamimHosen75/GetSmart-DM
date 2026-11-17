@@ -1,4 +1,4 @@
-// GetSmart DM video button (M10). Content script, classic script (not a module).
+// SIDM video button (M10). Content script, classic script (not a module).
 //
 // Shows a small "Download" button at the top-right corner of a video while the
 // pointer is over it, or for a moment when a video starts playing. Clicking

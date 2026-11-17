@@ -15,7 +15,7 @@ What it does, in order:
      External links are listed, not fetched.
   4. Download links: every data-release="<platform>-zip" link (Windows in the
      hero, macOS/Linux in the FAQ) must point at
-     downloads/getsmart-dm-v<version>-<platform>.zip, matching #release-version.
+     downloads/sidm-v<version>-<platform>.zip, matching #release-version.
      A missing ZIP is reported as EXPECTED-MISSING (the Step 4 release script
      creates it) and does not fail the run, unless --strict is given.
   5. HTML validation with html5validator (needs Java) if it is installed;
@@ -268,7 +268,7 @@ def check_download(strict):
             r'<a\b[^>]*\bdata-release="([\w-]+)-zip"[^>]*\bhref="([^"]*)"', html_text):
         hrefs.add(href)
         check = f"download link ({platform})"
-        expected = f"downloads/getsmart-dm-v{version}-{platform}.zip"
+        expected = f"downloads/sidm-v{version}-{platform}.zip"
         if href != expected:
             report("FAIL", check, f"href is '{href}', expected '{expected}' (from #release-version)")
             continue

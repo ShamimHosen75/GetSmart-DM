@@ -9,7 +9,7 @@
 // File names: Chrome does not reliably honour `filename` passed to
 // chrome.downloads.download, so names we choose are remembered in a Map keyed
 // by URL and applied in onDeterminingFilename, only for items whose
-// byExtensionId is ours. Folder sorting ("GetSmart DM/<Category>/<name>")
+// byExtensionId is ours. Folder sorting ("SIDM/<Category>/<name>")
 // applies to every download while the setting is on.
 
 import {
@@ -121,7 +121,7 @@ async function pumpUnlocked() {
       await chrome.storage.session.set({ queueActive: true }); // scheduler.js: "when the queue is done"
       free -= 1;
     } catch (err) {
-      console.error('GetSmart DM: could not start', next.url, err);
+      console.error('SIDM: could not start', next.url, err);
       notifyFailure(next.filename || nameFromUrl(next.url), err?.message || String(err));
     }
     queue = await getQueue();
@@ -198,7 +198,7 @@ function onDeterminingFilename(item, suggest) {
       else suggest();
     })
     .catch((err) => {
-      console.error('GetSmart DM: filename step failed', err);
+      console.error('SIDM: filename step failed', err);
       suggest();
     });
   return true; // we call suggest asynchronously

@@ -6,7 +6,7 @@ export const LANGUAGES = ['en', 'bn'];
 
 const STRINGS = {
   en: {
-    appName: 'GetSmart DM',
+    appName: 'SIDM',
     tagline: 'Download Smarter. Faster. Better.',
 
     // Popup
@@ -64,11 +64,11 @@ const STRINGS = {
     notifFailedTitle: 'Download failed',
     notifCannotSaveTitle: 'This cannot be saved',
     notifBlobBody: 'The page made this file inside the browser (a blob: or data: address), so there is no link to download. Use the page\'s own save button instead.',
-    notifNotHttpBody: 'GetSmart DM can only download http:// and https:// links.',
+    notifNotHttpBody: 'SIDM can only download http:// and https:// links.',
 
     // Context menus (M4)
-    menuDownloadLink: 'Download link with GetSmart DM',
-    menuDownloadMedia: 'Download this file with GetSmart DM',
+    menuDownloadLink: 'Download link with SIDM',
+    menuDownloadMedia: 'Download this file with SIDM',
     menuGrabLinks: 'Grab all links on this page',
 
     // Add links panel (M4)
@@ -102,11 +102,11 @@ const STRINGS = {
     actDownload: 'Download',
     noteDetectionOff: 'Media detection is turned off in Settings.',
     noteYouTube: 'YouTube plays videos in small pieces, so they are not listed here. Use Download video above (needs the companion app).',
-    noteDrm: 'This service protects its media with DRM. GetSmart DM does not download from it.',
+    noteDrm: 'This service protects its media with DRM. SIDM does not download from it.',
     noteSiteDisabled: 'Media detection is turned off for this site in Settings.',
 
     // Companion bridge (M7)
-    menuDownloadVideo: 'Download video from this page with GetSmart DM',
+    menuDownloadVideo: 'Download video from this page with SIDM',
     videoCardTitle: 'Video on this page',
     videoJobsTitle: 'Video downloads',
     videoQuality: 'Quality',
@@ -120,8 +120,8 @@ const STRINGS = {
     companionConnected: 'Companion app connected',
     companionConnectedVersion: 'Companion app {version} connected',
     companionConnecting: 'Connecting to the companion app…',
-    companionMissing: 'The GetSmart DM companion app is not installed.',
-    companionMissingHelp: 'Video sites need the free companion app. Download it from the GetSmart DM website, run install.bat (Windows) or install.sh (macOS, Linux), then open this popup again.',
+    companionMissing: 'The SIDM companion app is not installed.',
+    companionMissingHelp: 'Video sites need the free companion app. Download it from the SIDM website, run install.bat (Windows) or install.sh (macOS, Linux), then open this popup again.',
     companionError: 'The companion app is not answering. Close and reopen the browser, or run the installer again.',
     companionIdle: 'Companion app not connected yet',
     companionNoYtdlp: 'The companion is missing yt-dlp. Run its installer again.',
@@ -141,11 +141,11 @@ const STRINGS = {
     // Settings page (M8)
     sectionDownloads: 'Downloads',
     setSortFolders: 'Sort into folders',
-    setSortFoldersHint: 'Save into Downloads/GetSmart DM/Video, Music, Documents and so on.',
+    setSortFoldersHint: 'Save into Downloads/SIDM/Video, Music, Documents and so on.',
     setMaxSimultaneous: 'Downloads at the same time',
     setMaxSimultaneousHint: 'From 1 to 10. Links you add wait in the queue until a slot is free.',
     setAskWhere: 'Ask where to save',
-    setAskWhereHint: 'Show the Save As window for downloads GetSmart DM starts.',
+    setAskWhereHint: 'Show the Save As window for downloads SIDM starts.',
     setNotifications: 'Notifications',
     setNotificationsHint: 'Tell me when a download finishes or fails.',
     sectionMedia: 'Media detection',
@@ -179,7 +179,7 @@ const STRINGS = {
     overlayViaCompanion: 'With the companion app, at your default quality',
     overlayFiles: 'Files this page played',
     overlayNothing: 'Nothing to download yet. Play the video for a few seconds, then try again.',
-    overlayStarted: 'Added to GetSmart DM',
+    overlayStarted: 'Added to SIDM',
     overlayFailed: 'Could not add it',
     overlayQualities: 'Download this video',
     overlayTryCompanion: 'Try with the companion app',
@@ -219,7 +219,7 @@ const STRINGS = {
     setProgressWindow: 'Progress window',
     setProgressWindowHint: 'Open a small window with progress, speed and time left when a download starts.',
     progWinOff: 'Never',
-    progWinOurs: 'For downloads GetSmart DM starts',
+    progWinOurs: 'For downloads SIDM starts',
     progWinAll: 'For every download',
 
     // Manager page (M12)
@@ -315,7 +315,7 @@ const STRINGS = {
   },
 
   bn: {
-    appName: 'GetSmart DM',
+    appName: 'SIDM',
     tagline: 'আরও স্মার্ট, আরও দ্রুত, আরও ভালো ডাউনলোড।',
 
     tabDownloads: 'ডাউনলোড',
@@ -370,10 +370,10 @@ const STRINGS = {
     notifFailedTitle: 'ডাউনলোড ব্যর্থ',
     notifCannotSaveTitle: 'এটি সংরক্ষণ করা যাবে না',
     notifBlobBody: 'পেজটি ফাইলটি ব্রাউজারের ভেতরেই তৈরি করেছে (blob: বা data: ঠিকানা), তাই ডাউনলোডের কোনো লিংক নেই। পেজের নিজস্ব সেভ বাটন ব্যবহার করুন।',
-    notifNotHttpBody: 'GetSmart DM শুধু http:// ও https:// লিংক ডাউনলোড করতে পারে।',
+    notifNotHttpBody: 'SIDM শুধু http:// ও https:// লিংক ডাউনলোড করতে পারে।',
 
-    menuDownloadLink: 'GetSmart DM দিয়ে লিংক ডাউনলোড করুন',
-    menuDownloadMedia: 'GetSmart DM দিয়ে এই ফাইল ডাউনলোড করুন',
+    menuDownloadLink: 'SIDM দিয়ে লিংক ডাউনলোড করুন',
+    menuDownloadMedia: 'SIDM দিয়ে এই ফাইল ডাউনলোড করুন',
     menuGrabLinks: 'এই পেজের সব লিংক সংগ্রহ করুন',
 
     addLinks: 'লিংক যোগ করুন',
@@ -404,10 +404,10 @@ const STRINGS = {
     actDownload: 'ডাউনলোড',
     noteDetectionOff: 'সেটিংসে মিডিয়া শনাক্তকরণ বন্ধ করা আছে।',
     noteYouTube: 'YouTube ভিডিও ছোট ছোট টুকরোয় চালায়, তাই এখানে তালিকা হয় না। উপরের ভিডিও ডাউনলোড ব্যবহার করুন (সহায়ক অ্যাপ লাগবে)।',
-    noteDrm: 'এই সেবা DRM দিয়ে তাদের মিডিয়া সুরক্ষিত রাখে। GetSmart DM এখান থেকে ডাউনলোড করে না।',
+    noteDrm: 'এই সেবা DRM দিয়ে তাদের মিডিয়া সুরক্ষিত রাখে। SIDM এখান থেকে ডাউনলোড করে না।',
     noteSiteDisabled: 'সেটিংসে এই সাইটের জন্য মিডিয়া শনাক্তকরণ বন্ধ করা আছে।',
 
-    menuDownloadVideo: 'GetSmart DM দিয়ে এই পেজের ভিডিও ডাউনলোড করুন',
+    menuDownloadVideo: 'SIDM দিয়ে এই পেজের ভিডিও ডাউনলোড করুন',
     videoCardTitle: 'এই পেজের ভিডিও',
     videoJobsTitle: 'ভিডিও ডাউনলোড',
     videoQuality: 'মান',
@@ -421,8 +421,8 @@ const STRINGS = {
     companionConnected: 'সহায়ক অ্যাপ সংযুক্ত',
     companionConnectedVersion: 'সহায়ক অ্যাপ {version} সংযুক্ত',
     companionConnecting: 'সহায়ক অ্যাপের সাথে সংযোগ হচ্ছে…',
-    companionMissing: 'GetSmart DM সহায়ক অ্যাপ ইনস্টল করা নেই।',
-    companionMissingHelp: 'ভিডিও সাইটের জন্য বিনামূল্যের সহায়ক অ্যাপ লাগে। GetSmart DM ওয়েবসাইট থেকে এটি ডাউনলোড করে install.bat (Windows) বা install.sh (macOS, Linux) চালান, তারপর এই পপআপ আবার খুলুন।',
+    companionMissing: 'SIDM সহায়ক অ্যাপ ইনস্টল করা নেই।',
+    companionMissingHelp: 'ভিডিও সাইটের জন্য বিনামূল্যের সহায়ক অ্যাপ লাগে। SIDM ওয়েবসাইট থেকে এটি ডাউনলোড করে install.bat (Windows) বা install.sh (macOS, Linux) চালান, তারপর এই পপআপ আবার খুলুন।',
     companionError: 'সহায়ক অ্যাপ সাড়া দিচ্ছে না। ব্রাউজার বন্ধ করে আবার খুলুন, অথবা ইনস্টলার আবার চালান।',
     companionIdle: 'সহায়ক অ্যাপ এখনও সংযুক্ত হয়নি',
     companionNoYtdlp: 'সহায়ক অ্যাপে yt-dlp নেই। এর ইনস্টলার আবার চালান।',
@@ -441,11 +441,11 @@ const STRINGS = {
 
     sectionDownloads: 'ডাউনলোড',
     setSortFolders: 'ফোল্ডারে সাজান',
-    setSortFoldersHint: 'Downloads/GetSmart DM/Video, Music, Documents ইত্যাদি ফোল্ডারে সংরক্ষণ করুন।',
+    setSortFoldersHint: 'Downloads/SIDM/Video, Music, Documents ইত্যাদি ফোল্ডারে সংরক্ষণ করুন।',
     setMaxSimultaneous: 'একসাথে কতগুলো ডাউনলোড',
     setMaxSimultaneousHint: '১ থেকে ১০। জায়গা খালি না হওয়া পর্যন্ত যোগ করা লিংক সারিতে অপেক্ষা করবে।',
     setAskWhere: 'কোথায় রাখবেন জিজ্ঞেস করুন',
-    setAskWhereHint: 'GetSmart DM যে ডাউনলোড শুরু করে তার জন্য Save As উইন্ডো দেখান।',
+    setAskWhereHint: 'SIDM যে ডাউনলোড শুরু করে তার জন্য Save As উইন্ডো দেখান।',
     setNotifications: 'নোটিফিকেশন',
     setNotificationsHint: 'ডাউনলোড শেষ বা ব্যর্থ হলে জানান।',
     sectionMedia: 'মিডিয়া শনাক্তকরণ',
@@ -478,7 +478,7 @@ const STRINGS = {
     overlayViaCompanion: 'সহায়ক অ্যাপ দিয়ে, আপনার ডিফল্ট মানে',
     overlayFiles: 'এই পেজ যে ফাইলগুলো চালিয়েছে',
     overlayNothing: 'এখনও ডাউনলোড করার মতো কিছু নেই। ভিডিওটি কয়েক সেকেন্ড চালিয়ে আবার চেষ্টা করুন।',
-    overlayStarted: 'GetSmart DM-এ যোগ হয়েছে',
+    overlayStarted: 'SIDM-এ যোগ হয়েছে',
     overlayFailed: 'যোগ করা যায়নি',
     overlayQualities: 'এই ভিডিও ডাউনলোড করুন',
     overlayTryCompanion: 'সহায়ক অ্যাপ দিয়ে চেষ্টা করুন',
@@ -518,7 +518,7 @@ const STRINGS = {
     setProgressWindow: 'অগ্রগতির উইন্ডো',
     setProgressWindowHint: 'ডাউনলোড শুরু হলে অগ্রগতি, গতি ও বাকি সময়সহ একটি ছোট উইন্ডো খুলুন।',
     progWinOff: 'কখনও না',
-    progWinOurs: 'GetSmart DM যে ডাউনলোড শুরু করে',
+    progWinOurs: 'SIDM যে ডাউনলোড শুরু করে',
     progWinAll: 'সব ডাউনলোডে',
 
     // Manager page (M12)

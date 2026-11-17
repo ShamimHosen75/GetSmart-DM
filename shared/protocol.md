@@ -1,10 +1,10 @@
-# GetSmart DM native-messaging protocol, v1
+# SIDM native-messaging protocol, v1
 
 This file is the **only** definition of the protocol between the extension and the companion. Change this spec first, then the code on both sides.
 
 ## Transport
 
-- Chrome/Edge/Brave native messaging, host name **`com.getsmartdm.host`**.
+- Chrome/Edge/Brave native messaging, host name **`com.sidm.host`**.
 - Each message is framed as a **4-byte little-endian unsigned length** followed by that many bytes of **UTF-8 JSON** (one JSON object per message).
 - Browser limits apply: host to browser messages max 1 MB, browser to host max 64 MiB.
 
@@ -53,14 +53,14 @@ Cancel a running download.
 ### `add_file` (multi-connection file download)
 Download one file over several HTTP connections at once. Also used to **resume** a paused or interrupted file: send `add_file` again with the same `id`, `url`, `folder` and `filename`, and the companion continues from its partial file.
 ```json
-{ "type": "add_file", "v": 1, "id": "f1e2d3", "url": "https://example.com/big.zip", "filename": "big.zip", "folder": "GetSmart DM/Archives", "connections": 8, "headers": { "Referer": "https://example.com/", "User-Agent": "Mozilla/5.0 ..." } }
+{ "type": "add_file", "v": 1, "id": "f1e2d3", "url": "https://example.com/big.zip", "filename": "big.zip", "folder": "SIDM/Archives", "connections": 8, "headers": { "Referer": "https://example.com/", "User-Agent": "Mozilla/5.0 ..." } }
 ```
 | Field | Required | Meaning |
 |---|---|---|
 | `id` | yes | Unique download id chosen by the extension; echoed in every `progress` |
 | `url` | yes | `http` or `https` URL of the file |
 | `filename` | no | File name to save as. The companion makes it safe for the file system. If absent, the name comes from `Content-Disposition` or the URL |
-| `folder` | no | Folder **relative to the user's Downloads folder** (for example `GetSmart DM/Archives`). Must not contain `..`. If absent, the Downloads folder itself |
+| `folder` | no | Folder **relative to the user's Downloads folder** (for example `SIDM/Archives`). Must not contain `..`. If absent, the Downloads folder itself |
 | `connections` | no | Number of parallel connections, 1 to 16. Default 8 |
 | `headers` | no | Extra request headers. Only `Referer`, `User-Agent` and `Accept-Language` are used |
 | `speed_limit` | no | Bytes per second for this file, `0` or absent = no limit |
@@ -94,7 +94,7 @@ Video downloads (`add_video`) are not limited.
 ### `open_file`
 Open a finished file, or show it in its folder.
 ```json
-{ "type": "open_file", "v": 1, "path": "C:\\Users\\me\\Downloads\\GetSmart DM\\Archives\\big.zip", "reveal": true }
+{ "type": "open_file", "v": 1, "path": "C:\\Users\\me\\Downloads\\SIDM\\Archives\\big.zip", "reveal": true }
 ```
 Only paths inside the user's Downloads folder that exist are opened. `reveal: true` opens the folder with the file selected where the system allows it.
 
@@ -116,7 +116,7 @@ Reply to `hello`.
 | `version` | Companion version |
 | `ytdlp` | yt-dlp version, or `null` if not found |
 | `ffmpeg` | ffmpeg version, or `null` if not found |
-| `dir` | Default download folder: `<user Downloads folder>\GetSmart DM\Video` |
+| `dir` | Default download folder: `<user Downloads folder>\SIDM\Video` |
 | `downloads` | The user's Downloads folder (the root that `add_file` `folder` is relative to) |
 | `features` | List of optional features this companion supports. `"files"` = `add_file`, `pause_file`, `set_speed_limit` and `open_file`. An older companion sends no `features`; the extension then uses the browser for files |
 

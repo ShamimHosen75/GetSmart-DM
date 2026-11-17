@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to GetSmart DM. Newest version first. Each version has three parts: **Extension**, **Companion** and **Website**.
+All notable changes to SIDM. Newest version first. Each version has three parts: **Extension**, **Companion** and **Website**.
 
 Add a new section with `python scripts/bump.py patch|minor|major`, then fill in the bullets before running `scripts/release.py`. See `RELEASE.md`.
 
@@ -11,7 +11,7 @@ First release.
 ### Extension
 
 - Downloads tab: every browser download, newest first, with progress, speed, time left and state; pause, resume, cancel, retry, open, show in folder, copy link, remove; search, category filter (Video, Music, Documents, Programs, Archives, Images, Other) and "Clear finished". The toolbar badge counts running downloads.
-- Saves into `Downloads/GetSmart DM/<Category>/` (can be turned off). Downloads GetSmart DM starts wait in a queue (1 to 10 at a time, 3 by default); file names are made safe for Windows; Bangla names are kept.
+- Saves into `Downloads/SIDM/<Category>/` (can be turned off). Downloads SIDM starts wait in a queue (1 to 10 at a time, 3 by default); file names are made safe for Windows; Bangla names are kept.
 - Notifications when a download finishes or fails.
 - "+" panel to add links (one per line) and right-click menus: download a link, download an image/video/audio file, grab all links on a page. `blob:` and `data:` addresses are refused with an explanation.
 - Link grabber page: every link, image and media file on a page (iframes included), with category chips, a filter and "Download selected".
@@ -22,7 +22,7 @@ First release.
 
 ### Companion
 
-- First version of the Windows companion (`host.py` 0.1.0): downloads videos from Facebook, X, Instagram, TikTok, Vimeo and other sites yt-dlp supports, joins video and sound into one MP4 with ffmpeg, and saves to `Downloads\GetSmart DM\Video`.
+- First version of the Windows companion (`host.py` 0.1.0): downloads videos from Facebook, X, Instagram, TikTok, Vimeo and other sites yt-dlp supports, joins video and sound into one MP4 with ffmpeg, and saves to `Downloads\SIDM\Video`.
 - Qualities Best, 1080, 720, 480, 360 and Audio (MP3). Without ffmpeg it falls back to a single file and tells you why.
 - Plain-language errors for DRM, private or login-only posts, unsupported links, 404, missing ffmpeg and network problems. Every job is logged to `host.log`.
 - Cancel stops the download and removes only that download's partial files.

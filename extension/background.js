@@ -1,4 +1,4 @@
-// GetSmart DM service worker (Manifest V3, ES module).
+// SIDM service worker (Manifest V3, ES module).
 //
 // Every listener is registered synchronously at the top level, so Chrome can
 // wake the worker for any of these events after it has been asleep.
@@ -24,7 +24,7 @@ const BADGE_COLOR = '#6c3ff0';
 
 chrome.runtime.onInstalled.addListener(() => {
   injectIntoOpenTabs();
-  seedDefaultSettings().catch((err) => console.error('GetSmart DM: could not save default settings', err));
+  seedDefaultSettings().catch((err) => console.error('SIDM: could not save default settings', err));
   updateBadge();
   pump();
   buildMenus();
@@ -53,7 +53,7 @@ async function injectIntoOpenTabs() {
     await Promise.all(tabs.map((tab) =>
       chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['overlay.js'] }).catch(() => {})));
   } catch (err) {
-    console.warn('GetSmart DM: could not add the video button to open tabs', err);
+    console.warn('SIDM: could not add the video button to open tabs', err);
   }
 }
 
@@ -74,7 +74,7 @@ function updateBadge() {
       }
       await chrome.action.setBadgeText({ text: count ? String(count) : '' });
     } catch (err) {
-      console.error('GetSmart DM: badge update failed', err);
+      console.error('SIDM: badge update failed', err);
     }
   }, 150);
 }

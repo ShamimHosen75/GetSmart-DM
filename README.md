@@ -1,4 +1,4 @@
-# GetSmart DM
+# SIDM
 
 **Download Smarter. Faster. Better.**
 

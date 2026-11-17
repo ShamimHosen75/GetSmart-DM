@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Automated QA for the GetSmart DM extension (extension/).
+"""Automated QA for the SIDM extension (extension/).
 
 Starts a local test HTTP server, launches real Chromium headless with the
 extension loaded (--load-extension), drives the extension pages with
@@ -7,7 +7,7 @@ Playwright and checks:
 
    1. media detection + green badge (HLS/DASH, small files and XHR 206 skipped)
    2. YouTube is never detected (and video downloads there are refused)
-   3. folder sorting (GetSmart DM/<Category>/<name>)
+   3. folder sorting (SIDM/<Category>/<name>)
    4. custom and Bangla file names, Windows-safe names
    5. queue limit with max simultaneous = 2
    6. pause / resume from the popup UI
@@ -382,7 +382,7 @@ def check_folder_sorting(b, base):
                         {"url": base + "/f/tool.zip?size=50000&mime=application/zip"},
                         {"url": base + "/f/track?size=50000&mime=audio/mpeg"}])
     assert reply["added"] == 3, reply
-    want = ["GetSmart DM/Archives/tool.zip", "GetSmart DM/Documents/report.pdf", "GetSmart DM/Music/track.mp3"]
+    want = ["SIDM/Archives/tool.zip", "SIDM/Documents/report.pdf", "SIDM/Music/track.mp3"]
     wait_for(lambda: all(w in files_on_disk(b.downloads) for w in want),
              what="sorted files %r (on disk: %r, downloads %r, queue %r)" % (want, files_on_disk(b.downloads),
                  [(d["filename"][-30:], d["state"], d.get("danger"), d.get("bytesReceived"), d.get("paused")) for d in b.call("() => chrome.downloads.search({})")], queued(b)))
@@ -395,7 +395,7 @@ def check_names(b, base):
                         {"url": base + "/f/x3?size=1000&mime=text/plain", "filename": "CON.txt"},
                         {"url": "ftp://example.com/nope"}])
     assert reply == {"added": 3, "rejected": 1}, reply
-    want = ["GetSmart DM/Documents/a_b_.pdf", "GetSmart DM/Music/বাংলা গান.mp3", "GetSmart DM/Documents/_CON.txt"]
+    want = ["SIDM/Documents/a_b_.pdf", "SIDM/Music/বাংলা গান.mp3", "SIDM/Documents/_CON.txt"]
     wait_for(lambda: all(w in files_on_disk(b.downloads) for w in want), what="named files")
     return ", ".join(want) + "; ftp:// rejected"
 
@@ -536,7 +536,7 @@ def check_grabber(b, base):
     grabber.fill("#g-filter", "pack")
     grabber.check("#g-all")
     grabber.click("#g-download")
-    wait_for(lambda: "GetSmart DM/Archives/pack.zip" in files_on_disk(b.downloads), what="grabbed file")
+    wait_for(lambda: "SIDM/Archives/pack.zip" in files_on_disk(b.downloads), what="grabbed file")
 
     closed = b.page("grabber.html?tab=999999999")
     closed.wait_for_selector("#g-status:not([hidden])")
@@ -706,8 +706,8 @@ def register_companion(b):
     os.chmod(wrapper, 0o755)
     folder = os.path.join(b.tmp, "profile", "NativeMessagingHosts")
     os.makedirs(folder, exist_ok=True)
-    with open(os.path.join(folder, "com.getsmartdm.host.json"), "w", encoding="utf-8") as f:
-        json.dump({"name": "com.getsmartdm.host", "description": "test", "path": wrapper, "type": "stdio",
+    with open(os.path.join(folder, "com.sidm.host.json"), "w", encoding="utf-8") as f:
+        json.dump({"name": "com.sidm.host", "description": "test", "path": wrapper, "type": "stdio",
                    "allowed_origins": ["chrome-extension://%s/" % EXT_ID]}, f)
 
 
@@ -736,7 +736,7 @@ def check_companion_files(b, base):
     page.click("#b-resume")
     done = wait_for(lambda: next((j for j in file_jobs(b) if j["id"] == job["id"] and j["state"] == "done"), None),
                     timeout=60, what="companion job done")
-    path = os.path.join(b.downloads, "GetSmart DM", "Archives", "bigfile.zip")
+    path = os.path.join(b.downloads, "SIDM", "Archives", "bigfile.zip")
     assert os.path.getsize(path) == 8000000, os.path.getsize(path)
     assert os.path.realpath(done["filename"]) == os.path.realpath(path), done["filename"]
     page.close()
@@ -772,7 +772,7 @@ def check_companion_files(b, base):
     assert jobs[0]["url"] == base + "/u/status/12345" and jobs[0]["quality"] == "best", jobs[0]
     page.close()
     reset(b)
-    return "video button: Best quality for the post address; 8 MB over several connections into GetSmart DM/Archives, parts shown, pause/resume, popup row; 500 KB/s limit; no-range file went to the browser"
+    return "video button: Best quality for the post address; 8 MB over several connections into SIDM/Archives, parts shown, pause/resume, popup row; 500 KB/s limit; no-range file went to the browser"
 
 
 CHECKS = [

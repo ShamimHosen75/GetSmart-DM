@@ -1,6 +1,6 @@
 # extension/
 
-GetSmart DM browser extension for Chrome 116+, Edge and Brave. Manifest V3, plain JavaScript ES modules, no build step and no external libraries. See the root `CLAUDE.md` for the rules.
+SIDM browser extension for Chrome 116+, Edge and Brave. Manifest V3, plain JavaScript ES modules, no build step and no external libraries. See the root `CLAUDE.md` for the rules.
 
 Status: version 0.1.0. Step 1 milestones M1 to M9 are done (download list, queue and folder sorting, add links and menus, link grabber, media detection, companion bridge, settings, automated test).
 
@@ -9,9 +9,9 @@ Status: version 0.1.0. Step 1 milestones M1 to M9 are done (download list, queue
 1. Open `chrome://extensions` (Edge: `edge://extensions`, Brave: `brave://extensions`).
 2. Turn on **Developer mode** (top right in Chrome, left sidebar in Edge).
 3. Click **Load unpacked** and pick this `extension/` folder (the one that holds `manifest.json`).
-4. Pin GetSmart DM from the puzzle-piece menu so the icon is always visible.
+4. Pin SIDM from the puzzle-piece menu so the icon is always visible.
 
-After pulling new code, press the reload arrow on the GetSmart DM card.
+After pulling new code, press the reload arrow on the SIDM card.
 
 ## Extension ID
 
@@ -37,7 +37,7 @@ python scripts/extension_id.py --pem extension-key.pem --print-key
 
 ## Permissions
 
-| Permission | Why GetSmart DM needs it |
+| Permission | Why SIDM needs it |
 |---|---|
 | `downloads` | List, start, pause, resume, cancel and retry downloads, and choose the folder and file name (`onDeterminingFilename`). |
 | `downloads.open` | Open a finished file from the popup ("Open file"). |
@@ -48,8 +48,8 @@ python scripts/extension_id.py --pem extension-key.pem --print-key
 | `scripting` | Collect the links, images and media on a page for the link grabber, only when you ask for it. |
 | `notifications` | Tell you when a download finishes or fails, and why a `blob:`/`data:` link cannot be saved. |
 | `alarms` | Scheduler: start and stop the queue at the times you set. |
-| `nativeMessaging` | Talk to the GetSmart DM companion app (`com.getsmartdm.host`) that downloads videos from supported sites. |
-| `host_permissions: <all_urls>` | Needed by `webRequest` and `scripting` to work on any site you visit. GetSmart DM never sends page data anywhere. |
+| `nativeMessaging` | Talk to the SIDM companion app (`com.sidm.host`) that downloads videos from supported sites. |
+| `host_permissions: <all_urls>` | Needed by `webRequest` and `scripting` to work on any site you visit. SIDM never sends page data anywhere. |
 
 ## Files
 
@@ -60,7 +60,7 @@ python scripts/extension_id.py --pem extension-key.pem --print-key
 | `queue.js` | Queue in `storage.local`, folder sorting and chosen names (`onDeterminingFilename`), notifications |
 | `menus.js` | Context menus |
 | `media.js` | Media detection (`webRequest.onHeadersReceived`), per-tab lists in `storage.session` |
-| `native-bridge.js` | Companion connection (`com.getsmartdm.host`) and video jobs |
+| `native-bridge.js` | Companion connection (`com.sidm.host`) and video jobs |
 | `sites.js` | Video sites, YouTube hosts, DRM hosts, host helpers |
 | `common.js` | Settings defaults and storage, theme, categories, safe file names, formatting |
 | `i18n.js` | Built-in English + Bangla dictionary and `t()` |

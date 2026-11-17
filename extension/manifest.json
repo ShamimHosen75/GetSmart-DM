@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "GetSmart DM",
-  "short_name": "GetSmart DM",
+  "name": "SIDM - Smart Internet Download Manager",
+  "short_name": "SIDM",
   "description": "Download Smarter. Faster. Better. A free download manager with queue, folder sorting and media detection.",
   "version": "0.1.0",
   "minimum_chrome_version": "116",
@@ -13,7 +13,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "GetSmart DM",
+    "default_title": "SIDM",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

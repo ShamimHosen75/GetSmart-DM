@@ -1,5 +1,5 @@
 @echo off
-rem GetSmart DM companion installer. No admin rights needed.
+rem SIDM companion installer. No admin rights needed.
 rem Downloads embedded Python, yt-dlp and ffmpeg into this folder, then
 rem registers the native-messaging host for Chrome, Edge and Brave (current user only).
 setlocal EnableExtensions
@@ -8,7 +8,7 @@ chcp 65001 >nul
 cd /d "%~dp0"
 
 set "EXT_ID=ejkhmcfjnohjikdgfgkhjficmiaoghma"
-set "HOST_NAME=com.getsmartdm.host"
+set "HOST_NAME=com.sidm.host"
 set "PY_VER=3.12.10"
 set "PY_URL=https://www.python.org/ftp/python/%PY_VER%/python-%PY_VER%-embed-amd64.zip"
 set "YTDLP_URL=https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
@@ -20,7 +20,7 @@ set "MANIFEST=%HERE%%HOST_NAME%.json"
 set "LAUNCHER=%HERE%run_host.bat"
 
 echo.
-echo GetSmart DM companion installer
+echo SIDM companion installer
 echo Folder: %HERE%
 echo.
 
@@ -100,7 +100,7 @@ rem ---- 5. Launcher and native-messaging manifest
 set "JSON_PATH=%LAUNCHER:\=\\%"
 > "%MANIFEST%" echo {
 >> "%MANIFEST%" echo   "name": "%HOST_NAME%",
->> "%MANIFEST%" echo   "description": "GetSmart DM companion",
+>> "%MANIFEST%" echo   "description": "SIDM companion",
 >> "%MANIFEST%" echo   "path": "%JSON_PATH%",
 >> "%MANIFEST%" echo   "type": "stdio",
 >> "%MANIFEST%" echo   "allowed_origins": ["chrome-extension://%EXT_ID%/"]
@@ -141,7 +141,7 @@ if errorlevel 1 (
 
 rmdir /s /q "%WORK%" >nul 2>&1
 echo.
-echo Done. Restart Chrome, Edge or Brave, then open GetSmart DM: the companion should show as connected.
+echo Done. Restart Chrome, Edge or Brave, then open SIDM: the companion should show as connected.
 echo Keep this folder where it is. If you move it, run install.bat again.
 echo.
 pause

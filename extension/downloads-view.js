@@ -129,7 +129,7 @@ async function refresh() {
     lastItems = [...queued, ...items];
     render();
   } catch (err) {
-    console.error('GetSmart DM: could not read downloads', err);
+    console.error('SIDM: could not read downloads', err);
   } finally {
     refreshing = false;
     if (refreshAgain) {

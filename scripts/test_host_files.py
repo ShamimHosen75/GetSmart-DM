@@ -159,10 +159,10 @@ class FileDownloadTest(unittest.TestCase):
     def test_multi_connection(self):
         RANGES_SEEN.clear()
         self.host.send({"type": "add_file", "id": "multi", "url": self.base + "/big.bin?slow", "filename": "big.bin",
-                        "folder": "GetSmart DM/Archives", "connections": 6})
+                        "folder": "SIDM/Archives", "connections": 6})
         done, seen = self.final("multi")
         self.assertEqual(done["state"], "done", done)
-        path = os.path.join(self.downloads, "GetSmart DM", "Archives", "big.bin")
+        path = os.path.join(self.downloads, "SIDM", "Archives", "big.bin")
         self.assertEqual(os.path.realpath(done["filename"]), os.path.realpath(path))
         with open(path, "rb") as f:
             self.assertEqual(hashlib.sha256(f.read()).hexdigest(), hashlib.sha256(DATA).hexdigest())

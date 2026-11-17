@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the GetSmart DM download ZIP(s) and update the website.
+"""Build the SIDM download ZIP(s) and update the website.
 
     python scripts/release.py              # build every platform, remove older ZIPs
     python scripts/release.py --keep       # keep older ZIPs in site/downloads/
@@ -8,8 +8,8 @@
 What it does:
 1. Reads the version from extension/manifest.json and checks that
    companion/host.py VERSION is the same (use scripts/bump.py to change both).
-2. Builds site/downloads/getsmart-dm-v<version>-<platform>.zip for each
-   platform in PLATFORMS. Each ZIP has one top folder, getsmart-dm/, holding
+2. Builds site/downloads/sidm-v<version>-<platform>.zip for each
+   platform in PLATFORMS. Each ZIP has one top folder, sidm/, holding
    extension/, companion/ and START-HERE.txt.
 3. Prints each ZIP's size and SHA-256.
 4. Writes site/version.json ({"version": "x.y.z"}), which the extension checks
@@ -37,8 +37,8 @@ import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-TOP_FOLDER = "getsmart-dm"
-ZIP_NAME = "getsmart-dm-v{version}-{platform}.zip"
+TOP_FOLDER = "sidm"
+ZIP_NAME = "sidm-v{version}-{platform}.zip"
 # Fixed timestamp for every ZIP entry, so rebuilding gives identical bytes.
 ZIP_DATE = (2024, 1, 1, 0, 0, 0)
 
@@ -57,10 +57,10 @@ PLATFORMS = {
         "companion_files": ["host.py", "install.bat", "update.bat", "uninstall.bat", "README.md"],
         "newline": "\r\n",
         "start_here": [
-            "1. Extract this ZIP to a folder you will keep, for example Documents\\getsmart-dm.",
+            "1. Extract this ZIP to a folder you will keep, for example Documents\\sidm.",
             "2. In Chrome, Edge or Brave open chrome://extensions, turn on Developer mode, "
-            "click Load unpacked and choose the getsmart-dm\\extension folder.",
-            "3. Double-click getsmart-dm\\companion\\install.bat, wait for Done, then restart the browser.",
+            "click Load unpacked and choose the sidm\\extension folder.",
+            "3. Double-click sidm\\companion\\install.bat, wait for Done, then restart the browser.",
         ],
     },
     "macos-linux": {
@@ -68,10 +68,10 @@ PLATFORMS = {
         "newline": "\n",
         "unix": True,  # Unix ZIP entries, so unzip / Archive Utility keep the executable bit
         "start_here": [
-            "1. Extract this ZIP to a folder you will keep, for example ~/getsmart-dm.",
+            "1. Extract this ZIP to a folder you will keep, for example ~/sidm.",
             "2. In Chrome, Chromium, Edge or Brave open chrome://extensions, turn on Developer mode, "
-            "click Load unpacked and choose the getsmart-dm/extension folder.",
-            "3. Open Terminal in getsmart-dm/companion, run: bash install.sh, wait for Done, "
+            "click Load unpacked and choose the sidm/extension folder.",
+            "3. Open Terminal in sidm/companion, run: bash install.sh, wait for Done, "
             "then restart the browser.",
         ],
     },
@@ -202,7 +202,7 @@ def human_size(size):
 
 def remove_old_zips(downloads, platform, keep_name):
     removed = []
-    for path in glob.glob(os.path.join(downloads, f"getsmart-dm-v*-{platform}.zip")):
+    for path in glob.glob(os.path.join(downloads, f"sidm-v*-{platform}.zip")):
         if os.path.basename(path) != keep_name:
             os.remove(path)
             removed.append(os.path.basename(path))
@@ -295,7 +295,7 @@ def release(root, platforms, keep=False, out=print):
     downloads = os.path.join(site, "downloads")
     os.makedirs(downloads, exist_ok=True)
 
-    out(f"GetSmart DM {version}")
+    out(f"SIDM {version}")
     builds = {}
     for platform in platforms:
         name = ZIP_NAME.format(version=version, platform=platform)

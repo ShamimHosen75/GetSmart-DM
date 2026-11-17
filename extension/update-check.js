@@ -7,7 +7,7 @@
 // means no hint is shown.
 
 // The download website. Set this once the domain is decided, e.g.
-// 'https://getsmartdm.example'. While it is empty, no check is made.
+// 'https://sidm.example'. While it is empty, no check is made.
 export const SITE_URL = '';
 
 const CHECK_EVERY_MS = 24 * 60 * 60 * 1000;

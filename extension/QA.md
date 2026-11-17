@@ -42,7 +42,7 @@ Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachab
 
 ## M3 Folder sorting + queue
 
-- [ ] Download a PDF, an MP4, a ZIP and an EXE from any site: they land in `Downloads/GetSmart DM/Documents`, `/Video`, `/Archives`, `/Programs`. A file with an unknown extension goes to `/Other` (or by its MIME type).
+- [ ] Download a PDF, an MP4, a ZIP and an EXE from any site: they land in `Downloads/SIDM/Documents`, `/Video`, `/Archives`, `/Programs`. A file with an unknown extension goes to `/Other` (or by its MIME type).
 - [ ] Settings > folder sorting off (M8, or `chrome.storage.sync.set({sortIntoFolders:false})` in the service worker console): new downloads go straight to `Downloads/` again.
 - [ ] A second download with the same name gets ` (1)` added; nothing is overwritten.
 - [ ] Set max simultaneous to 2 and add 4 large links in the "+" panel (M4): 2 run, 2 show "Waiting in queue". Pausing one starts the next. Cancelling a waiting row removes it.
@@ -54,8 +54,8 @@ Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachab
 
 - [ ] Popup "+" opens the add panel. Paste 3 lines: two https links and `ftp://x`. "Add" queues the two and says "Added 2 to the queue · 1 skipped (not http/https)". Duplicate lines are added once. Ctrl+Enter adds, Esc closes.
 - [ ] Add with an empty box: "Paste at least one http:// or https:// link." and nothing is queued.
-- [ ] Right-click a link > "Download link with GetSmart DM": it goes through the queue and into the sorted folder.
-- [ ] Right-click an image, and a `<video>`/`<audio>` element with a real `src` > "Download this file with GetSmart DM".
+- [ ] Right-click a link > "Download link with SIDM": it goes through the queue and into the sorted folder.
+- [ ] Right-click an image, and a `<video>`/`<audio>` element with a real `src` > "Download this file with SIDM".
 - [ ] Right-click an image whose address is `blob:` or `data:` (for example a canvas export) > a notification explains it cannot be saved, nothing is queued.
 - [ ] Right-click the page background > "Grab all links on this page" opens the link grabber (M5) in a tab next to it.
 - [ ] Switch the language to Bangla: the menu entries switch to Bangla.
@@ -78,7 +78,7 @@ Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachab
 - [ ] A response with `Content-Disposition: attachment; filename*=UTF-8''...` is listed under that (decoded) name. Without a usable name, the tab title plus an extension from the MIME type is used.
 - [ ] At most 25 entries per tab; navigating the tab to a new page clears the list and the green badge. Other tabs keep their own lists.
 - [ ] On YouTube nothing is detected and "This page" says detection is always off there.
-- [ ] On Netflix, Prime Video, Disney+, Spotify and similar, nothing is detected and "This page" says GetSmart DM does not download from DRM services.
+- [ ] On Netflix, Prime Video, Disney+, Spotify and similar, nothing is detected and "This page" says SIDM does not download from DRM services.
 - [ ] Add a site to "Disabled sites" in Settings (M8): nothing is detected there and "This page" says so.
 - [ ] With no media, the tab shows "Nothing found on this page", and the global badge (number of running downloads) shows instead of the green one.
 
@@ -91,7 +91,7 @@ Needs the companion installed (`companion/install.bat` on Windows).
 - [ ] "Download video": a row appears under "Video downloads" with bar, size, speed and time left; when done it says "Saved" and the folder button opens the folder in a tab. A note from the companion (for example ffmpeg missing) shows in italics.
 - [ ] Cancel a running video: "Cancelled"; Retry starts it again; Remove clears finished rows.
 - [ ] End the companion process (Task Manager) during a download: the row turns "Failed: The companion app stopped"; the next "Download video" reconnects.
-- [ ] Right-click on a page of those sites > "Download video from this page with GetSmart DM" starts a job at the default quality. Without the companion, a notification explains how to install it.
+- [ ] Right-click on a page of those sites > "Download video from this page with SIDM" starts a job at the default quality. Without the companion, a notification explains how to install it.
 - [ ] YouTube: no card controls, only the note that YouTube downloads are off; no context-menu entry. After turning on "Allow YouTube" in Settings (M8), the card and the menu appear on youtube.com.
 - [ ] Netflix and other DRM sites: no card, no menu; asking the worker for addVideo there returns the DRM refusal.
 - [ ] Leave the browser idle for a minute with no video running: the companion process exits (no zombie host).
@@ -114,9 +114,9 @@ Needs the companion installed (`companion/install.bat` on Windows).
 
 Run `python scripts/test_extension.py` first (all PASS), then by hand:
 
-- [ ] **Service worker asleep:** on `chrome://extensions` > GetSmart DM > "Service worker", wait 5 minutes until it shows "inactive". Then: start a download from a site (it is sorted into a folder), right-click a link > "Download link with GetSmart DM" (it starts), open a page with a video (green badge appears), open the popup (list correct). Each wakes the worker with no error on the card.
+- [ ] **Service worker asleep:** on `chrome://extensions` > SIDM > "Service worker", wait 5 minutes until it shows "inactive". Then: start a download from a site (it is sorted into a folder), right-click a link > "Download link with SIDM" (it starts), open a page with a video (green badge appears), open the popup (list correct). Each wakes the worker with no error on the card.
 - [ ] **Queue after sleep:** with max 1, add 3 links, let the worker sleep, then cancel the running one: the next queued link starts.
-- [ ] **Incognito:** turn on "Allow in Incognito" for GetSmart DM. Downloads from an incognito window appear in the popup opened there, are sorted, and media detection works. The popup in a normal window does not list incognito downloads.
+- [ ] **Incognito:** turn on "Allow in Incognito" for SIDM. Downloads from an incognito window appear in the popup opened there, are sorted, and media detection works. The popup in a normal window does not list incognito downloads.
 - [ ] **Alt-click:** Alt+click on a link (Chrome's own "download link" shortcut) downloads it directly without the queue; it still appears in the list and is sorted into a folder.
 - [ ] **chrome:// pages:** on `chrome://settings`, `edge://settings` and the Web Store: the popup opens without errors, "This page" shows "Nothing found", "Grab all links" says Chrome does not allow the page.
 - [ ] **Dark mode:** set Windows to dark mode with Theme = Automatic: popup, settings and grabber are dark with readable text, badges and type tiles. Theme = Light overrides it.
@@ -127,7 +127,7 @@ Run `python scripts/test_extension.py` first (all PASS), then by hand:
 ## M10 Download button on videos
 
 - [ ] On a page with a plain `<video>` (for example a free stock-video site), move the pointer over the video: a "Download" pill appears at its top-right corner and fades after 2.5 s without movement. Small videos (under 200×112) get no button.
-- [ ] Click it: the menu lists the files the page played (with size and type) and the video's own file. Choosing one adds it to the queue and shows "Added to GetSmart DM".
+- [ ] Click it: the menu lists the files the page played (with size and type) and the video's own file. Choosing one adds it to the queue and shows "Added to SIDM".
 - [ ] On a supported video site (Facebook, X, Vimeo...), the menu also offers "Download video" through the companion at the default quality.
 - [ ] If nothing is known yet: "Nothing to download yet. Play the video for a few seconds, then try again."
 - [ ] No button on YouTube (unless Allow YouTube is on, then only the companion entry), on Netflix/other DRM sites, on disabled sites, or when "Download button on videos" is off in Settings.
@@ -165,7 +165,7 @@ Needs the companion installed (install.bat).
 
 - [ ] Settings > Downloads: "Multi-connection downloads" is on, "Connections per download" is 8 (1 to 16).
 - [ ] Add a big file (50 MB or more) from a normal file server: it downloads through the companion. The progress window shows "Connections 8 of 8", a bar with one block per part, and a table of parts that fill up. Speed is clearly higher than a browser download on a server that limits speed per connection.
-- [ ] The file lands in `Downloads\GetSmart DM\<Category>\` with a `.gsdmpart` file while it runs and only the final file afterwards.
+- [ ] The file lands in `Downloads\SIDM\<Category>\` with a `.gsdmpart` file while it runs and only the final file afterwards.
 - [ ] Pause, then Resume: it continues from where it stopped (the downloaded amount does not go back to 0). Close the browser while paused, start it again, Resume: it still continues.
 - [ ] Cancel: the `.gsdmpart` and `.gsdmpart.json` files are removed, nothing else in the folder changes.
 - [ ] Open file and Show in folder work for a finished companion download (popup, manager, progress window).
