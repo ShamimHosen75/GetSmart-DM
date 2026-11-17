@@ -25,7 +25,7 @@ import threading
 import time
 from urllib.parse import urlparse
 
-VERSION = "0.1.0-dev"
+VERSION = "0.1.0"
 PROTOCOL_V = 1
 HOST_NAME = "com.getsmartdm.host"
 

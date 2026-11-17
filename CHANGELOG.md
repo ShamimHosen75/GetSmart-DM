@@ -4,6 +4,27 @@ All notable changes to GetSmart DM. Newest version first. Each version has three
 
 Add a new section with `python scripts/bump.py patch|minor|major`, then fill in the bullets before running `scripts/release.py`. See `RELEASE.md`.
 
+## [0.1.0] - 2026-11-17
+
+### Extension
+
+- (Filled in with the extension's M9 release notes.)
+
+### Companion
+
+- First version of the Windows companion (`host.py` 0.1.0): downloads videos from Facebook, X, Instagram, TikTok, Vimeo and other sites yt-dlp supports, joins video and sound into one MP4 with ffmpeg, and saves to `Downloads\GetSmart DM\Video`.
+- Qualities Best, 1080, 720, 480, 360 and Audio (MP3). Without ffmpeg it falls back to a single file and tells you why.
+- Plain-language errors for DRM, private or login-only posts, unsupported links, 404, missing ffmpeg and network problems. Every job is logged to `host.log`.
+- Cancel stops the download and removes only that download's partial files.
+- YouTube is refused unless it is turned on in Settings; DRM services (Netflix, Spotify and others) are always refused.
+- `install.bat` sets everything up without admin rights or a separate Python install; `update.bat` gets the newest yt-dlp; `uninstall.bat` removes the browser registration.
+- Tests: `scripts/test_host.py` (host over native-messaging framing) and `scripts/test_companion.py` (extension + companion end to end in Chromium). Manual checklist: `companion/QA.md`.
+
+### Website
+
+- No changes.
+
+
 ## [0.0.1] - 2026-11-17
 
 Development snapshot, not released to users.
