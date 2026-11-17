@@ -5,6 +5,7 @@ import { initPage } from './common.js';
 import { showUpdateLink } from './update-check.js';
 import { initDownloadsView, refreshDownloads, showToast } from './downloads-view.js';
 import { initAddLinks } from './add-links.js';
+import { initPageView } from './page-view.js';
 
 const TAB_KEY = 'popupTab'; // remembered per browser in chrome.storage.local
 
@@ -36,6 +37,7 @@ async function main() {
     },
     showMessage: (message) => showToast(message),
   });
+  initPageView({ showToast });
 
   document.getElementById('open-settings').addEventListener('click', () => {
     chrome.runtime.openOptionsPage();

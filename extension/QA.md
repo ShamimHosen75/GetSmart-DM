@@ -69,3 +69,15 @@ Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachab
 - [ ] Close the source tab, then press "Scan again": "The tab is gone".
 - [ ] On `chrome://settings` and on the Chrome Web Store, "Grab all links" shows "Chrome does not allow this page".
 - [ ] On a page with no links: "No links found".
+
+## M6 Media detection ("This page")
+
+- [ ] Open a page that plays a plain MP4 or MP3 (for example a file on a test server or a site that uses `<video src="...mp4">`): the toolbar icon shows a green number on that tab, and "This page" lists the file with size and type. "Download" queues it with the shown name.
+- [ ] HLS/DASH players (`.m3u8`, `.mpd`, `.ts`, `.m4s`) are not listed; only whole files are.
+- [ ] Files smaller than the minimum size (default 200 KB) are not listed.
+- [ ] A response with `Content-Disposition: attachment; filename*=UTF-8''...` is listed under that (decoded) name. Without a usable name, the tab title plus an extension from the MIME type is used.
+- [ ] At most 25 entries per tab; navigating the tab to a new page clears the list and the green badge. Other tabs keep their own lists.
+- [ ] On YouTube nothing is detected and "This page" says detection is always off there.
+- [ ] On Netflix, Prime Video, Disney+, Spotify and similar, nothing is detected and "This page" says GetSmart DM does not download from DRM services.
+- [ ] Add a site to "Disabled sites" in Settings (M8): nothing is detected there and "This page" says so.
+- [ ] With no media, the tab shows "Nothing found on this page", and the global badge (number of running downloads) shows instead of the green one.

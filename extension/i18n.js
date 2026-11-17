@@ -98,6 +98,13 @@ const STRINGS = {
     grabNoLinksTitle: 'No links found',
     grabNoLinksBody: 'This page has no http or https links, images or media. If it is still loading, wait and press "Scan again".',
 
+    // This page (M6)
+    actDownload: 'Download',
+    noteDetectionOff: 'Media detection is turned off in Settings.',
+    noteYouTube: 'Media detection is always off on YouTube.',
+    noteDrm: 'This service protects its media with DRM. GetSmart DM does not download from it.',
+    noteSiteDisabled: 'Media detection is turned off for this site in Settings.',
+
     // Options
     settingsTitle: 'Settings',
     sectionAppearance: 'Appearance',
@@ -207,6 +214,12 @@ const STRINGS = {
     grabForbiddenBody: 'ব্রাউজারের নিজস্ব পেজ (chrome://, edge://), এক্সটেনশন স্টোর এবং কিছু সুরক্ষিত পেজ এক্সটেনশন পড়তে পারে না।',
     grabNoLinksTitle: 'কোনো লিংক পাওয়া যায়নি',
     grabNoLinksBody: 'এই পেজে কোনো http বা https লিংক, ছবি বা মিডিয়া নেই। পেজ এখনও লোড হলে একটু অপেক্ষা করে "আবার খুঁজুন" চাপুন।',
+
+    actDownload: 'ডাউনলোড',
+    noteDetectionOff: 'সেটিংসে মিডিয়া শনাক্তকরণ বন্ধ করা আছে।',
+    noteYouTube: 'YouTube-এ মিডিয়া শনাক্তকরণ সবসময় বন্ধ থাকে।',
+    noteDrm: 'এই সেবা DRM দিয়ে তাদের মিডিয়া সুরক্ষিত রাখে। GetSmart DM এখান থেকে ডাউনলোড করে না।',
+    noteSiteDisabled: 'সেটিংসে এই সাইটের জন্য মিডিয়া শনাক্তকরণ বন্ধ করা আছে।',
 
     settingsTitle: 'সেটিংস',
     sectionAppearance: 'চেহারা',

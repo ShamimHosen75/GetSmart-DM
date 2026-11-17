@@ -12,6 +12,7 @@
 import { seedDefaultSettings } from './common.js';
 import { enqueue, pump, registerQueueListeners, removeQueued } from './queue.js';
 import { buildMenus, registerMenuListeners } from './menus.js';
+import { registerMediaListeners } from './media.js';
 
 const BADGE_COLOR = '#6c3ff0';
 
@@ -29,6 +30,7 @@ chrome.runtime.onStartup.addListener(() => {
 
 registerQueueListeners();
 registerMenuListeners();
+registerMediaListeners();
 
 // ---------- Badge: number of active (running, not paused) downloads ----------
 
