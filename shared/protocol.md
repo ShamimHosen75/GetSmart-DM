@@ -40,6 +40,9 @@ Start a download.
 | `url` | yes | Page or media URL |
 | `quality` | yes | One of `best`, `1080`, `720`, `480`, `360`, `audio` |
 | `dir` | no | Target folder. If absent, the companion uses its default folder (reported in `hello`) |
+| `youtube` | no | `true` only when the user has turned on the off-by-default YouTube setting. If absent or `false`, the companion refuses YouTube URLs with a `progress` of `state: "error"` |
+
+The companion also refuses known DRM services (Netflix, Prime Video, Disney+, Hulu, Max, Spotify and similar) with `state: "error"`, and never tries to work around DRM.
 
 ### `cancel`
 Cancel a running download.
@@ -65,7 +68,7 @@ Reply to `hello`.
 | `version` | Companion version |
 | `ytdlp` | yt-dlp version, or `null` if not found |
 | `ffmpeg` | ffmpeg version, or `null` if not found |
-| `dir` | Default download folder |
+| `dir` | Default download folder: `<user Downloads folder>\GetSmart DM\Video` |
 
 ### `progress`
 Sent repeatedly while a download runs, and once with a final state.
@@ -82,6 +85,7 @@ Sent repeatedly while a download runs, and once with a final state.
 | `eta` | no | Seconds remaining |
 | `filename` | no | Output file name (full path once `done`) |
 | `error` | no | Human-readable message, present when `state` is `error` |
+| `note` | no | Human-readable notice that is not an error, e.g. ffmpeg is missing so a lower-quality single-file format was used |
 
 `done`, `error` and `canceled` are final: no more `progress` follows for that `id`.
 
