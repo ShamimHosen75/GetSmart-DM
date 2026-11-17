@@ -247,6 +247,35 @@ body.popup {
   display: none;
 }
 
+.popup-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.update-link {
+  margin: 4px 12px 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--mint-soft);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.update-link:hover {
+  text-decoration: underline;
+}
+
+.update-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.update-link[hidden] {
+  display: none;
+}
+
 /* ---------- Options ---------- */
 
 body.options {

@@ -14,3 +14,12 @@ Manual checks, grouped by milestone. Tick each before calling a milestone done.
 - [ ] Settings: Theme = Dark / Light / Automatic switches immediately; Automatic follows Windows dark mode.
 - [ ] Settings: About shows the version and the extension ID.
 - [ ] Same checks in Edge and Brave.
+
+## Update available (release tooling, Step 4)
+
+Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachable there.
+
+- [ ] With `version.json` showing a **higher** version than the manifest, the popup footer shows "Update available" (Bangla: "আপডেট পাওয়া যাচ্ছে"); clicking it opens the website in a new tab.
+- [ ] With the **same or lower** version, or the site offline, no footer link and no console error.
+- [ ] Open the popup several times: DevTools Network shows at most one `version.json` request per 24 hours.
+- [ ] With `SITE_URL` empty, no request is made at all.

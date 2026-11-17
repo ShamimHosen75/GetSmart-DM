@@ -36,6 +36,9 @@ const STRINGS = {
     extensionId: 'Extension ID',
     saved: 'Saved',
     moreSettingsSoon: 'More settings arrive in later versions.',
+
+    // Popup footer (update-check.js)
+    updateAvailable: 'Update available',
   },
 
   bn: {
@@ -67,6 +70,8 @@ const STRINGS = {
     extensionId: 'এক্সটেনশন আইডি',
     saved: 'সংরক্ষিত',
     moreSettingsSoon: 'আরও সেটিংস পরের সংস্করণগুলোতে আসবে।',
+
+    updateAvailable: 'আপডেট পাওয়া যাচ্ছে',
   },
 };
 

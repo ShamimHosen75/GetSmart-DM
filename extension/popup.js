@@ -2,6 +2,7 @@
 // M1: shell only. The download list (M2) and page media (M6) fill the panels later.
 
 import { initPage } from './common.js';
+import { showUpdateLink } from './update-check.js';
 
 const TAB_KEY = 'popupTab'; // remembered per browser in chrome.storage.local
 
@@ -29,6 +30,8 @@ async function main() {
     chrome.runtime.openOptionsPage();
     window.close();
   });
+
+  showUpdateLink(document.getElementById('update-link'));
 }
 
 main();

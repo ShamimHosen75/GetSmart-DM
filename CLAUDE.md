@@ -34,13 +34,16 @@ Later: companion for macOS/Linux, Android app.
 
 ## Current step
 
-**Step 3: `site/`.** Current step = 3.
+**Step 4: `scripts/`.** Current step = 4.
 
-Status: **site built** (index, privacy, terms, styles, popup screenshots, `vercel.json`, `scripts/test_site.py`, `scripts/deploy_site.md`), waiting for "continue". The download ZIP and the real version/size/SHA-256 come from the Step 4 release script (`data-release` attributes in `site/index.html`). Popup screenshots show the M1 popup and are placeholders; re-run `python scripts/test_site.py` to refresh them.
+Step 4 builds the release tooling: `scripts/release.py` (Windows ZIP, size + SHA-256, `site/version.json`, `site/index.html` via `data-release` markers), `scripts/bump.py`, `CHANGELOG.md`, `RELEASE.md` (checklist and `v<version>` tags), the popup "Update available" footer link (`extension/update-check.js`) and the `test` GitHub Actions workflow.
 
-Step 2 (`companion/`) status: M1 (host.py + test_host.py) and M2 (install.bat, update.bat, uninstall.bat, README) done; waiting for the owner's install.bat output and "continue" before M3.
+Status: **release tooling done**, waiting for the owner's "continue". Open: the website domain for `SITE_URL` in `extension/update-check.js`.
 
-Step 1 (`extension/`) status: M1 skeleton done; M2 to M9 (including the M7 companion bridge) not built yet.
+Earlier steps are not finished yet:
+- Step 1 (`extension/`): M1 skeleton done; M2 to M9 (including the M7 companion bridge and `scripts/test_extension.py`) not built yet.
+- Step 2 (`companion/`): M1 (`host.py` + `scripts/test_host.py`) and M2 (bat files + README) done; M3 (`scripts/test_companion.py`, needs the extension's M7 bridge) and M4 (`QA.md`, 0.1.0, CHANGELOG entries) not done. Companion milestones: M1 host.py, M2 install/update/uninstall.bat + README, M3 end-to-end test, M4 QA.md + 0.1.0 + CHANGELOG.
+- Step 3 (`site/`): built (index, privacy, terms, `scripts/test_site.py`, `scripts/deploy_site.md`), waiting for "continue". Popup screenshots show the M1 popup and are placeholders.
 
 Update this section at the end of every milestone.
 
@@ -74,6 +77,12 @@ Update this section at the end of every milestone.
 
 - Every feature ships with a **manual QA checklist** in that folder's `QA.md`.
 - Where possible, every feature also gets an **automated Playwright test**.
+
+## Release rules
+
+- The extension and companion always share one version (`x.y.z`). Change it only with `python scripts/bump.py`; `scripts/release.py` refuses to build if they differ.
+- Every version gets a `CHANGELOG.md` section with **Extension / Companion / Website** sub-headings.
+- Follow `RELEASE.md` for every release. Tags are `v<version>` on `main`.
 
 ## Way of working
 
