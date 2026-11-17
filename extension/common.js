@@ -18,6 +18,11 @@ export const DEFAULT_SETTINGS = Object.freeze({
   useCompanion: true, // big files through the companion over several connections, when it is installed (M13)
   connections: 8, // connections per companion file download, 1-16 (M13)
   speedLimitKBps: 0, // total speed limit for companion file downloads, 0 = none (M14)
+  scheduleEnabled: false, // start (and stop) the queue at set times (M14)
+  scheduleStart: '02:00', // HH:MM, local time
+  scheduleStop: '', // HH:MM or "" for no stop time
+  scheduleDays: [0, 1, 2, 3, 4, 5, 6], // 0 = Sunday
+  whenQueueDone: 'nothing', // nothing | notify | close (close every browser window)
   progressWindow: 'ours', // open a progress window: off | ours (downloads GetSmart DM starts) | all (M11)
   disabledSites: [], // hosts where media detection is off
   defaultQuality: 'best', // best | 1080 | 720 | 480 | 360 | audio
@@ -39,20 +44,24 @@ export async function getSettings() {
  */
 let settingsCache = null;
 export async function cachedSettings() {
-  if (!settingsCache) {
-    settingsCache = getSettings();
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (area !== 'sync') return;
-      settingsCache = settingsCache.then((current) => {
-        const next = { ...current };
-        for (const [key, change] of Object.entries(changes)) {
-          if (key in DEFAULT_SETTINGS) next[key] = change.newValue ?? DEFAULT_SETTINGS[key];
-        }
-        return next;
-      });
-    });
-  }
+  if (!settingsCache) settingsCache = getSettings();
   return settingsCache;
+}
+
+// Registered when this module loads, so it runs before any other module's
+// storage.onChanged listener: a listener that then calls cachedSettings()
+// already sees the new value.
+if (globalThis.chrome?.storage?.onChanged) {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'sync' || !settingsCache) return;
+    settingsCache = settingsCache.then((current) => {
+      const next = { ...current };
+      for (const [key, change] of Object.entries(changes)) {
+        if (key in DEFAULT_SETTINGS) next[key] = change.newValue ?? DEFAULT_SETTINGS[key];
+      }
+      return next;
+    });
+  });
 }
 
 /** Save one or more settings. Unknown keys are ignored. */

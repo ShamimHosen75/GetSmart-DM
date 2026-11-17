@@ -9,6 +9,7 @@
 //   media.js          media detection for the "This page" tab (M6)
 //   native-bridge.js  companion app connection and video jobs (M7)
 //   file-jobs.js      multi-connection file downloads through the companion (M13)
+//   scheduler.js      start/stop the queue at set times, "when the queue is done" (M14)
 //   progress.html     per-download progress window, opened here on start (M11)
 
 import { autoOpenProgress, seedDefaultSettings } from './common.js';
@@ -17,6 +18,7 @@ import { buildMenus, registerMenuListeners } from './menus.js';
 import { registerMediaListeners, overlayHandlers } from './media.js';
 import { videoHandlers } from './native-bridge.js';
 import { fileHandlers, runningFileJobs } from './file-jobs.js';
+import { planAlarms, registerSchedulerListeners } from './scheduler.js';
 
 const BADGE_COLOR = '#6c3ff0';
 
@@ -25,16 +27,19 @@ chrome.runtime.onInstalled.addListener(() => {
   updateBadge();
   pump();
   buildMenus();
+  planAlarms();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   updateBadge();
   pump();
+  planAlarms();
 });
 
 registerQueueListeners();
 registerMenuListeners();
 registerMediaListeners();
+registerSchedulerListeners();
 
 // ---------- Badge: number of active (running, not paused) downloads ----------
 

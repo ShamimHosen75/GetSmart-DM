@@ -284,4 +284,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && changes.speedLimitKBps) applyGlobalSpeedLimit();
 });
 
+/** Scheduler stop time: pause every running companion file. */
+export async function pauseRunningFiles() {
+  for (const j of await getFileJobs()) if (j.state === 'running') await pauseFile({ id: j.id });
+}
+
+/** Scheduler start time: resume companion files that were paused. */
+export async function resumePausedFiles() {
+  for (const j of await getFileJobs()) if (j.state === 'paused') await resumeFile({ id: j.id });
+}
+
 export const fileHandlers = { pauseFile, resumeFile, cancelFile, eraseFile, openFile, setFileSpeedLimit };

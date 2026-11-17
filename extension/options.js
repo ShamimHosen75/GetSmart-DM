@@ -30,6 +30,8 @@ function readControl(input) {
     }
     case 'sites':
       return [...new Set(input.value.split(/[\s,]+/).map(normaliseSite).filter(Boolean))];
+    case 'days':
+      return [...input.querySelectorAll('input:checked')].map((box) => Number(box.value)).sort();
     default:
       return input.value;
   }
@@ -42,6 +44,9 @@ function writeControl(input, value) {
       break;
     case 'sites':
       input.value = (value || []).join('\n');
+      break;
+    case 'days':
+      for (const box of input.querySelectorAll('input')) box.checked = (value || []).includes(Number(box.value));
       break;
     default:
       input.value = value;

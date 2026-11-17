@@ -47,6 +47,7 @@ python scripts/extension_id.py --pem extension-key.pem --print-key
 | `webNavigation` | Clear the media list of a tab when it navigates to a new page. |
 | `scripting` | Collect the links, images and media on a page for the link grabber, only when you ask for it. |
 | `notifications` | Tell you when a download finishes or fails, and why a `blob:`/`data:` link cannot be saved. |
+| `alarms` | Scheduler: start and stop the queue at the times you set. |
 | `nativeMessaging` | Talk to the GetSmart DM companion app (`com.getsmartdm.host`) that downloads videos from supported sites. |
 | `host_permissions: <all_urls>` | Needed by `webRequest` and `scripting` to work on any site you visit. GetSmart DM never sends page data anywhere. |
 
@@ -73,6 +74,7 @@ python scripts/extension_id.py --pem extension-key.pem --print-key
 | `progress.html` / `progress.js` | Progress window for one download (`progress.html?id=<id>`) |
 | `manager.html` / `manager.js` | Download manager page: category tree, sortable table, toolbar |
 | `file-jobs.js` | Multi-connection file downloads through the companion (`add_file`), jobs in `storage.local` `fileJobs` |
+| `scheduler.js` | Scheduler alarms and "when the queue is done" |
 | `download-info.js` | State, name, size and error text of a download, shared by the lists |
 | `speed.js` | Transfer rate from byte samples, and time left |
 | `update-check.js` | "Update available" footer link |

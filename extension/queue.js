@@ -118,6 +118,7 @@ async function pumpUnlocked() {
     await setQueue(queue); // remove first, so a crash never starts it twice
     try {
       await startDownload(next, settings);
+      await chrome.storage.session.set({ queueActive: true }); // scheduler.js: "when the queue is done"
       free -= 1;
     } catch (err) {
       console.error('GetSmart DM: could not start', next.url, err);

@@ -1469,3 +1469,40 @@ label.row {
 .p-conn-table th { color: var(--text-muted); font-weight: 600; }
 
 #p-speed-companion[hidden], #p-speed-browser[hidden] { display: none; }
+
+/* Scheduler days (M14) */
+
+.days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.day input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.day span {
+  display: inline-block;
+  min-width: 52px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  text-align: center;
+  cursor: pointer;
+}
+
+.day input:checked + span {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.day input:focus-visible + span { box-shadow: var(--focus); }
+
+.number.time { width: 120px; }

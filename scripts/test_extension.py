@@ -604,6 +604,42 @@ def check_filter_and_clear(b, base):
     return "music/documents chips, search, failed row; Clear finished kept the running download"
 
 
+def check_scheduler(b, base):
+    reset(b)
+    b.call("() => chrome.storage.sync.set({maxSimultaneous: 1, progressWindow: 'off', whenQueueDone: 'notify'})")
+    time.sleep(0.3)
+    # Settings page: turning the schedule on plans the alarms.
+    opts = b.page("options.html#scheduler")
+    opts.check("#scheduleEnabled")
+    opts.fill("#scheduleStart", "03:30")
+    opts.locator("#scheduleStart").dispatch_event("change")
+    opts.fill("#scheduleStop", "07:00")
+    opts.locator("#scheduleStop").dispatch_event("change")
+    opts.click('#scheduleDays label:has(input[value="0"])')  # Sunday off
+    days = wait_for(lambda: b.call("async () => (await chrome.storage.sync.get('scheduleDays')).scheduleDays") == [1, 2, 3, 4, 5, 6] and [1, 2, 3, 4, 5, 6],
+                    what="days saved")
+    opts.close()
+    alarms = wait_for(lambda: (lambda a: len(a) == 2 and a)(b.call("() => chrome.alarms.getAll()")), what="two alarms")
+    for alarm in alarms:
+        hhmm = b.call("(w) => { const d = new Date(w); return [d.getHours(), d.getMinutes(), d.getDay()]; }", alarm["scheduledTime"])
+        want = (3, 30) if alarm["name"].endswith("start") else (7, 0)
+        assert tuple(hhmm[:2]) == want and hhmm[2] in days, (alarm, hhmm)
+    # Stop the queue, then let the start alarm fire now.
+    b.message({"type": "setQueuePaused", "paused": True})
+    enqueue(b, [{"url": base + "/f/s%d.bin?size=200000&slow=1" % i} for i in range(2)])
+    time.sleep(1)
+    assert running(b) == 0 and queued(b) == 2, "stopped queue started something"
+    b.call("() => chrome.alarms.create('gsdm-schedule-start', {when: Date.now() + 300})")
+    wait_for(lambda: running(b) == 1, what="schedule started the queue")
+    wait_for(lambda: queued(b) == 0 and running(b) == 0, timeout=30, what="queue ran through")
+    note = wait_for(lambda: [n for n in b.call("() => new Promise((r) => chrome.notifications.getAll(r))") if n.startswith("gsdm-queue-done")],
+                    what="queue done notification")
+    b.call("() => chrome.storage.sync.set({scheduleEnabled: false})")
+    wait_for(lambda: not b.call("() => chrome.alarms.getAll()"), what="alarms cleared when off")
+    reset(b)
+    return "alarms at 03:30/07:00 Mon-Sat; start alarm ran the stopped queue; queue-done notification; off clears alarms"
+
+
 def register_companion(b):
     """Register companion/host.py for this profile, saving into the test Downloads folder."""
     config = os.path.join(b.tmp, "xdg")
@@ -654,13 +690,25 @@ def check_companion_files(b, base):
     popup.click("#tab-downloads")
     popup.wait_for_selector('.dl-row[data-id="f:%s"][data-state=complete]' % job["id"])
     popup.close()
+    # The global speed limit reaches the companion.
+    b.call("() => chrome.storage.sync.set({speedLimitKBps: 500, progressWindow: 'off'})")
+    time.sleep(0.5)
+    enqueue(b, [{"url": base + "/f/limited.bin?size=3000000"}])
+    limited = wait_for(lambda: next((j for j in file_jobs(b) if j.get("name") == "limited.bin"), None), what="limited job")
+    started = time.time()
+    wait_for(lambda: next((j for j in file_jobs(b) if j["id"] == limited["id"] and j["state"] == "done"), None),
+             timeout=30, what="limited job done")
+    took = time.time() - started
+    assert took > 4, "3 MB at 500 KB/s took only %.1f s" % took
+    b.call("() => chrome.storage.sync.set({speedLimitKBps: 0})")
+    b.call("() => chrome.storage.local.set({fileJobs: {}})")
     # A server without ranges goes to the browser.
     enqueue(b, [{"url": base + "/f/plain.zip?size=3000000&norange=1"}])
     wait_for(lambda: b.call("() => chrome.downloads.search({})"), what="browser took the no-range file")
-    assert len(file_jobs(b)) == 1, file_jobs(b)
+    assert not file_jobs(b), file_jobs(b)
     b.call("() => chrome.storage.local.set({fileJobs: {}})")
     reset(b)
-    return "8 MB over several connections into GetSmart DM/Archives, parts shown, pause/resume, popup row; no-range file went to the browser"
+    return "8 MB over several connections into GetSmart DM/Archives, parts shown, pause/resume, popup row; 500 KB/s limit; no-range file went to the browser"
 
 
 CHECKS = [
@@ -675,6 +723,7 @@ CHECKS = [
     ("link grabber select + download", check_grabber),
     ("settings save", check_settings),
     ("category filter + clear finished", check_filter_and_clear),
+    ("scheduler + queue done", check_scheduler),
     ("companion multi-connection download", check_companion_files),  # last: the companion stays registered
 ]
 

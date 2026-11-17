@@ -174,3 +174,13 @@ Needs the companion installed (install.bat).
 - [ ] Without the companion installed, everything uses the browser and nothing shows an error.
 - [ ] The toolbar badge counts companion downloads too; the queue limit counts them as running.
 
+## M14 Speed limit, scheduler, when the queue is done
+
+- [ ] Settings > Downloads > Speed limit 300 KB/s: companion downloads run at about 300 KB/s; 0 removes the limit. The hint says browser downloads cannot be limited.
+- [ ] Settings > Scheduler: turn on, start 2 minutes from now, no stop time, today ticked. Stop the queue in the manager and add 3 links: nothing starts. At the start time the queue starts, and downloads paused with "Stop all" carry on.
+- [ ] With a stop time set: at that time running downloads pause and the queue stops.
+- [ ] Untick today: nothing happens at the start time. Turn the schedule off: nothing happens.
+- [ ] The manager's Scheduler button opens Settings at the Scheduler section.
+- [ ] When the queue is done = "Show a notification": after the last waiting download finishes, a "Queue finished" notification appears (once). "Close the browser" closes every browser window. Paused downloads keep the queue from counting as done.
+- [ ] Bangla day names and labels; dark theme.
+
