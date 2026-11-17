@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GetSmart DM</title>
+    <link rel="icon" href="icons/icon32.png" />
+    <link rel="stylesheet" href="ui.css" />
+    <script type="module" src="grabber.js"></script>
+  </head>
+  <body class="grabber">
+    <header class="app-header">
+      <div class="brand">
+        <img src="icons/icon32.png" alt="" />
+        <div>
+          <div class="brand-name" data-i18n="grabberTitle"></div>
+          <div class="brand-tagline" id="g-source"></div>
+        </div>
+      </div>
+      <button id="g-rescan" class="text-button" type="button" data-i18n="grabRescan"></button>
+    </header>
+
+    <main class="grabber-main">
+      <div class="g-status" id="g-status" hidden>
+        <p class="empty-title" id="g-status-title"></p>
+        <p class="empty-body" id="g-status-body"></p>
+      </div>
+
+      <div id="g-content" hidden>
+        <div class="g-toolbar">
+          <label class="search">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="6" />
+              <path d="M20 20l-4.5-4.5" />
+            </svg>
+            <input id="g-filter" type="search" autocomplete="off" data-i18n-placeholder="grabFilter" data-i18n-title="grabFilter" />
+          </label>
+          <span class="g-count" id="g-count"></span>
+          <button id="g-download" class="primary-button" type="button" disabled data-i18n="grabDownloadSelected"></button>
+        </div>
+        <div class="chips" id="g-chips" role="radiogroup"></div>
+
+        <div class="g-table-wrap">
+          <table class="g-table">
+            <thead>
+              <tr>
+                <th class="g-check"><input type="checkbox" id="g-all" data-i18n-title="grabSelectAll" /></th>
+                <th data-i18n="grabColName"></th>
+                <th data-i18n="grabColType"></th>
+                <th data-i18n="grabColAddress"></th>
+              </tr>
+            </thead>
+            <tbody id="g-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <div class="toast" id="g-toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

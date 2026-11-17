@@ -59,3 +59,13 @@ Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachab
 - [ ] Right-click an image whose address is `blob:` or `data:` (for example a canvas export) > a notification explains it cannot be saved, nothing is queued.
 - [ ] Right-click the page background > "Grab all links on this page" opens the link grabber (M5) in a tab next to it.
 - [ ] Switch the language to Bangla: the menu entries switch to Bangla.
+
+## M5 Link grabber
+
+- [ ] On a page with many links (a file index or a download site), right-click > "Grab all links on this page": a tab opens next to it with a table (checkbox, name, type, address) and chips with counts per category.
+- [ ] Links inside iframes are included. The same URL appears once. `mailto:`, `javascript:` and `#` links are not listed.
+- [ ] Typing in the filter narrows by name, address or link text; chips narrow by category; the header checkbox selects every row shown (and only those).
+- [ ] "Download selected" queues the selected rows (watch the popup: max simultaneous is respected) and clears the ticks.
+- [ ] Close the source tab, then press "Scan again": "The tab is gone".
+- [ ] On `chrome://settings` and on the Chrome Web Store, "Grab all links" shows "Chrome does not allow this page".
+- [ ] On a page with no links: "No links found".
