@@ -1,0 +1,16 @@
+# Extension QA checklist
+
+Manual checks, grouped by milestone. Tick each before calling a milestone done.
+
+## M1 Skeleton
+
+- [ ] `chrome://extensions` > Load unpacked > `extension/` loads with no error or warning on the card.
+- [ ] The card shows ID `ejkhmcfjnohjikdgfgkhjficmiaoghma`. Remove and load again: the ID stays the same.
+- [ ] "Service worker" link on the card opens DevTools with no errors in the console.
+- [ ] The toolbar icon is a purple rounded square with a white down-arrow and mint line, sharp at 100% and 150% scaling.
+- [ ] Popup opens, shows "Downloads" and "This page" tabs; switching works; reopening remembers the last tab.
+- [ ] The sliders button in the popup opens the settings page in a new tab.
+- [ ] Settings: Language = বাংলা switches the settings page and the popup to Bangla right away; Automatic follows the browser language.
+- [ ] Settings: Theme = Dark / Light / Automatic switches immediately; Automatic follows Windows dark mode.
+- [ ] Settings: About shows the version and the extension ID.
+- [ ] Same checks in Edge and Brave.

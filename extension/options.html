@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GetSmart DM</title>
+    <link rel="icon" href="icons/icon32.png" />
+    <link rel="stylesheet" href="ui.css" />
+    <script type="module" src="options.js"></script>
+  </head>
+  <body class="options">
+    <header class="app-header">
+      <div class="brand">
+        <img src="icons/icon32.png" alt="" />
+        <div>
+          <div class="brand-name" data-i18n="appName"></div>
+          <div class="brand-tagline" data-i18n="tagline"></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="options-main">
+      <h1 class="page-title" data-i18n="settingsTitle"></h1>
+
+      <section class="card">
+        <h2 class="card-title" data-i18n="sectionAppearance"></h2>
+        <div class="row">
+          <div>
+            <div class="row-label"><label for="language" data-i18n="language"></label></div>
+            <div class="row-hint" data-i18n="languageHint"></div>
+          </div>
+          <select id="language" class="select" data-setting="language">
+            <option value="auto" data-i18n="langAuto"></option>
+            <option value="en" data-i18n="langEn"></option>
+            <option value="bn" data-i18n="langBn"></option>
+          </select>
+        </div>
+        <div class="row">
+          <div>
+            <div class="row-label"><label for="theme" data-i18n="theme"></label></div>
+            <div class="row-hint" data-i18n="themeHint"></div>
+          </div>
+          <select id="theme" class="select" data-setting="theme">
+            <option value="auto" data-i18n="themeAuto"></option>
+            <option value="light" data-i18n="themeLight"></option>
+            <option value="dark" data-i18n="themeDark"></option>
+          </select>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title" data-i18n="sectionAbout"></h2>
+        <div class="row">
+          <div class="row-label" data-i18n="version"></div>
+          <div class="row-value" id="version"></div>
+        </div>
+        <div class="row">
+          <div class="row-label" data-i18n="extensionId"></div>
+          <div class="row-value" id="extension-id"></div>
+        </div>
+      </section>
+
+      <p class="note" data-i18n="moreSettingsSoon"></p>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" data-i18n="saved"></div>
+  </body>
+</html>

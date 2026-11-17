@@ -13,3 +13,7 @@ A free download manager for Chrome, Edge and Brave on Windows, distributed as a 
 | `shared/` | Extension and companion contract (`protocol.md`) |
 
 Development rules live in [`CLAUDE.md`](CLAUDE.md).
+
+## Extension ID
+
+The extension has a fixed ID, **`ejkhmcfjnohjikdgfgkhjficmiaoghma`**, set by the public key in `extension/manifest.json`. See [`extension/README.md`](extension/README.md).

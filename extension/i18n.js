@@ -1,0 +1,127 @@
+// Built-in English + Bangla dictionary.
+// We do not use chrome.i18n / _locales, because the language must be
+// switchable at runtime from Settings. Every user-visible string lives here.
+
+export const LANGUAGES = ['en', 'bn'];
+
+const STRINGS = {
+  en: {
+    appName: 'GetSmart DM',
+    tagline: 'Download Smarter. Faster. Better.',
+
+    // Popup
+    tabDownloads: 'Downloads',
+    tabThisPage: 'This page',
+    openSettings: 'Settings',
+    emptyDownloadsTitle: 'No downloads yet',
+    emptyDownloadsBody: 'Files you download in this browser will show up here.',
+    emptyPageTitle: 'Nothing found on this page',
+    emptyPageBody: 'Videos and audio files this page plays will be listed here.',
+
+    // Options
+    settingsTitle: 'Settings',
+    sectionAppearance: 'Appearance',
+    language: 'Language',
+    languageHint: 'Language used by the popup and this page.',
+    langAuto: 'Automatic (browser language)',
+    langEn: 'English',
+    langBn: 'বাংলা (Bangla)',
+    theme: 'Theme',
+    themeHint: 'Automatic follows your system setting.',
+    themeAuto: 'Automatic',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    sectionAbout: 'About',
+    version: 'Version',
+    extensionId: 'Extension ID',
+    saved: 'Saved',
+    moreSettingsSoon: 'More settings arrive in later versions.',
+  },
+
+  bn: {
+    appName: 'GetSmart DM',
+    tagline: 'আরও স্মার্ট, আরও দ্রুত, আরও ভালো ডাউনলোড।',
+
+    tabDownloads: 'ডাউনলোড',
+    tabThisPage: 'এই পেজ',
+    openSettings: 'সেটিংস',
+    emptyDownloadsTitle: 'এখনও কোনো ডাউনলোড নেই',
+    emptyDownloadsBody: 'এই ব্রাউজারে যা ডাউনলোড করবেন, তা এখানে দেখা যাবে।',
+    emptyPageTitle: 'এই পেজে কিছু পাওয়া যায়নি',
+    emptyPageBody: 'এই পেজ যে ভিডিও ও অডিও চালায়, সেগুলো এখানে দেখানো হবে।',
+
+    settingsTitle: 'সেটিংস',
+    sectionAppearance: 'চেহারা',
+    language: 'ভাষা',
+    languageHint: 'পপআপ ও এই পেজে যে ভাষা ব্যবহার হবে।',
+    langAuto: 'স্বয়ংক্রিয় (ব্রাউজারের ভাষা)',
+    langEn: 'English (ইংরেজি)',
+    langBn: 'বাংলা',
+    theme: 'থিম',
+    themeHint: 'স্বয়ংক্রিয় থিম আপনার সিস্টেমের সেটিং অনুসরণ করে।',
+    themeAuto: 'স্বয়ংক্রিয়',
+    themeLight: 'লাইট',
+    themeDark: 'ডার্ক',
+    sectionAbout: 'পরিচিতি',
+    version: 'সংস্করণ',
+    extensionId: 'এক্সটেনশন আইডি',
+    saved: 'সংরক্ষিত',
+    moreSettingsSoon: 'আরও সেটিংস পরের সংস্করণগুলোতে আসবে।',
+  },
+};
+
+let current = 'en';
+
+/** Resolve a setting value ("auto" | "en" | "bn") to a concrete language. */
+export function resolveLanguage(setting) {
+  if (LANGUAGES.includes(setting)) return setting;
+  const browser = (globalThis.navigator?.language || 'en').toLowerCase();
+  return browser.startsWith('bn') ? 'bn' : 'en';
+}
+
+export function setLanguage(setting) {
+  current = resolveLanguage(setting);
+  return current;
+}
+
+export function getLanguage() {
+  return current;
+}
+
+/**
+ * Translate a key. `{name}` placeholders are filled from `vars`.
+ * Falls back to English, then to the key itself, so a missing string is visible
+ * but never breaks the UI.
+ */
+export function t(key, vars = {}) {
+  const text = STRINGS[current]?.[key] ?? STRINGS.en[key] ?? key;
+  return text.replace(/\{(\w+)\}/g, (match, name) => (name in vars ? String(vars[name]) : match));
+}
+
+/**
+ * Fill every element in `root` that carries data-i18n (text content),
+ * data-i18n-title (title attribute) or data-i18n-placeholder.
+ */
+export function applyI18n(root = document) {
+  root.querySelectorAll('[data-i18n]').forEach((el) => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  root.querySelectorAll('[data-i18n-title]').forEach((el) => {
+    el.title = t(el.dataset.i18nTitle);
+    el.setAttribute('aria-label', el.title);
+  });
+  root.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  if (root === document) {
+    document.documentElement.lang = current;
+  }
+}
+
+/** Exposed for tests: every language must define the same keys as English. */
+export function missingKeys() {
+  const base = Object.keys(STRINGS.en);
+  return Object.fromEntries(
+    LANGUAGES.map((lang) => [lang, base.filter((k) => !(k in STRINGS[lang]))])
+  );
+}

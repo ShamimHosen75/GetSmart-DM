@@ -23,24 +23,32 @@ Each folder has its own `README.md`, and each folder that ships features has a `
 
 ## Build order
 
-1. Repo skeleton (this file, folders, protocol spec)
-2. `extension/`
-3. `companion/`
-4. `site/`
-5. `scripts/`
+Step 0 (done): repo skeleton (this file, folders, `.gitignore`, `shared/protocol.md`).
+
+1. `extension/`
+2. `companion/`
+3. `site/`
+4. `scripts/`
 
 Later: companion for macOS/Linux, Android app.
 
 ## Current step
 
-**Step 1: repo skeleton.** Done when the folders, `.gitignore`, this file and `shared/protocol.md` are committed. Update this section at the end of every milestone.
+**Step 1: `extension/`.** Current step = 1.
+
+Milestones: M1 skeleton, M2 download list, M3 folder sorting + queue, M4 add links + context menus, M5 link grabber, M6 media detection, M7 companion bridge, M8 settings page, M9 QA + 0.1.0 release.
+
+Status: **M1 (skeleton) done**, waiting for "continue" before M2.
+
+Update this section at the end of every milestone.
 
 ## Extension rules
 
 - Manifest V3, ES modules (`"type": "module"` for the service worker), **no bundler, no build step, no external libraries**. Everything is hand-written.
 - Must work on **Chrome 116+, Edge and Brave**. Do not use APIs newer than Chrome 116 without a feature check and fallback.
 - Original design: **light and dark theme** (follows system by default, overridable in Settings).
-- Strings: **English and Bangla** in a built-in dictionary module (for example `extension/i18n/strings.js`). Do **not** use `chrome.i18n` / `_locales`, because the user must be able to switch language in Settings at runtime. Every user-visible string goes through the dictionary; no hard-coded UI text.
+- Fixed extension ID: the public key sits in `manifest.json` `"key"`, so the ID is always **`ejkhmcfjnohjikdgfgkhjficmiaoghma`** (the companion whitelists it). The private key `extension-key.pem` is gitignored and must **never** be committed. `python scripts/extension_id.py` prints the ID.
+- Strings: **English and Bangla** in a built-in dictionary module (`extension/i18n.js`). Do **not** use `chrome.i18n` / `_locales`, because the user must be able to switch language in Settings at runtime. Every user-visible string goes through the dictionary; no hard-coded UI text.
 
 ## Companion rules
 
