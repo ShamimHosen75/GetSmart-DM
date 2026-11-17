@@ -23,3 +23,19 @@ Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachab
 - [ ] With the **same or lower** version, or the site offline, no footer link and no console error.
 - [ ] Open the popup several times: DevTools Network shows at most one `version.json` request per 24 hours.
 - [ ] With `SITE_URL` empty, no request is made at all.
+
+## M2 Download list
+
+- [ ] Start a few downloads from any site: the "Downloads" tab lists every Chrome download, newest first, including ones started before the popup opened.
+- [ ] A running download shows name, progress bar, "x of y", speed and time left. The speed settles within a few seconds and does not jump around.
+- [ ] A server without a size (no Content-Length) shows a moving bar and the bytes received.
+- [ ] Toolbar badge = number of running downloads; pausing one lowers it, finishing all clears it.
+- [ ] Pause / Resume / Cancel work from the row. Cancelled rows are struck through.
+- [ ] Retry on a failed or cancelled download: resumes if Chrome can, otherwise starts the same URL again and the old row goes away.
+- [ ] Completed rows: Open file opens it, Show in folder opens Explorer with the file selected. If the file was deleted on disk, the row says "File deleted".
+- [ ] Copy link puts the URL on the clipboard and shows "Link copied".
+- [ ] Remove from list removes the row but keeps the file on disk.
+- [ ] Search matches the file name and the URL. Each category chip (Video, Music, Documents, Programs, Archives, Images, Other) shows only that type; "All" shows everything; no match shows "No downloads match".
+- [ ] "Clear finished" removes every row that is not running or paused, and hides itself when there is nothing to clear.
+- [ ] While a download runs, open DevTools on the popup (right-click > Inspect), Elements panel: rows flash only in the changed fields; the list is not rebuilt.
+- [ ] Switch Settings to বাংলা and Dark while the popup is open: chips, states and buttons switch at once.

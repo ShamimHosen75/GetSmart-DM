@@ -2,7 +2,7 @@
 
 GetSmart DM browser extension for Chrome 116+, Edge and Brave. Manifest V3, plain JavaScript ES modules, no build step and no external libraries. See the root `CLAUDE.md` for the rules.
 
-Status: Step 1, milestone M1 (skeleton). The popup, settings page, icons and service worker load; download features arrive in M2 to M9.
+Status: Step 1, milestone M2 (download list) done. The popup's Downloads tab lists and controls every Chrome download; queue, menus, grabber, media detection and the companion bridge arrive in M3 to M9.
 
 ## Install (Load unpacked)
 
@@ -55,8 +55,9 @@ python scripts/extension_id.py --pem extension-key.pem --print-key
 | File | Purpose |
 |---|---|
 | `manifest.json` | MV3 manifest with the fixed `"key"` |
-| `background.js` | Service worker (ES module) |
-| `common.js` | Shared helpers: settings defaults, load/save, theme, page start-up |
+| `background.js` | Service worker (ES module): default settings, toolbar badge |
+| `common.js` | Shared helpers: settings, theme, page start-up, file categories, size/time formatting |
+| `downloads-view.js` | Popup "Downloads" tab: list, speed, actions, search, category filter |
 | `i18n.js` | Built-in English + Bangla dictionary and `t()` |
 | `popup.html` / `popup.js` | Toolbar popup with "Downloads" and "This page" tabs |
 | `options.html` / `options.js` | Settings page |

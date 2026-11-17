@@ -46,7 +46,7 @@ Step 4 (`scripts/`) builds the release tooling: `scripts/release.py` (Windows ZI
 Step 4 status: **release tooling done**, waiting for the owner's "continue". Open: the website domain for `SITE_URL` in `extension/update-check.js`.
 
 Earlier steps are not finished yet:
-- Step 1 (`extension/`): M1 skeleton done; M2 to M9 (including the M7 companion bridge and `scripts/test_extension.py`) not built yet.
+- Step 1 (`extension/`): M1 skeleton and M2 download list done, waiting for "continue" before M3; M3 to M9 (including the M7 companion bridge and `scripts/test_extension.py`) not built yet. Milestones: M1 skeleton, M2 download list, M3 folder sorting + queue, M4 add links + context menus, M5 link grabber, M6 media detection, M7 companion bridge, M8 settings page, M9 QA + 0.1.0 release.
 - Step 2 (`companion/`): M1 (`host.py` + `scripts/test_host.py`) and M2 (bat files + README) done; M3 (`scripts/test_companion.py`, needs the extension's M7 bridge) and M4 (`QA.md`, 0.1.0, CHANGELOG entries) not done. Companion milestones: M1 host.py, M2 install/update/uninstall.bat + README, M3 end-to-end test, M4 QA.md + 0.1.0 + CHANGELOG.
 - Step 3 (`site/`): built (index, privacy, terms, `scripts/test_site.py`, `scripts/deploy_site.md`), waiting for "continue". Popup screenshots show the M1 popup and are placeholders.
 

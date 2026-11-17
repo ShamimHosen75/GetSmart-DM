@@ -236,11 +236,270 @@ select {
   font-size: 13px;
 }
 
+/* ---------- Downloads list (popup) ---------- */
+
+.dl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 6px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.search:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--focus);
+}
+
+.search .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+}
+
+.text-button {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.text-button:hover {
+  background: var(--accent-soft);
+}
+
+.text-button[hidden] {
+  display: none;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 12px 10px;
+}
+
+.chip {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.chip:hover {
+  color: var(--text);
+}
+
+.chip[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.dl-list {
+  margin: 0;
+  padding: 0 8px 8px;
+  list-style: none;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.dl-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px;
+  border-radius: var(--radius);
+}
+
+.dl-row + .dl-row {
+  border-top: 1px solid var(--border);
+}
+
+.dl-row:hover {
+  background: var(--surface);
+}
+
+.dl-type {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.dl-type[data-category='video'] { background: #ffe7ee; color: #c2264f; }
+.dl-type[data-category='music'] { background: #fff1d9; color: #b86a00; }
+.dl-type[data-category='documents'] { background: #e3efff; color: #1f63c6; }
+.dl-type[data-category='programs'] { background: var(--accent-soft); color: var(--accent); }
+.dl-type[data-category='archives'] { background: #f0eadf; color: #7a5a2b; }
+.dl-type[data-category='images'] { background: var(--mint-soft); color: #13805a; }
+
+:root[data-theme='dark'] .dl-type[data-category] { background: var(--surface-2); color: var(--text-muted); }
+:root[data-theme='dark'] .dl-type[data-category='video'] { color: #ff8fab; }
+:root[data-theme='dark'] .dl-type[data-category='music'] { color: #ffc266; }
+:root[data-theme='dark'] .dl-type[data-category='documents'] { color: #82b4ff; }
+:root[data-theme='dark'] .dl-type[data-category='programs'] { color: var(--accent); }
+:root[data-theme='dark'] .dl-type[data-category='archives'] { color: #d9b77e; }
+:root[data-theme='dark'] .dl-type[data-category='images'] { color: var(--mint); }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .dl-type[data-category] { background: var(--surface-2); color: var(--text-muted); }
+  :root:not([data-theme='light']) .dl-type[data-category='video'] { color: #ff8fab; }
+  :root:not([data-theme='light']) .dl-type[data-category='music'] { color: #ffc266; }
+  :root:not([data-theme='light']) .dl-type[data-category='documents'] { color: #82b4ff; }
+  :root:not([data-theme='light']) .dl-type[data-category='programs'] { color: var(--accent); }
+  :root:not([data-theme='light']) .dl-type[data-category='archives'] { color: #d9b77e; }
+  :root:not([data-theme='light']) .dl-type[data-category='images'] { color: var(--mint); }
+}
+
+.dl-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dl-name {
+  overflow: hidden;
+  font-weight: 550;
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dl-progress {
+  position: relative;
+  height: 4px;
+  margin: 5px 0 4px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+.dl-bar {
+  width: 0;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+  transition: width 0.5s linear;
+}
+
+.dl-row[data-state='paused'] .dl-bar { background: var(--text-muted); }
+.dl-row[data-state='complete'] .dl-bar { background: var(--mint); }
+.dl-row[data-state='failed'] .dl-bar,
+.dl-row[data-state='cancelled'] .dl-bar,
+.dl-row[data-state='deleted'] .dl-bar { background: var(--danger); opacity: 0.6; }
+
+.dl-row[data-state='complete'] .dl-progress,
+.dl-row[data-state='deleted'] .dl-progress,
+.dl-row[data-state='cancelled'] .dl-progress {
+  display: none;
+}
+
+.dl-row[data-state='deleted'] .dl-name,
+.dl-row[data-state='cancelled'] .dl-name {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.dl-progress.indeterminate .dl-bar {
+  width: 30% !important;
+  animation: dl-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes dl-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(340%); }
+}
+
+.dl-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dl-meta [hidden] {
+  display: none;
+}
+
+.dl-row[data-state='failed'] .dl-state { color: var(--danger); }
+.dl-row[data-state='complete'] .dl-state { color: var(--mint); }
+
+.dl-actions {
+  display: flex;
+  flex: none;
+  gap: 0;
+}
+
+.icon-button.small {
+  width: 28px;
+  height: 28px;
+}
+
+.icon-button.small .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-button[hidden] {
+  display: none;
+}
+
+.act-cancel:hover,
+.act-remove:hover {
+  color: var(--danger);
+}
+
+.toast.error {
+  background: var(--danger);
+  color: #fff;
+}
+
 /* ---------- Popup ---------- */
 
 body.popup {
   width: 400px;
   min-height: 360px;
+  overflow-x: hidden;
 }
 
 .panel[hidden] {

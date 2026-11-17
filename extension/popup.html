@@ -32,7 +32,21 @@
 
     <main>
       <section class="panel" id="panel-downloads" role="tabpanel" aria-labelledby="tab-downloads">
-        <div class="empty">
+        <div class="dl-toolbar">
+          <label class="search">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="6" />
+              <path d="M20 20l-4.5-4.5" />
+            </svg>
+            <input id="dl-search" type="search" autocomplete="off" data-i18n-placeholder="searchDownloads" data-i18n-title="searchDownloads" />
+          </label>
+          <button id="dl-clear" class="text-button" type="button" data-i18n="clearFinished"></button>
+        </div>
+        <div class="chips" id="dl-chips" role="radiogroup"></div>
+
+        <ul class="dl-list" id="dl-list"></ul>
+
+        <div class="empty" id="dl-empty" hidden>
           <div class="empty-art">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
@@ -41,6 +55,30 @@
           <p class="empty-title" data-i18n="emptyDownloadsTitle"></p>
           <p class="empty-body" data-i18n="emptyDownloadsBody"></p>
         </div>
+
+        <div class="empty" id="dl-nomatch" hidden>
+          <p class="empty-title" data-i18n="noMatchTitle"></p>
+          <p class="empty-body" data-i18n="noMatchBody"></p>
+        </div>
+
+        <template id="dl-row">
+          <li class="dl-row">
+            <div class="dl-type" aria-hidden="true"></div>
+            <div class="dl-body">
+              <div class="dl-name"></div>
+              <div class="dl-progress"><div class="dl-bar"></div></div>
+              <div class="dl-meta">
+                <span class="dl-state"></span>
+                <span class="dl-size"></span>
+                <span class="dl-speed"></span>
+                <span class="dl-eta"></span>
+              </div>
+            </div>
+            <div class="dl-actions"></div>
+          </li>
+        </template>
+
+        <div class="toast" id="dl-toast" role="status" aria-live="polite"></div>
       </section>
 
       <section class="panel" id="panel-page" role="tabpanel" aria-labelledby="tab-page" hidden>

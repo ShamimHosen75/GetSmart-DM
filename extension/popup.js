@@ -1,10 +1,12 @@
 // Popup: tabs "Downloads" and "This page".
-// M1: shell only. The download list (M2) and page media (M6) fill the panels later.
+// The Downloads tab lives in downloads-view.js; page media (M6) fills "This page" later.
 
 import { initPage } from './common.js';
 import { showUpdateLink } from './update-check.js';
 
 const TAB_KEY = 'popupTab'; // remembered per browser in chrome.storage.local
+
+import { initDownloadsView } from './downloads-view.js';
 
 function selectTab(tab) {
   document.querySelectorAll('.tab').forEach((button) => {
@@ -25,6 +27,8 @@ async function main() {
   const { [TAB_KEY]: lastTab } = await chrome.storage.local.get(TAB_KEY);
   const remembered = lastTab && document.getElementById(lastTab);
   if (remembered) selectTab(remembered);
+
+  initDownloadsView();
 
   document.getElementById('open-settings').addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
