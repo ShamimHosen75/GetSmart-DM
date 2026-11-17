@@ -49,3 +49,13 @@ Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachab
 - [ ] Close and reopen the browser with items waiting: they start again.
 - [ ] Names we choose are made safe for Windows: `a:b?.pdf` saves as `a_b_.pdf`, `CON.txt` as `_CON.txt`, a 300-character name is cut to 150 with the extension kept, and a Bangla name (`বাংলা গান.mp3`) is kept as is.
 - [ ] Notifications (on by default): a finished download shows "Download complete"; clicking it opens the folder. A failed one shows "Download failed" with the reason. Cancelling shows nothing.
+
+## M4 Add links + context menus
+
+- [ ] Popup "+" opens the add panel. Paste 3 lines: two https links and `ftp://x`. "Add" queues the two and says "Added 2 to the queue · 1 skipped (not http/https)". Duplicate lines are added once. Ctrl+Enter adds, Esc closes.
+- [ ] Add with an empty box: "Paste at least one http:// or https:// link." and nothing is queued.
+- [ ] Right-click a link > "Download link with GetSmart DM": it goes through the queue and into the sorted folder.
+- [ ] Right-click an image, and a `<video>`/`<audio>` element with a real `src` > "Download this file with GetSmart DM".
+- [ ] Right-click an image whose address is `blob:` or `data:` (for example a canvas export) > a notification explains it cannot be saved, nothing is queued.
+- [ ] Right-click the page background > "Grab all links on this page" opens the link grabber (M5) in a tab next to it.
+- [ ] Switch the language to Bangla: the menu entries switch to Bangla.

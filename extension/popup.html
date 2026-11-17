@@ -16,6 +16,11 @@
           <div class="brand-tagline" data-i18n="tagline"></div>
         </div>
       </div>
+      <button id="open-add" class="icon-button" type="button" data-i18n-title="addLinks" aria-expanded="false" aria-controls="add-panel">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
       <button id="open-settings" class="icon-button" type="button" data-i18n-title="openSettings">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
@@ -24,6 +29,16 @@
         </svg>
       </button>
     </header>
+
+    <form class="add-panel" id="add-panel" hidden>
+      <label class="add-title" for="add-urls" data-i18n="addLinks"></label>
+      <textarea id="add-urls" rows="5" spellcheck="false" data-i18n-placeholder="addLinksPlaceholder"></textarea>
+      <div class="row-hint" id="add-hint" data-i18n="addLinksHint"></div>
+      <div class="add-buttons">
+        <button type="button" class="text-button" id="add-cancel" data-i18n="cancelButton"></button>
+        <button type="submit" class="primary-button" id="add-submit" data-i18n="addButton"></button>
+      </div>
+    </form>
 
     <nav class="tabs" role="tablist">
       <button class="tab" role="tab" type="button" id="tab-downloads" aria-controls="panel-downloads" aria-selected="true" data-i18n="tabDownloads"></button>

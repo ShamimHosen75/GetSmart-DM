@@ -236,6 +236,85 @@ select {
   font-size: 13px;
 }
 
+/* ---------- Add links panel (popup) ---------- */
+
+.add-panel {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.add-panel[hidden] {
+  display: none;
+}
+
+.add-title {
+  font-weight: 600;
+}
+
+.add-panel textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: 12.5px/1.5 ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  resize: vertical;
+}
+
+.add-panel textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus);
+}
+
+.add-panel .row-hint.error {
+  color: var(--danger);
+}
+
+.add-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.primary-button {
+  padding: 7px 16px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary-button:hover {
+  background: var(--accent-strong);
+}
+
+.primary-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+:root[data-theme='dark'] .primary-button {
+  color: #15131c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .primary-button {
+    color: #15131c;
+  }
+}
+
+.icon-button[aria-expanded='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 /* ---------- Downloads list (popup) ---------- */
 
 .dl-toolbar {

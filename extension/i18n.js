@@ -62,6 +62,24 @@ const STRINGS = {
     // Notifications (M3)
     notifDoneTitle: 'Download complete',
     notifFailedTitle: 'Download failed',
+    notifCannotSaveTitle: 'This cannot be saved',
+    notifBlobBody: 'The page made this file inside the browser (a blob: or data: address), so there is no link to download. Use the page\'s own save button instead.',
+    notifNotHttpBody: 'GetSmart DM can only download http:// and https:// links.',
+
+    // Context menus (M4)
+    menuDownloadLink: 'Download link with GetSmart DM',
+    menuDownloadMedia: 'Download this file with GetSmart DM',
+    menuGrabLinks: 'Grab all links on this page',
+
+    // Add links panel (M4)
+    addLinks: 'Add links',
+    addLinksHint: 'One link per line. Only http:// and https:// links are added.',
+    addLinksPlaceholder: 'https://example.com/file.zip',
+    addButton: 'Add',
+    cancelButton: 'Cancel',
+    addedLinks: 'Added {count} to the queue',
+    skippedLines: '{count} skipped (not http/https)',
+    nothingToAdd: 'Paste at least one http:// or https:// link.',
 
     // Options
     settingsTitle: 'Settings',
@@ -140,6 +158,22 @@ const STRINGS = {
 
     notifDoneTitle: 'ডাউনলোড সম্পূর্ণ',
     notifFailedTitle: 'ডাউনলোড ব্যর্থ',
+    notifCannotSaveTitle: 'এটি সংরক্ষণ করা যাবে না',
+    notifBlobBody: 'পেজটি ফাইলটি ব্রাউজারের ভেতরেই তৈরি করেছে (blob: বা data: ঠিকানা), তাই ডাউনলোডের কোনো লিংক নেই। পেজের নিজস্ব সেভ বাটন ব্যবহার করুন।',
+    notifNotHttpBody: 'GetSmart DM শুধু http:// ও https:// লিংক ডাউনলোড করতে পারে।',
+
+    menuDownloadLink: 'GetSmart DM দিয়ে লিংক ডাউনলোড করুন',
+    menuDownloadMedia: 'GetSmart DM দিয়ে এই ফাইল ডাউনলোড করুন',
+    menuGrabLinks: 'এই পেজের সব লিংক সংগ্রহ করুন',
+
+    addLinks: 'লিংক যোগ করুন',
+    addLinksHint: 'প্রতি লাইনে একটি লিংক। শুধু http:// ও https:// লিংক যোগ হবে।',
+    addLinksPlaceholder: 'https://example.com/file.zip',
+    addButton: 'যোগ করুন',
+    cancelButton: 'বাতিল',
+    addedLinks: 'সারিতে {count}টি যোগ হয়েছে',
+    skippedLines: '{count}টি বাদ পড়েছে (http/https নয়)',
+    nothingToAdd: 'অন্তত একটি http:// বা https:// লিংক দিন।',
 
     settingsTitle: 'সেটিংস',
     sectionAppearance: 'চেহারা',

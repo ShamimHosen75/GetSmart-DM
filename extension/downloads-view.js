@@ -62,6 +62,11 @@ let refreshing = false;
 let refreshAgain = false;
 let toastTimer = 0;
 
+/** Ask for an immediate refresh (after adding links, for example). */
+export function refreshDownloads() {
+  refresh();
+}
+
 export function initDownloadsView() {
   els = {
     list: document.getElementById('dl-list'),
@@ -478,7 +483,7 @@ async function clearFinished() {
   refresh();
 }
 
-function showToast(message, isError = false) {
+export function showToast(message, isError = false) {
   els.toast.textContent = message;
   els.toast.classList.toggle('error', isError);
   els.toast.classList.add('show');
