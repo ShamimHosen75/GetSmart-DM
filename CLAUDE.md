@@ -38,7 +38,7 @@ Later: companion for macOS/Linux, Android app.
 
 Milestones: M1 `host.py` (hello, add_video, progress, cancel, ping) + `scripts/test_host.py`, M2 `install.bat` / `update.bat` / `uninstall.bat` + README, M3 end-to-end test `scripts/test_companion.py` (needs the extension's M7 companion bridge), M4 `QA.md` + 0.1.0 + CHANGELOG.
 
-Status: **M1 (host.py + scripts/test_host.py) done**, waiting for "continue" before M2.
+Status: **M1 (host.py + test_host.py) and M2 (install.bat, update.bat, uninstall.bat, README) done**, waiting for the owner's install.bat output and "continue" before M3.
 
 Step 1 (`extension/`) status: M1 skeleton done; M2 to M9 (including the M7 companion bridge) not built yet.
 

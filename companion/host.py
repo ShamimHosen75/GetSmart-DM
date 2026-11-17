@@ -514,8 +514,18 @@ class Host:
             job.thread.join(10)
 
 
+def check():
+    """``host.py --check``: print what hello would report, for install.bat."""
+    ffmpeg = find_binary("ffmpeg")
+    print(json.dumps({"version": VERSION, "python": sys.version.split()[0], "ytdlp": ytdlp_version(),
+                      "ffmpeg": ffmpeg_version(ffmpeg), "dir": default_dir()}, indent=2))
+    return 0
+
+
 def main():
     setup_logging()
+    if "--check" in sys.argv[1:]:
+        sys.exit(check())
     if IS_WIN:
         import msvcrt
         msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
