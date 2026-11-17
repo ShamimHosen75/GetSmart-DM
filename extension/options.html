@@ -49,6 +49,95 @@
       </section>
 
       <section class="card">
+        <h2 class="card-title" data-i18n="sectionDownloads"></h2>
+        <label class="row">
+          <div>
+            <div class="row-label" data-i18n="setSortFolders"></div>
+            <div class="row-hint" data-i18n="setSortFoldersHint"></div>
+          </div>
+          <input type="checkbox" class="switch" id="sortIntoFolders" data-setting="sortIntoFolders" data-kind="bool" />
+        </label>
+        <div class="row">
+          <div>
+            <div class="row-label"><label for="maxSimultaneous" data-i18n="setMaxSimultaneous"></label></div>
+            <div class="row-hint" data-i18n="setMaxSimultaneousHint"></div>
+          </div>
+          <input type="number" class="number" id="maxSimultaneous" min="1" max="10" step="1" data-setting="maxSimultaneous" data-kind="int" data-min="1" data-max="10" />
+        </div>
+        <label class="row">
+          <div>
+            <div class="row-label" data-i18n="setAskWhere"></div>
+            <div class="row-hint" data-i18n="setAskWhereHint"></div>
+          </div>
+          <input type="checkbox" class="switch" id="askWhereToSave" data-setting="askWhereToSave" data-kind="bool" />
+        </label>
+        <label class="row">
+          <div>
+            <div class="row-label" data-i18n="setNotifications"></div>
+            <div class="row-hint" data-i18n="setNotificationsHint"></div>
+          </div>
+          <input type="checkbox" class="switch" id="notifications" data-setting="notifications" data-kind="bool" />
+        </label>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title" data-i18n="sectionMedia"></h2>
+        <label class="row">
+          <div>
+            <div class="row-label" data-i18n="setMediaDetection"></div>
+            <div class="row-hint" data-i18n="setMediaDetectionHint"></div>
+          </div>
+          <input type="checkbox" class="switch" id="mediaDetection" data-setting="mediaDetection" data-kind="bool" />
+        </label>
+        <div class="row">
+          <div>
+            <div class="row-label"><label for="minMediaSizeKB" data-i18n="setMinSize"></label></div>
+            <div class="row-hint" data-i18n="setMinSizeHint"></div>
+          </div>
+          <input type="number" class="number" id="minMediaSizeKB" min="0" max="1048576" step="50" data-setting="minMediaSizeKB" data-kind="int" data-min="0" data-max="1048576" />
+        </div>
+        <div class="row row-stack">
+          <div>
+            <div class="row-label"><label for="disabledSites" data-i18n="setDisabledSites"></label></div>
+            <div class="row-hint" data-i18n="setDisabledSitesHint"></div>
+          </div>
+          <textarea id="disabledSites" class="textarea" rows="4" spellcheck="false" placeholder="example.com" data-setting="disabledSites" data-kind="sites"></textarea>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title" data-i18n="sectionVideo"></h2>
+        <div class="row">
+          <div>
+            <div class="row-label" data-i18n="setCompanion"></div>
+            <div class="row-hint" id="companion-detail"></div>
+          </div>
+          <div class="v-status" id="companion-status"><span class="v-dot"></span><span id="companion-text"></span></div>
+        </div>
+        <div class="row">
+          <div>
+            <div class="row-label"><label for="defaultQuality" data-i18n="setDefaultQuality"></label></div>
+            <div class="row-hint" data-i18n="setDefaultQualityHint"></div>
+          </div>
+          <select id="defaultQuality" class="select" data-setting="defaultQuality">
+            <option value="best" data-i18n="qualityBest"></option>
+            <option value="1080" data-i18n="quality1080"></option>
+            <option value="720" data-i18n="quality720"></option>
+            <option value="480" data-i18n="quality480"></option>
+            <option value="360" data-i18n="quality360"></option>
+            <option value="audio" data-i18n="qualityAudio"></option>
+          </select>
+        </div>
+        <label class="row">
+          <div>
+            <div class="row-label" data-i18n="setAllowYouTube"></div>
+            <div class="row-hint" data-i18n="setAllowYouTubeHint"></div>
+          </div>
+          <input type="checkbox" class="switch" id="allowYouTube" data-kind="youtube" />
+        </label>
+      </section>
+
+      <section class="card">
         <h2 class="card-title" data-i18n="sectionAbout"></h2>
         <div class="row">
           <div class="row-label" data-i18n="version"></div>
@@ -60,8 +149,19 @@
         </div>
       </section>
 
-      <p class="note" data-i18n="moreSettingsSoon"></p>
     </main>
+
+    <dialog class="dialog" id="yt-dialog">
+      <form method="dialog">
+        <h2 class="dialog-title" data-i18n="ytDialogTitle"></h2>
+        <p data-i18n="ytDialogBody1"></p>
+        <p data-i18n="ytDialogBody2"></p>
+        <div class="add-buttons">
+          <button value="cancel" class="text-button" data-i18n="cancelButton"></button>
+          <button value="accept" class="primary-button" id="yt-accept" data-i18n="ytDialogAccept"></button>
+        </div>
+      </form>
+    </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite" data-i18n="saved"></div>
   </body>

@@ -84,5 +84,6 @@ export function normaliseSite(entry) {
   const text = String(entry || '').trim().toLowerCase();
   if (!text) return '';
   const host = text.includes('://') ? hostOf(text) : text.split('/')[0].replace(/^www\./, '');
-  return /^[a-z0-9.-]+$/.test(host) ? host.replace(/^\.+|\.+$/g, '') : '';
+  const clean = host.replace(/^\.+|\.+$/g, '');
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(clean) || clean === 'localhost' ? clean : '';
 }

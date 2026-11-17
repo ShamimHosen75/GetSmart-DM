@@ -95,3 +95,17 @@ Needs the companion installed (`companion/install.bat` on Windows).
 - [ ] YouTube: no card controls, only the note that YouTube downloads are off; no context-menu entry. After turning on "Allow YouTube" in Settings (M8), the card and the menu appear on youtube.com.
 - [ ] Netflix and other DRM sites: no card, no menu; asking the worker for addVideo there returns the DRM refusal.
 - [ ] Leave the browser idle for a minute with no video running: the companion process exits (no zombie host).
+
+## M8 Settings page
+
+- [ ] Every control saves as soon as it changes ("Saved" toast) and is still set after closing and reopening Settings, and on another computer signed in to the same browser profile (storage.sync).
+- [ ] Language Automatic / English / বাংলা and Theme Automatic / Light / Dark apply at once to Settings and an open popup.
+- [ ] Sort into folders off: new downloads go to plain `Downloads/`.
+- [ ] Downloads at the same time: typing 25 saves 10, typing 0 saves 1.
+- [ ] Ask where to save on: links added with "+" open the Save As window.
+- [ ] Notifications off: no finish/fail notifications (the blob:/data: explanation still shows).
+- [ ] Media detection off: "This page" says it is off and nothing is listed; minimum size 1000 KB hides smaller files.
+- [ ] Disabled sites: `https://www.Example.com/path` is saved as `example.com`; entries without a dot are dropped; duplicates are removed.
+- [ ] Companion line shows connected with the yt-dlp / ffmpeg versions and the save folder, or "not installed" with help text.
+- [ ] Default video quality is used by the right-click video menu and preselected in the popup card.
+- [ ] Allow YouTube: clicking the switch opens the Terms of Service warning. Cancel leaves it off; "I understand, turn it on" turns it on. Turning it off needs no warning.
