@@ -109,7 +109,7 @@ Anything yt-dlp supports, including Facebook, X (Twitter), Instagram, TikTok, Vi
 
 ## YouTube
 
-YouTube downloading is **off by default**. YouTube's Terms of Service do not allow downloading videos without permission. You can turn it on in the extension's Settings, after reading the warning there; you are responsible for following YouTube's terms. While it is off, the companion refuses YouTube links even if one is sent to it.
+YouTube downloading is **on by default**. The first YouTube download shows a notice: only download videos you own or have permission to save, and follow YouTube's Terms of Service; you are responsible for what you download. You can turn it off in the extension's Settings. While it is off, the companion refuses YouTube links even if one is sent to it.
 
 ## Quality
 

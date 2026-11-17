@@ -193,13 +193,20 @@ class CompanionEndToEnd(unittest.TestCase):
             print("\n  note: could not open www.facebook.com through --host-resolver-rules "
                   "(HSTS or network policy); site detection is checked by URL only", flush=True)
 
-    def test_2_youtube_off_by_default(self):
+    def test_2_youtube_on_by_default_and_off_refuses(self):
         st = self.state("https://www.youtube.com/watch?v=abc")
-        self.assertEqual(st["site"], "youtube-off")
-        reply = self.send({"type": "addVideo", "url": "https://www.youtube.com/watch?v=abc",
-                           "quality": "best", "title": "yt"})
-        self.assertIn("error", reply)
-        self.assertNotIn("id", reply)
+        self.assertEqual(st["site"], "video")  # owner's decision: on by default
+        self.page.evaluate("() => chrome.storage.sync.set({allowYouTube: false})")
+        time.sleep(0.3)
+        try:
+            st = self.state("https://www.youtube.com/watch?v=abc")
+            self.assertEqual(st["site"], "youtube-off")
+            reply = self.send({"type": "addVideo", "url": "https://www.youtube.com/watch?v=abc",
+                               "quality": "best", "title": "yt"})
+            self.assertIn("error", reply)
+            self.assertNotIn("id", reply)
+        finally:
+            self.page.evaluate("() => chrome.storage.sync.remove('allowYouTube')")
 
     def test_3_download_done(self):
         self.wait_connected()

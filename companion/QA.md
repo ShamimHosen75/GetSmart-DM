@@ -28,7 +28,7 @@ For each: open the post in the browser, use the popup's "This page" card, qualit
 - [ ] A title with Bangla or emoji: the file name is readable, not `????`.
 - [ ] Private Facebook or Instagram post (or one from a private account): the card shows "This video is private or needs you to log in…", no file is left behind.
 - [ ] A deleted post or a broken link: "Video not found (404)…" or "not supported", never a raw Python error.
-- [ ] YouTube with the setting off: the card says YouTube is off and nothing reaches `host.log`. With the setting on (after the ToS warning) a YouTube video downloads.
+- [ ] YouTube is on by default: a YouTube video downloads, and the first one shows the one-time notice. With the setting turned off, the card says YouTube is off and nothing reaches `host.log`.
 - [ ] A Netflix or Spotify page: refused as DRM; nothing is attempted.
 
 ## Cancel and failures
