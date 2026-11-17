@@ -1,0 +1,61 @@
+# Runs on every push and pull request.
+#
+# Each test script gets its own step. A step whose script is not in the repo
+# yet is skipped (shown as skipped in the Actions UI), so test_extension.py,
+# test_companion.py and test_site.py are picked up automatically as soon as
+# they land, without editing this file.
+name: test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright and yt-dlp
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright pillow yt-dlp
+          # Playwright's own Chromium build: branded Google Chrome 137+ no
+          # longer accepts --load-extension, which the extension tests need.
+          python -m playwright install --with-deps chromium
+
+      # Standard-library tests (no browser).
+      - name: Release tooling (scripts/test_release.py)
+        run: python scripts/test_release.py
+
+      - name: Companion host (scripts/test_host.py)
+        if: hashFiles('scripts/test_host.py') != ''
+        run: python scripts/test_host.py
+
+      # Playwright tests. xvfb-run gives them a display in case they run headed.
+      - name: Extension (scripts/test_extension.py)
+        if: hashFiles('scripts/test_extension.py') != ''
+        run: xvfb-run -a python scripts/test_extension.py
+
+      - name: Companion end to end (scripts/test_companion.py)
+        if: hashFiles('scripts/test_companion.py') != ''
+        run: xvfb-run -a python scripts/test_companion.py
+
+      - name: Website (scripts/test_site.py)
+        if: hashFiles('scripts/test_site.py') != ''
+        run: xvfb-run -a python scripts/test_site.py
