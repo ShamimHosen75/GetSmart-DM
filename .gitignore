@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Logs
+*.log
+logs/
+
+# Downloaded tools (embedded Python, yt-dlp, ffmpeg, etc.)
+companion/python/
+companion/*.exe
+
+# Node (Playwright tests)
+node_modules/
+playwright-report/
+test-results/
+
+# Build output
+dist/
+*.zip
+
+# Secrets
+extension-key.pem
+*.pem
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+*.swp
+.vscode/
+.idea/
