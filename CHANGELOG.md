@@ -4,6 +4,30 @@ All notable changes to GetSmart DM. Newest version first. Each version has three
 
 Add a new section with `python scripts/bump.py patch|minor|major`, then fill in the bullets before running `scripts/release.py`. See `RELEASE.md`.
 
+## [0.1.0] - 2026-11-17
+
+First release.
+
+### Extension
+
+- Downloads tab: every browser download, newest first, with progress, speed, time left and state; pause, resume, cancel, retry, open, show in folder, copy link, remove; search, category filter (Video, Music, Documents, Programs, Archives, Images, Other) and "Clear finished". The toolbar badge counts running downloads.
+- Saves into `Downloads/GetSmart DM/<Category>/` (can be turned off). Downloads GetSmart DM starts wait in a queue (1 to 10 at a time, 3 by default); file names are made safe for Windows; Bangla names are kept.
+- Notifications when a download finishes or fails.
+- "+" panel to add links (one per line) and right-click menus: download a link, download an image/video/audio file, grab all links on a page. `blob:` and `data:` addresses are refused with an explanation.
+- Link grabber page: every link, image and media file on a page (iframes included), with category chips, a filter and "Download selected".
+- "This page" tab: video and audio files the page plays (whole files only, not HLS/DASH pieces), with a green badge count. Never on YouTube, DRM services or sites you turn it off for.
+- Video sites (Facebook, X, Instagram, TikTok, Vimeo, Dailymotion, Reddit, Twitch, VK, OK, Bilibili, Streamable): "Download video" with quality choice through the companion app, with progress, cancel, retry and open folder. YouTube only after turning it on in Settings and reading the Terms of Service warning.
+- Settings page: language, theme, folder sorting, downloads at the same time, ask where to save, notifications, media detection, minimum size, disabled sites, default video quality, YouTube, companion status.
+- Automated test `scripts/test_extension.py`; manual checklist `extension/QA.md`.
+
+### Companion
+
+- (filled in by the companion step)
+
+### Website
+
+- (filled in by the website step)
+
 ## [0.0.1] - 2026-11-17
 
 Development snapshot, not released to users.

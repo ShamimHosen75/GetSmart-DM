@@ -16,6 +16,11 @@
           <div class="brand-tagline" data-i18n="tagline"></div>
         </div>
       </div>
+      <button id="open-add" class="icon-button" type="button" data-i18n-title="addLinks" aria-expanded="false" aria-controls="add-panel">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
       <button id="open-settings" class="icon-button" type="button" data-i18n-title="openSettings">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
@@ -25,6 +30,16 @@
       </button>
     </header>
 
+    <form class="add-panel" id="add-panel" hidden>
+      <label class="add-title" for="add-urls" data-i18n="addLinks"></label>
+      <textarea id="add-urls" rows="5" spellcheck="false" data-i18n-placeholder="addLinksPlaceholder"></textarea>
+      <div class="row-hint" id="add-hint" data-i18n="addLinksHint"></div>
+      <div class="add-buttons">
+        <button type="button" class="text-button" id="add-cancel" data-i18n="cancelButton"></button>
+        <button type="submit" class="primary-button" id="add-submit" data-i18n="addButton"></button>
+      </div>
+    </form>
+
     <nav class="tabs" role="tablist">
       <button class="tab" role="tab" type="button" id="tab-downloads" aria-controls="panel-downloads" aria-selected="true" data-i18n="tabDownloads"></button>
       <button class="tab" role="tab" type="button" id="tab-page" aria-controls="panel-page" aria-selected="false" data-i18n="tabThisPage"></button>
@@ -32,7 +47,21 @@
 
     <main>
       <section class="panel" id="panel-downloads" role="tabpanel" aria-labelledby="tab-downloads">
-        <div class="empty">
+        <div class="dl-toolbar">
+          <label class="search">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="6" />
+              <path d="M20 20l-4.5-4.5" />
+            </svg>
+            <input id="dl-search" type="search" autocomplete="off" data-i18n-placeholder="searchDownloads" data-i18n-title="searchDownloads" />
+          </label>
+          <button id="dl-clear" class="text-button" type="button" data-i18n="clearFinished"></button>
+        </div>
+        <div class="chips" id="dl-chips" role="radiogroup"></div>
+
+        <ul class="dl-list" id="dl-list"></ul>
+
+        <div class="empty" id="dl-empty" hidden>
           <div class="empty-art">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
@@ -41,10 +70,40 @@
           <p class="empty-title" data-i18n="emptyDownloadsTitle"></p>
           <p class="empty-body" data-i18n="emptyDownloadsBody"></p>
         </div>
+
+        <div class="empty" id="dl-nomatch" hidden>
+          <p class="empty-title" data-i18n="noMatchTitle"></p>
+          <p class="empty-body" data-i18n="noMatchBody"></p>
+        </div>
+
+        <template id="dl-row">
+          <li class="dl-row">
+            <div class="dl-type" aria-hidden="true"></div>
+            <div class="dl-body">
+              <div class="dl-name"></div>
+              <div class="dl-progress"><div class="dl-bar"></div></div>
+              <div class="dl-meta">
+                <span class="dl-state"></span>
+                <span class="dl-size"></span>
+                <span class="dl-speed"></span>
+                <span class="dl-eta"></span>
+              </div>
+            </div>
+            <div class="dl-actions"></div>
+          </li>
+        </template>
+
+        <div class="toast" id="dl-toast" role="status" aria-live="polite"></div>
       </section>
 
       <section class="panel" id="panel-page" role="tabpanel" aria-labelledby="tab-page" hidden>
-        <div class="empty">
+        <div class="video-card" id="video-card" hidden></div>
+
+        <p class="page-note" id="page-note" hidden></p>
+
+        <ul class="dl-list" id="media-list"></ul>
+
+        <div class="empty" id="page-empty">
           <div class="empty-art">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <rect x="3" y="5" width="18" height="14" rx="3" />
@@ -54,6 +113,24 @@
           <p class="empty-title" data-i18n="emptyPageTitle"></p>
           <p class="empty-body" data-i18n="emptyPageBody"></p>
         </div>
+
+        <template id="media-row">
+          <li class="dl-row media-row">
+            <div class="dl-type" aria-hidden="true"></div>
+            <div class="dl-body">
+              <div class="dl-name"></div>
+              <div class="dl-meta"><span class="m-size"></span><span class="m-type"></span></div>
+            </div>
+            <div class="dl-actions">
+              <button type="button" class="icon-button small" data-action="download" data-i18n-title="actDownload">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+              </button>
+              <button type="button" class="icon-button small" data-action="copy" data-i18n-title="actCopyLink">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></svg>
+              </button>
+            </div>
+          </li>
+        </template>
       </section>
     </main>
 
