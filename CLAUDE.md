@@ -34,11 +34,11 @@ Later: companion for macOS/Linux, Android app.
 
 ## Current step
 
-**Step 2: `companion/`.** Current step = 2.
+**Step 3: `site/`.** Current step = 3.
 
-Milestones: M1 `host.py` (hello, add_video, progress, cancel, ping) + `scripts/test_host.py`, M2 `install.bat` / `update.bat` / `uninstall.bat` + README, M3 end-to-end test `scripts/test_companion.py` (needs the extension's M7 companion bridge), M4 `QA.md` + 0.1.0 + CHANGELOG.
+Status: **site built** (index, privacy, terms, styles, popup screenshots, `vercel.json`, `scripts/test_site.py`, `scripts/deploy_site.md`), waiting for "continue". The download ZIP and the real version/size/SHA-256 come from the Step 4 release script (`data-release` attributes in `site/index.html`). Popup screenshots show the M1 popup and are placeholders; re-run `python scripts/test_site.py` to refresh them.
 
-Status: **M1 (host.py + test_host.py) and M2 (install.bat, update.bat, uninstall.bat, README) done**, waiting for the owner's install.bat output and "continue" before M3.
+Step 2 (`companion/`) status: M1 (host.py + test_host.py) and M2 (install.bat, update.bat, uninstall.bat, README) done; waiting for the owner's install.bat output and "continue" before M3.
 
 Step 1 (`extension/`) status: M1 skeleton done; M2 to M9 (including the M7 companion bridge) not built yet.
 
