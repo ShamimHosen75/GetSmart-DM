@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Privacy policy · GetSmart DM</title>
+    <meta name="description" content="GetSmart DM collects no data. What stays on your PC, what leaves it, and why the extension needs each permission.">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#5546f5">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+    <link rel="apple-touch-icon" href="assets/icon-128.png">
+    <link rel="stylesheet" href="assets/site.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="nav">
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img src="assets/icon-32.png" alt="" width="32" height="32">
+          GetSmart DM
+        </a>
+        <nav aria-label="Main">
+          <ul class="nav-links">
+            <li><a href="index.html#features">Features</a></li>
+            <li><a href="index.html#install">Install</a></li>
+            <li><a href="index.html#faq">FAQ</a></li>
+          </ul>
+        </nav>
+        <a class="btn btn-primary btn-small" href="index.html#download">Download</a>
+      </div>
+    </header>
+
+    <main id="main">
+      <article class="doc">
+        <h1>Privacy policy</h1>
+        <p class="updated">Last updated: 17 November 2026</p>
+
+        <div class="summary-box">
+          <p><strong>Short version: GetSmart DM collects no data.</strong> There is no account, no analytics, no crash reporting, no ads and no server of ours that the extension or companion talks to. What you download, and from where, stays on your PC.</p>
+        </div>
+
+        <h2>What we collect</h2>
+        <p>Nothing. GetSmart DM does not send us your browsing history, the pages you visit, the files you download, your settings or any identifier. We do not use cookies or tracking pixels, and this website does not either. This site has no analytics script; the company hosting it may keep standard server access logs (such as IP address and time of request) for security, as any web host does.</p>
+
+        <h2>What stays on your PC</h2>
+        <ul>
+          <li><strong>Settings</strong> such as language, theme, download folders and the YouTube switch. They are stored by your browser's extension storage. If you have turned on your browser's own sync (for example, signed in to Chrome with sync on), the browser may sync these settings between your devices the same way it syncs other extension settings. That is your browser's feature, not ours, and we cannot see that data.</li>
+          <li><strong>Download queue and history</strong>: the list of downloads, their addresses, file names and progress. Stored in your browser's local extension storage on this PC only.</li>
+          <li><strong><code>host.log</code></strong>: a text log the companion app writes in its own folder, with the downloads it ran and any errors. It helps you (or us, if you choose to send it) find out why a download failed. It never leaves your PC unless you send it yourself, and you can delete it at any time.</li>
+          <li><strong>Your downloaded files</strong>, in the folders you chose.</li>
+        </ul>
+        <p>Removing the extension deletes its storage. Running <code>uninstall.bat</code> in the companion folder disconnects the companion from your browsers; you can then delete the folder.</p>
+
+        <h2>What leaves your PC</h2>
+        <p>Only two kinds of network traffic, and none of it goes to us:</p>
+        <ul>
+          <li><strong>Requests to the sites you download from.</strong> When you download a file or video, the browser or the companion fetches it from that site, just as if you had saved it yourself. Those sites see the request as usual, under their own privacy policies.</li>
+          <li><strong>Tool downloads during setup and updates.</strong> <code>install.bat</code> downloads yt-dlp and ffmpeg (from GitHub) and the small embedded Python the companion runs on (from python.org); <code>update.bat</code> downloads the newest yt-dlp from GitHub. The hosts of those files see a normal download request.</li>
+        </ul>
+
+        <h2>Permissions the extension asks for</h2>
+        <p>Browsers show these as a list when you load the extension. Here is why each one is needed.</p>
+        <div class="table-scroll">
+          <table class="perm-table">
+            <thead>
+              <tr><th scope="col">Permission</th><th scope="col">Why</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>downloads</code></td><td>Start, pause, resume and list downloads, and file them into folders by type.</td></tr>
+              <tr><td><code>downloads.open</code></td><td>Open a finished file or show it in its folder when you click it.</td></tr>
+              <tr><td><code>contextMenus</code></td><td>Add “Download with GetSmart DM” and the link grabber to the right-click menu.</td></tr>
+              <tr><td><code>storage</code></td><td>Keep your settings and the download queue (see above).</td></tr>
+              <tr><td><code>webRequest</code></td><td>Notice video and audio streams a page loads, so they can be offered in the This page tab. Nothing is recorded or sent anywhere.</td></tr>
+              <tr><td><code>webNavigation</code></td><td>Know when you move to another page, so the This page list is reset.</td></tr>
+              <tr><td><code>scripting</code></td><td>Read the links on the current page when you use the link grabber.</td></tr>
+              <tr><td><code>notifications</code></td><td>Tell you when a download finishes or fails.</td></tr>
+              <tr><td><code>nativeMessaging</code></td><td>Talk to the companion app on your PC, which saves videos. It talks only to that app, not to the internet.</td></tr>
+              <tr><td>Access to all sites</td><td>A download manager must work on whatever site you download from. This access is used only to find downloadable files and media.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2>Children</h2>
+        <p>GetSmart DM is a general-purpose tool and collects no personal information from anyone, including children.</p>
+
+        <h2>Changes to this policy</h2>
+        <p>If this policy changes, the new version will be posted on this page with a new date. Because we collect nothing, a change can only describe new local behaviour; we will not start collecting data silently.</p>
+
+        <h2>Contact</h2>
+        <p>Questions about privacy: <a href="mailto:contact@example.com">contact@example.com</a> <!-- TODO(owner): replace placeholder contact email before launch --></p>
+      </article>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div>
+            <a class="brand" href="index.html">
+              <img src="assets/icon-32.png" alt="" width="32" height="32">
+              GetSmart DM
+            </a>
+            <p>Download Smarter. Faster. Better.</p>
+          </div>
+          <div>
+            <ul class="footer-links">
+              <li><a href="privacy.html">Privacy</a></li>
+              <li><a href="terms.html">Terms</a></li>
+              <li><a href="index.html#install">Install guide</a></li>
+              <li><a href="index.html#faq">FAQ</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="fine-print">
+          <p>Video downloads are powered by <a href="https://github.com/yt-dlp/yt-dlp">yt-dlp</a> and <a href="https://ffmpeg.org/">ffmpeg</a>. Thank you to both projects.</p>
+          <p>Download only what you have the right to. GetSmart DM is not affiliated with Facebook, X, YouTube or any other site it works with.</p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
