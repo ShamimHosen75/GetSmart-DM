@@ -2,7 +2,8 @@
 """GetSmart DM companion: native-messaging host ``com.getsmartdm.host``.
 
 Speaks the protocol defined in shared/protocol.md (v1) on stdin/stdout and runs
-yt-dlp (plus ffmpeg for merging) to download videos.
+yt-dlp (plus ffmpeg for merging) to download videos. It also downloads files
+over several HTTP connections at once (add_file).
 
 Rules (see CLAUDE.md): Python 3 standard library only, logs to host.log next to
 this file, never deletes user files (only its own partial files of a canceled or
@@ -489,13 +490,22 @@ class Host:
             self.on_add_video(msg)
         elif mtype == "cancel":
             self.on_cancel(msg)
+        elif mtype == "add_file":
+            self.on_add_file(msg)
+        elif mtype == "pause_file":
+            self.on_pause_file(msg)
+        elif mtype == "set_speed_limit":
+            self.on_speed_limit(msg)
+        elif mtype == "open_file":
+            open_path(msg.get("path"), bool(msg.get("reveal")))
         else:
             log.warning("ignoring unknown message type %r", mtype)
 
     def on_hello(self):
         ffmpeg = find_binary("ffmpeg")
         reply = {"type": "hello", "version": VERSION, "ytdlp": ytdlp_version(),
-                 "ffmpeg": ffmpeg_version(ffmpeg), "dir": default_dir()}
+                 "ffmpeg": ffmpeg_version(ffmpeg), "dir": default_dir(),
+                 "downloads": downloads_folder(), "features": FILE_FEATURES}
         log.info("hello: %s", reply)
         self.channel.send(reply)
 
@@ -524,16 +534,552 @@ class Host:
             job = self.jobs.get(msg.get("id"))
         if job is None:
             log.info("cancel: no running job %r", msg.get("id"))
+            if msg.get("filename"):
+                cancel_paused_file(msg)
+                self.channel.send({"type": "progress", "id": msg.get("id"), "state": "canceled"})
             return
         job.cancel()
+
+    def on_add_file(self, msg):
+        job_id = msg.get("id")
+        if not isinstance(job_id, str) or not job_id:
+            log.warning("add_file without a valid id: %r", msg)
+            return
+        if not isinstance(msg.get("url"), str):
+            self.channel.send({"type": "progress", "id": job_id, "state": "error", "error_code": "bad_request",
+                               "error": "Invalid request (url missing)."})
+            return
+        with self.lock:
+            if job_id in self.jobs:
+                log.warning("add_file: id %s is already running, ignored", job_id)
+                return
+            job = FileJob(self, msg)
+            self.jobs[job_id] = job
+        job.thread.start()
+
+    def on_pause_file(self, msg):
+        with self.lock:
+            job = self.jobs.get(msg.get("id"))
+        if isinstance(job, FileJob):
+            job.pause()
+
+    def on_speed_limit(self, msg):
+        limit = msg.get("limit") if isinstance(msg.get("limit"), int) else 0
+        if msg.get("id") is None:
+            GLOBAL_LIMIT.set(limit)
+            log.info("speed limit for all files: %s B/s", limit)
+            return
+        with self.lock:
+            job = self.jobs.get(msg.get("id"))
+        if isinstance(job, FileJob):
+            job.limiter.set(limit)
 
     def shutdown(self):
         with self.lock:
             jobs = list(self.jobs.values())
         for job in jobs:
-            job.cancel()
+            # Files keep their partial data so the extension can resume them later.
+            if isinstance(job, FileJob):
+                job.pause()
+            else:
+                job.cancel()
         for job in jobs:
             job.thread.join(10)
+
+
+# ---------------------------------------------------------------- file downloads (add_file)
+#
+# Multi-connection downloads with HTTP Range requests. The file is written to
+# "<name>.gsdmpart" (pre-sized, each connection writes at its own offset) and
+# its parts are saved to "<name>.gsdmpart.json", so a paused or interrupted
+# download continues where it stopped. When a connection finishes its part, it
+# takes over half of the largest part still left, so all connections stay busy
+# until the end.
+
+FILE_FEATURES = ["files"]
+PART_SUFFIX = ".gsdmpart"
+STATE_SUFFIX = ".gsdmpart.json"
+MAX_CONNECTIONS = 16
+DEFAULT_CONNECTIONS = 8
+MIN_PART = 512 * 1024           # never split below this
+CHUNK = 64 * 1024
+REQUEST_TIMEOUT = 30
+RETRIES = 5
+STATE_SAVE_INTERVAL = 2.0
+ALLOWED_HEADERS = ("Referer", "User-Agent", "Accept-Language")
+WIN_RESERVED = re.compile(r"^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$", re.I)
+
+
+class FileError(Exception):
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
+
+
+class RateLimiter:
+    """Token bucket shared by connections. rate 0 = no limit."""
+
+    def __init__(self, rate=0):
+        self.lock = threading.Lock()
+        self.rate = 0
+        self.tokens = 0.0
+        self.stamp = time.monotonic()
+        self.set(rate)
+
+    def set(self, rate):
+        with self.lock:
+            self.rate = max(0, int(rate or 0))
+            self.tokens = min(self.tokens, float(self.rate))
+            self.stamp = time.monotonic()
+
+    def take(self, n):
+        while True:
+            with self.lock:
+                if self.rate <= 0:
+                    return
+                now = time.monotonic()
+                self.tokens = min(float(self.rate), self.tokens + (now - self.stamp) * self.rate)
+                self.stamp = now
+                if self.tokens >= n or self.tokens >= self.rate:
+                    self.tokens -= n
+                    return
+                wait = (min(n, self.rate) - self.tokens) / self.rate
+            time.sleep(min(wait, 0.5))
+
+
+GLOBAL_LIMIT = RateLimiter()
+
+
+def safe_filename(name):
+    """A file name that is valid on Windows, macOS and Linux (max 150 characters)."""
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", str(name or "")).strip().rstrip(". ")
+    if not name:
+        name = "download"
+    if WIN_RESERVED.match(name):
+        name = "_" + name
+    if len(name) > 150:
+        root, ext = os.path.splitext(name)
+        ext = ext if len(ext) <= 16 else ""
+        name = root[:150 - len(ext)] + ext
+    return name
+
+
+def name_from_disposition(value):
+    if not value:
+        return None
+    m = re.search(r"filename\*\s*=\s*([^']*)'[^']*'([^;]+)", value, re.I)
+    if m:
+        from urllib.parse import unquote
+        try:
+            return unquote(m.group(2).strip().strip('"'), encoding=m.group(1) or "utf-8")
+        except LookupError:
+            return unquote(m.group(2).strip().strip('"'))
+    m = re.search(r'filename\s*=\s*"([^"]*)"', value, re.I) or re.search(r"filename\s*=\s*([^;]+)", value, re.I)
+    return m.group(1).strip() if m else None
+
+
+def name_from_url(url):
+    from urllib.parse import unquote
+    path = urlparse(url).path
+    return unquote(path.rsplit("/", 1)[-1]) if path else ""
+
+
+def resolve_folder(folder):
+    """Absolute folder for an add_file `folder` (relative to Downloads), or raise."""
+    root = os.path.realpath(downloads_folder())
+    if not folder:
+        return root
+    if not isinstance(folder, str) or os.path.isabs(folder) or re.match(r"^[A-Za-z]:", folder):
+        raise FileError("bad_request", "The folder must be relative to the Downloads folder.")
+    parts = [p for p in re.split(r"[\\/]+", folder) if p not in ("", ".")]
+    if any(p == ".." for p in parts):
+        raise FileError("bad_request", "The folder must stay inside the Downloads folder.")
+    path = os.path.realpath(os.path.join(root, *[safe_filename(p) for p in parts]))
+    if path != root and not path.startswith(root + os.sep):
+        raise FileError("bad_request", "The folder must stay inside the Downloads folder.")
+    return path
+
+
+def unique_path(path):
+    if not os.path.exists(path):
+        return path
+    root, ext = os.path.splitext(path)
+    n = 1
+    while os.path.exists("%s (%d)%s" % (root, n, ext)):
+        n += 1
+    return "%s (%d)%s" % (root, n, ext)
+
+
+def http_request(url, headers, start=None, end=None):
+    import urllib.request
+    req = urllib.request.Request(url, headers=dict(headers))
+    req.add_header("Accept-Encoding", "identity")  # byte ranges of the real file
+    if start is not None:
+        req.add_header("Range", "bytes=%d-%s" % (start, "" if end is None else end))
+    return urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT)
+
+
+def probe(url, headers):
+    """Ask for byte 0. Returns (total, final_url, filename, validator) or raises FileError."""
+    import urllib.error
+    try:
+        with http_request(url, headers, 0, 0) as res:
+            status = res.status
+            content_range = res.headers.get("Content-Range") or ""
+            disposition = res.headers.get("Content-Disposition")
+            validator = res.headers.get("ETag") or res.headers.get("Last-Modified") or ""
+            final_url = res.geturl()
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403, 407):
+            raise FileError("auth", "The server asked for a login (HTTP %d)." % e.code)
+        if e.code == 416:
+            raise FileError("no_range", "The server cannot send parts of this file.")
+        raise FileError("http", "The server answered HTTP %d." % e.code)
+    except (OSError, ValueError) as e:
+        raise FileError("network", "Could not reach the server: %s" % getattr(e, "reason", e))
+    m = re.match(r"bytes\s+0-0/(\d+)", content_range)
+    if status != 206 or not m:
+        raise FileError("no_range", "The server cannot send parts of this file.")
+    name = name_from_disposition(disposition) or name_from_url(final_url) or name_from_url(url)
+    return int(m.group(1)), final_url, name, validator
+
+
+class Part:
+    __slots__ = ("start", "end", "pos", "busy")
+
+    def __init__(self, start, end, pos=None):
+        self.start, self.end = start, end
+        self.pos = start if pos is None else pos
+        self.busy = False
+
+    def left(self):
+        return self.end - self.pos + 1
+
+
+class FileJob:
+    """One add_file download. Thread-safe; runs in its own thread."""
+
+    def __init__(self, host, msg):
+        self.host = host
+        self.id = msg["id"]
+        self.url = msg["url"]
+        self.filename = msg.get("filename")
+        self.folder = msg.get("folder")
+        connections = msg.get("connections") or DEFAULT_CONNECTIONS
+        self.connections = max(1, min(MAX_CONNECTIONS, int(connections) if isinstance(connections, int) else DEFAULT_CONNECTIONS))
+        headers = msg.get("headers") if isinstance(msg.get("headers"), dict) else {}
+        self.headers = {k: str(v) for k, v in headers.items() if k in ALLOWED_HEADERS and v}
+        self.headers.setdefault("User-Agent", "Mozilla/5.0 GetSmartDM/" + VERSION)
+        self.limiter = RateLimiter(msg.get("speed_limit") or 0)
+        self.lock = threading.Lock()
+        self.stop = None              # None, "pause" or "cancel"
+        self.parts = []
+        self.total = 0
+        self.final = None             # final path (target name before the rename)
+        self.part_path = None
+        self.validator = ""
+        self.active = 0
+        self.errors = []
+        self.samples = collections.deque(maxlen=12)
+        self.thread = threading.Thread(target=self.run, name="file-" + str(self.id)[:16], daemon=True)
+
+    # -- messages
+
+    def progress(self, state, **fields):
+        msg = {"type": "progress", "id": self.id, "state": state}
+        msg.update({k: v for k, v in fields.items() if v is not None})
+        self.host.channel.send(msg)
+
+    def done_bytes(self):
+        return sum(p.pos - p.start for p in self.parts)
+
+    def snapshot(self):
+        with self.lock:
+            parts = sorted(self.parts, key=lambda p: p.start)
+            segs = [[p.start, p.end, p.pos - p.start] for p in parts]
+            active = self.active
+        if len(segs) > 32:  # merge neighbours so the message stays small
+            step = (len(segs) + 31) // 32
+            segs = [[g[0][0], g[-1][1], sum(s[2] for s in g)] for g in (segs[i:i + step] for i in range(0, len(segs), step))]
+        return segs, active
+
+    def speed(self):
+        now = time.monotonic()
+        self.samples.append((now, self.done_bytes()))
+        while len(self.samples) > 2 and now - self.samples[0][0] > 5:
+            self.samples.popleft()
+        (t0, b0), (t1, b1) = self.samples[0], self.samples[-1]
+        return int((b1 - b0) / (t1 - t0)) if t1 - t0 >= 0.5 else None
+
+    # -- state file
+
+    def save_state(self):
+        with self.lock:
+            data = {"id": self.id, "url": self.url, "total": self.total, "validator": self.validator,
+                    "parts": [[p.start, p.end, p.pos] for p in self.parts]}
+        tmp = self.part_path + ".json.tmp"
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+            os.replace(tmp, self.part_path[:-len(PART_SUFFIX)] + STATE_SUFFIX)
+        except OSError as e:
+            log.warning("file %s: could not save state: %s", self.id, e)
+
+    def load_state(self):
+        try:
+            with open(self.final + STATE_SUFFIX, encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            return False
+        if data.get("url") != self.url or data.get("total") != self.total or data.get("validator") != self.validator:
+            log.info("file %s: saved state does not match the server file, starting over", self.id)
+            return False
+        if not os.path.isfile(self.part_path) or os.path.getsize(self.part_path) != self.total:
+            return False
+        self.parts = [Part(s, e, p) for s, e, p in data.get("parts", []) if s <= p <= e + 1]
+        return bool(self.parts)
+
+    def remove_own_files(self):
+        for path in (self.part_path, self.final + STATE_SUFFIX if self.final else None):
+            if path and os.path.isfile(path):
+                try:
+                    os.remove(path)
+                    log.info("file %s: removed partial file %s", self.id, path)
+                except OSError as e:
+                    log.warning("file %s: could not remove %s: %s", self.id, path, e)
+
+    # -- lifecycle
+
+    def run(self):
+        try:
+            self._run()
+        except FileError as e:
+            log.info("file %s error (%s): %s", self.id, e.code, e)
+            self.progress("error", error=str(e), error_code=e.code, filename=self.final)
+        except Exception as e:  # never let a job kill the host
+            log.exception("file %s crashed", self.id)
+            self.progress("error", error="Internal error in the companion: %s" % e, error_code="network")
+        finally:
+            self.host.job_finished(self)
+
+    def _run(self):
+        if urlparse(self.url).scheme not in ("http", "https"):
+            raise FileError("bad_request", "Only http and https links can be downloaded.")
+        if policy_error(self.url, False):
+            raise FileError("bad_request", policy_error(self.url, False))
+        folder = resolve_folder(self.folder)
+        self.total, final_url, server_name, self.validator = probe(self.url, self.headers)
+        name = safe_filename(self.filename or server_name)
+        try:
+            os.makedirs(folder, exist_ok=True)
+        except OSError as e:
+            raise FileError("disk", "Could not create the folder: %s" % e)
+        self.final = os.path.join(folder, name)
+        self.part_path = self.final + PART_SUFFIX
+        resumed = self.load_state()
+        if not resumed:
+            self.new_parts()
+            try:
+                with open(self.part_path, "wb") as f:
+                    f.truncate(self.total)
+            except OSError as e:
+                raise FileError("disk", "Could not create the file: %s" % e)
+        self.fetch_url = final_url
+        log.info("file %s start: %s -> %s (%d bytes, %d connections, %s)", self.id, self.url, self.final,
+                 self.total, self.connections, "resumed" if resumed else "new")
+        self.save_state()
+
+        workers = [threading.Thread(target=self.worker, name="conn-%s-%d" % (str(self.id)[:8], i), daemon=True)
+                   for i in range(self.connections)]
+        for w in workers:
+            w.start()
+        last_save = time.monotonic()
+        while any(w.is_alive() for w in workers):
+            time.sleep(PROGRESS_INTERVAL)
+            segs, active = self.snapshot()
+            done = self.done_bytes()
+            speed = self.speed()
+            eta = int((self.total - done) / speed) if speed else None
+            if self.stop is None:
+                self.progress("running", downloaded=done, total=self.total, speed=speed, eta=eta,
+                              filename=self.final, segments=segs, connections=active, resumable=True)
+            if time.monotonic() - last_save > STATE_SAVE_INTERVAL:
+                self.save_state()
+                last_save = time.monotonic()
+
+        done = self.done_bytes()
+        if self.stop == "cancel":
+            self.remove_own_files()
+            self.progress("canceled")
+            return
+        self.save_state()
+        if self.stop == "pause":
+            segs, _ = self.snapshot()
+            self.progress("paused", downloaded=done, total=self.total, filename=self.final, segments=segs,
+                          connections=0, resumable=True)
+            return
+        if done < self.total:
+            code, message = self.errors[-1] if self.errors else ("network", "The download stopped.")
+            raise FileError(code, message)
+        target = unique_path(self.final)
+        try:
+            os.replace(self.part_path, target)
+        except OSError as e:
+            raise FileError("disk", "Could not rename the finished file: %s" % e)
+        try:
+            os.remove(self.final + STATE_SUFFIX)
+        except OSError:
+            pass
+        log.info("file %s done: %s", self.id, target)
+        self.progress("done", downloaded=self.total, total=self.total, filename=target, resumable=True)
+
+    def new_parts(self):
+        count = max(1, min(self.connections, self.total // MIN_PART or 1))
+        size = self.total // count
+        self.parts = []
+        for i in range(count):
+            start = i * size
+            end = self.total - 1 if i == count - 1 else start + size - 1
+            self.parts.append(Part(start, end))
+
+    def next_part(self):
+        """A part for a free connection: an untouched one, or half of the largest one left."""
+        with self.lock:
+            free = [p for p in self.parts if not p.busy and p.left() > 0]
+            if free:
+                part = max(free, key=Part.left)
+                part.busy = True
+                return part
+            busy = [p for p in self.parts if p.busy and p.left() >= 2 * MIN_PART]
+            if not busy:
+                return None
+            big = max(busy, key=Part.left)
+            mid = big.pos + big.left() // 2
+            part = Part(mid, big.end)
+            big.end = mid - 1
+            part.busy = True
+            self.parts.append(part)
+            return part
+
+    def worker(self):
+        with self.lock:
+            self.active += 1
+        try:
+            with open(self.part_path, "r+b") as out:
+                while self.stop is None:
+                    part = self.next_part()
+                    if part is None:
+                        return
+                    try:
+                        self.fetch(part, out)
+                    finally:
+                        with self.lock:
+                            part.busy = False
+        except OSError as e:
+            self.errors.append(("disk", "Could not write the file: %s" % e))
+            log.warning("file %s: write error %s", self.id, e)
+        finally:
+            with self.lock:
+                self.active -= 1
+
+    def fetch(self, part, out):
+        """Download one part, retrying network errors. Returns when done, stopped or out of retries."""
+        import urllib.error
+        attempt = 0
+        while self.stop is None and part.left() > 0:
+            try:
+                with http_request(self.fetch_url, self.headers, part.pos, part.end) as res:
+                    if res.status != 206:
+                        raise FileError("no_range", "The server stopped sending parts of this file.")
+                    out.seek(part.pos)
+                    while self.stop is None:
+                        with self.lock:
+                            want = min(CHUNK, part.end - part.pos + 1)
+                        if want <= 0:
+                            return  # another connection took the rest of this part
+                        GLOBAL_LIMIT.take(want)
+                        self.limiter.take(want)
+                        data = res.read(want)
+                        if not data:
+                            break
+                        with self.lock:
+                            data = data[:max(0, part.end - part.pos + 1)]
+                        out.write(data)
+                        with self.lock:
+                            part.pos += len(data)
+                        attempt = 0
+            except FileError as e:
+                self.errors.append((e.code, str(e)))
+                return
+            except urllib.error.HTTPError as e:
+                code = "auth" if e.code in (401, 403, 407) else "http"
+                self.errors.append((code, "The server answered HTTP %d." % e.code))
+                if e.code < 500:
+                    return
+            except (OSError, ValueError) as e:
+                self.errors.append(("network", "Connection problem: %s" % getattr(e, "reason", e)))
+            if part.left() > 0 and self.stop is None:
+                attempt += 1
+                if attempt > RETRIES:
+                    return
+                time.sleep(min(8, 2 ** (attempt - 1)))
+
+    def pause(self):
+        self.stop = "pause"
+
+    def cancel(self):
+        self.stop = "cancel"
+
+
+def cancel_paused_file(msg):
+    """Remove the own partial files of a paused download the companion no longer runs."""
+    try:
+        folder = resolve_folder(msg.get("folder"))
+    except FileError:
+        return
+    name = msg.get("filename")
+    if not isinstance(name, str) or not name:
+        return
+    final = os.path.join(folder, safe_filename(name))
+    try:
+        with open(final + STATE_SUFFIX, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return
+    if data.get("id") != msg.get("id"):
+        return  # not the download the extension means: leave it alone
+    for path in (final + PART_SUFFIX, final + STATE_SUFFIX):
+        try:
+            os.remove(path)
+            log.info("cancel %s: removed partial file %s", msg.get("id"), path)
+        except OSError:
+            pass
+
+
+def open_path(path, reveal):
+    """Open a finished file, or its folder. Only inside the Downloads folder."""
+    if not isinstance(path, str) or not path:
+        return False
+    root = os.path.realpath(downloads_folder())
+    real = os.path.realpath(path)
+    if not real.startswith(root + os.sep) or not os.path.exists(real):
+        log.warning("open_file refused: %s", path)
+        return False
+    try:
+        if IS_WIN:
+            if reveal:
+                subprocess.Popen(["explorer", "/select,", real], creationflags=CREATE_NO_WINDOW)
+            else:
+                os.startfile(real)  # noqa: the user clicked "Open file"
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", "-R", real] if reveal else ["open", real])
+        else:
+            subprocess.Popen(["xdg-open", os.path.dirname(real) if reveal else real],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        return True
+    except OSError as e:
+        log.warning("open_file failed: %s", e)
+        return False
 
 
 def check():
