@@ -4,6 +4,33 @@ All notable changes to SIDM. Newest version first. Each version has three parts:
 
 Add a new section with `python scripts/bump.py patch|minor|major`, then fill in the bullets before running `scripts/release.py`. See `RELEASE.md`.
 
+## [0.2.0] - 2026-11-17
+
+Renamed from GetSmart DM to **SIDM - Smart Internet Download Manager**. The extension ID is unchanged.
+
+### Extension
+
+- Name, English and Bangla strings and menus say SIDM; downloads are now saved in `Downloads/SIDM/<Category>/`.
+- Video button on the page: appears over videos on any site (shadow DOM, iframes, players that load later, and as soon as a video starts playing). With the companion connected it offers Best, 1080p, 720p, 480p, 360p or audio only; without it, it says the companion is missing and opens the install help.
+- More video sites through the companion: LinkedIn, Pinterest, Tumblr, Threads, Bluesky, Snapchat, 9GAG, Imgur, Kick, Rumble, Odysee, SoundCloud, Mixcloud, Bandcamp, TED, Loom and others. Any other page that plays a video is offered to the companion too ("try this page").
+- YouTube is on by default through the companion, with a one-time notice on the first YouTube download. DRM services are still refused.
+- Progress window for each download: size, speed, time left, resume support, pause/resume/cancel, a speed limit tab and "when finished" options. Opens for downloads SIDM starts, for all downloads, or never (Settings).
+- Multi-connection downloads: files of 1 MB or more on servers that allow it are downloaded by the companion over up to 16 connections, with a parts view, pause/resume and a speed limit (global or per file). Falls back to a normal browser download when the server does not allow it or the file needs a login.
+- Download manager page: category tree, sortable table with multi-select, start/stop queue, stop all, delete (with "also delete the file" for browser downloads) and a status bar.
+- Scheduler: start the queue at a time on chosen days and optionally stop it again. When the queue is done: do nothing, show a notification or close the browser.
+- New permission: `alarms` (for the scheduler).
+
+### Companion
+
+- Native host renamed to `com.sidm.host`; run `install.bat` / `install.sh` again after updating. The uninstallers also remove the old `com.getsmartdm.host` registration.
+- Multi-connection file downloads (`add_file`, `pause_file`, `set_speed_limit`, `open_file` in protocol v1): Range probe, resumable `.gsdmpart` files, work stealing between connections, token-bucket speed limit, paused when the browser closes.
+- Videos are saved in `Downloads/SIDM/Video`.
+
+### Website
+
+- Name and texts say SIDM; download links point at `sidm-v<version>-<platform>.zip`.
+- YouTube FAQ and terms: YouTube is supported and on by default; the user is responsible for having the right to download.
+
 ## [0.1.0] - 2026-11-17
 
 First release.
