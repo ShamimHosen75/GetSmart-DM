@@ -8,11 +8,12 @@
 //   menus.js          context menus (M4)
 //   media.js          media detection for the "This page" tab (M6)
 //   native-bridge.js  companion app connection and video jobs (M7)
+//   progress.html     per-download progress window, opened here on start (M11)
 
-import { seedDefaultSettings } from './common.js';
+import { autoOpenProgress, seedDefaultSettings } from './common.js';
 import { enqueue, pump, registerQueueListeners, removeQueued } from './queue.js';
 import { buildMenus, registerMenuListeners } from './menus.js';
-import { registerMediaListeners } from './media.js';
+import { registerMediaListeners, overlayHandlers } from './media.js';
 import { videoHandlers } from './native-bridge.js';
 
 const BADGE_COLOR = '#6c3ff0';
@@ -60,17 +61,29 @@ chrome.downloads.onChanged.addListener((delta) => {
   if (delta.state || delta.paused) updateBadge();
 });
 
+// ---------- Progress window on download start (M11) ----------
+// "ours" downloads are opened from queue.js, which knows the id it started
+// (byExtensionId is not filled in yet when onCreated fires).
+
+chrome.downloads.onCreated.addListener((item) => autoOpenProgress(item.id, 'all'));
+
 // ---------- Messages from extension pages ----------
+
+const CONTENT_SCRIPT_CALLS = new Set(['overlayInfo', 'overlayMedia', 'enqueue', 'addVideo']);
 
 const handlers = {
   enqueue: (msg) => enqueue(msg.items || []),
   removeQueued: (msg) => removeQueued(msg.qid),
+  ...overlayHandlers, // overlayInfo, overlayMedia (content script video button)
   ...videoHandlers, // getVideoState, addVideo, cancelVideo, retryVideo, removeVideo, openVideoFolder
 };
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  // Only our own pages talk to the worker.
+  // Only our own pages and our content script talk to the worker. The content
+  // script (sender.tab set, page origin) may only use the calls it needs.
   if (sender.id !== chrome.runtime.id || !msg || !handlers[msg.type]) return false;
+  const fromPage = Boolean(sender.tab) && !String(sender.url || '').startsWith(`chrome-extension://${chrome.runtime.id}/`);
+  if (fromPage && !CONTENT_SCRIPT_CALLS.has(msg.type)) return false;
   Promise.resolve()
     .then(() => handlers[msg.type](msg, sender))
     .then((result) => sendResponse(result ?? { ok: true }))

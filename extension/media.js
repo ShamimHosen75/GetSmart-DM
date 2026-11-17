@@ -7,7 +7,8 @@
 // are skipped. The count shows as a green badge on that tab.
 
 import { cachedSettings, categoryOf, fileExtension, nameFromUrl, sanitizeFilename } from './common.js';
-import { hostMatches, hostOf, isDrmSite, isYouTube } from './sites.js';
+import { hostMatches, hostOf, isDrmSite, isYouTube, videoSiteStatus } from './sites.js';
+import { setLanguage, t } from './i18n.js';
 
 export const MAX_PER_TAB = 25;
 const MEDIA_BADGE_COLOR = '#22b783';
@@ -226,3 +227,53 @@ export function registerMediaListeners() {
     chrome.storage.session.remove(storageKey(tabId));
   });
 }
+
+// ---------- Video button content script (M10) ----------
+
+const OVERLAY_STRINGS = [
+  'overlayButton',
+  'overlayLoading',
+  'overlayVideoSite',
+  'overlayViaCompanion',
+  'overlayFiles',
+  'overlayNothing',
+  'overlayStarted',
+  'overlayFailed',
+  'downloadVideo',
+];
+
+/** Should the video button run on this page? Never on DRM, disabled sites, or YouTube unless allowed. */
+export function overlayAllowed(pageUrl, frameUrl, settings) {
+  if (!settings.showVideoButton) return false;
+  for (const url of [pageUrl, frameUrl]) {
+    if (!url) continue;
+    if (isDrmSite(url)) return false;
+    if (isYouTube(url) && !settings.allowYouTube) return false;
+    if (hostMatches(hostOf(url), settings.disabledSites || [])) return false;
+  }
+  return true;
+}
+
+export const overlayHandlers = {
+  overlayInfo: async (msg, sender) => {
+    const settings = await cachedSettings();
+    const pageUrl = sender.tab?.url || '';
+    if (!overlayAllowed(pageUrl, sender.url, settings)) return { enabled: false };
+    setLanguage(settings.language);
+    return {
+      enabled: true,
+      quality: settings.defaultQuality,
+      strings: Object.fromEntries(OVERLAY_STRINGS.map((key) => [key, t(key)])),
+    };
+  },
+  overlayMedia: async (msg, sender) => {
+    const settings = await cachedSettings();
+    const pageUrl = sender.tab?.url || '';
+    if (!overlayAllowed(pageUrl, sender.url, settings)) return { site: null, media: [] };
+    const media = sender.tab ? await getTabMedia(sender.tab.id) : [];
+    return {
+      site: videoSiteStatus(pageUrl, settings.allowYouTube),
+      media: media.slice().reverse().map(({ url, name, size, mime }) => ({ url, name, size, mime })),
+    };
+  },
+};

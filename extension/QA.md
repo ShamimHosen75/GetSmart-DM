@@ -95,3 +95,55 @@ Needs the companion installed (`companion/install.bat` on Windows).
 - [ ] YouTube: no card controls, only the note that YouTube downloads are off; no context-menu entry. After turning on "Allow YouTube" in Settings (M8), the card and the menu appear on youtube.com.
 - [ ] Netflix and other DRM sites: no card, no menu; asking the worker for addVideo there returns the DRM refusal.
 - [ ] Leave the browser idle for a minute with no video running: the companion process exits (no zombie host).
+
+## M8 Settings page
+
+- [ ] Every control saves as soon as it changes ("Saved" toast) and is still set after closing and reopening Settings, and on another computer signed in to the same browser profile (storage.sync).
+- [ ] Language Automatic / English / বাংলা and Theme Automatic / Light / Dark apply at once to Settings and an open popup.
+- [ ] Sort into folders off: new downloads go to plain `Downloads/`.
+- [ ] Downloads at the same time: typing 25 saves 10, typing 0 saves 1.
+- [ ] Ask where to save on: links added with "+" open the Save As window.
+- [ ] Notifications off: no finish/fail notifications (the blob:/data: explanation still shows).
+- [ ] Media detection off: "This page" says it is off and nothing is listed; minimum size 1000 KB hides smaller files.
+- [ ] Disabled sites: `https://www.Example.com/path` is saved as `example.com`; entries without a dot are dropped; duplicates are removed.
+- [ ] Companion line shows connected with the yt-dlp / ffmpeg versions and the save folder, or "not installed" with help text.
+- [ ] Default video quality is used by the right-click video menu and preselected in the popup card.
+- [ ] Allow YouTube: clicking the switch opens the Terms of Service warning. Cancel leaves it off; "I understand, turn it on" turns it on. Turning it off needs no warning.
+
+## M9 Release checks (0.1.0)
+
+Run `python scripts/test_extension.py` first (all PASS), then by hand:
+
+- [ ] **Service worker asleep:** on `chrome://extensions` > GetSmart DM > "Service worker", wait 5 minutes until it shows "inactive". Then: start a download from a site (it is sorted into a folder), right-click a link > "Download link with GetSmart DM" (it starts), open a page with a video (green badge appears), open the popup (list correct). Each wakes the worker with no error on the card.
+- [ ] **Queue after sleep:** with max 1, add 3 links, let the worker sleep, then cancel the running one: the next queued link starts.
+- [ ] **Incognito:** turn on "Allow in Incognito" for GetSmart DM. Downloads from an incognito window appear in the popup opened there, are sorted, and media detection works. The popup in a normal window does not list incognito downloads.
+- [ ] **Alt-click:** Alt+click on a link (Chrome's own "download link" shortcut) downloads it directly without the queue; it still appears in the list and is sorted into a folder.
+- [ ] **chrome:// pages:** on `chrome://settings`, `edge://settings` and the Web Store: the popup opens without errors, "This page" shows "Nothing found", "Grab all links" says Chrome does not allow the page.
+- [ ] **Dark mode:** set Windows to dark mode with Theme = Automatic: popup, settings and grabber are dark with readable text, badges and type tiles. Theme = Light overrides it.
+- [ ] **Bangla UI:** Language = বাংলা: popup, settings, grabber, context menus and notifications are in Bangla with no English left except file names, sizes and product names; long Bangla labels do not overflow.
+- [ ] **Edge and Brave:** Load unpacked works and the ID is the same.
+- [ ] Version in Settings > About is 0.1.0.
+
+## M10 Download button on videos
+
+- [ ] On a page with a plain `<video>` (for example a free stock-video site), move the pointer over the video: a "Download" pill appears at its top-right corner and fades after 2.5 s without movement. Small videos (under 200×112) get no button.
+- [ ] Click it: the menu lists the files the page played (with size and type) and the video's own file. Choosing one adds it to the queue and shows "Added to GetSmart DM".
+- [ ] On a supported video site (Facebook, X, Vimeo...), the menu also offers "Download video" through the companion at the default quality.
+- [ ] If nothing is known yet: "Nothing to download yet. Play the video for a few seconds, then try again."
+- [ ] No button on YouTube (unless Allow YouTube is on, then only the companion entry), on Netflix/other DRM sites, on disabled sites, or when "Download button on videos" is off in Settings.
+- [ ] The page's own styles do not change the button; clicking elsewhere closes the menu; the page keeps working (play/pause clicks still reach the player).
+- [ ] Bangla UI: the button and menu are in Bangla.
+
+## M11 Progress window
+
+- [ ] Add a large file with the "+" panel: a small window opens with the file name, a progress bar with percent, and the Status tab (address, status, file size, downloaded with percent, transfer rate, time left, can resume, saved to).
+- [ ] "Can resume" shows "Checking…" and then "Yes" for a normal file server, "No" for a server without Range support.
+- [ ] Pause, Resume and Cancel in the window act on the download, and the popup list follows.
+- [ ] "Hide details" shrinks the window to the name, bar and buttons; "Show details" brings them back.
+- [ ] In the popup, the details button of a running row opens the window; clicking it again focuses the same window instead of opening another.
+- [ ] When finished: with "Show the file in its folder" on, the folder opens when the download completes; with "Close this window" on, the window closes. With both off, the window stays with Open file / Show in folder / Close.
+- [ ] Settings > Downloads > Progress window: "Never" opens no window, "For every download" also opens one for downloads you start in Chrome itself.
+- [ ] Add 10 links at once: at most 3 windows open in 10 seconds.
+- [ ] Remove the download from the list while its window is open: "This download is gone".
+- [ ] Dark theme and Bangla look right; the window title shows the percent.
+

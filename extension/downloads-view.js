@@ -9,12 +9,11 @@
 //   Chrome's estimatedEndTime as a fallback until we have two samples.
 
 import { t } from './i18n.js';
-import { CATEGORIES, baseName, categoryOf, fileExtension, formatBytes, formatDuration, nameFromUrl } from './common.js';
+import { SpeedTracker, secondsLeft } from './speed.js';
+import { CATEGORIES, categoryOf, fileExtension, formatBytes, formatDuration, openProgressWindow } from './common.js';
+import { STATE_LABEL, displayName, errorLabel, isFinished, isRunning, stateOf, totalBytes } from './download-info.js';
 
 const REFRESH_MS = 800;
-const SAMPLE_WINDOW_MS = 5000;
-const MIN_SAMPLE_SPAN_MS = 600;
-const SMOOTHING = 0.4; // weight of the newest speed reading
 const SEARCH_LIMIT = 1000;
 
 const ICONS = {
@@ -26,6 +25,7 @@ const ICONS = {
   show: 'M3.5 7.5A1.5 1.5 0 0 1 5 6h4l2 2h8a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z',
   copy: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
   remove: 'M5 7h14M10 7V5h4v2M7 7l1 12.5h8L17 7',
+  details: 'M4 5.5h16v13H4zM4 9h16M8 12.5h8M8 15.5h5',
 };
 
 /** Button order in a row, with the label key for each. */
@@ -35,6 +35,7 @@ const ACTIONS = [
   ['retry', 'actRetry'],
   ['open', 'actOpen'],
   ['show', 'actShow'],
+  ['details', 'actDetails'],
   ['copy', 'actCopyLink'],
   ['cancel', 'actCancel'],
   ['remove', 'actRemove'],
@@ -52,7 +53,7 @@ const CATEGORY_LABEL = {
 };
 
 const rows = new Map(); // download id -> row record
-const speeds = new Map(); // download id -> { samples: [{t, bytes}], speed }
+const speeds = new SpeedTracker();
 
 let els;
 let filter = { text: '', category: 'all' };
@@ -134,90 +135,20 @@ async function refresh() {
 }
 
 function trackSpeeds(items) {
-  const now = performance.now();
-  const seen = new Set();
+  const running = new Set();
   for (const item of items) {
     if (!isRunning(item)) continue;
-    seen.add(item.id);
-    let track = speeds.get(item.id);
-    if (!track) {
-      track = { samples: [], speed: null };
-      speeds.set(item.id, track);
-    }
-    const { samples } = track;
-    const last = samples[samples.length - 1];
-    if (!last || last.bytes !== item.bytesReceived || now - last.t >= REFRESH_MS / 2) {
-      samples.push({ t: now, bytes: item.bytesReceived });
-    }
-    while (samples.length > 2 && now - samples[0].t > SAMPLE_WINDOW_MS) samples.shift();
-
-    const first = samples[0];
-    const newest = samples[samples.length - 1];
-    const span = newest.t - first.t;
-    if (span >= MIN_SAMPLE_SPAN_MS) {
-      const reading = Math.max(0, ((newest.bytes - first.bytes) * 1000) / span);
-      track.speed = track.speed == null ? reading : track.speed * (1 - SMOOTHING) + reading * SMOOTHING;
-    }
+    running.add(item.id);
+    speeds.sample(item.id, item.bytesReceived);
   }
-  // Paused, finished or erased downloads start fresh next time.
-  for (const id of speeds.keys()) if (!seen.has(id)) speeds.delete(id);
+  speeds.retain(running); // paused, finished or erased downloads start fresh
 }
-
-// ---------- Item helpers ----------
-
-function isFinished(item) {
-  return item.state === 'complete' || item.state === 'interrupted';
-}
-
-function isRunning(item) {
-  return item.state === 'in_progress' && !item.paused;
-}
-
-function displayName(item) {
-  return baseName(item.filename) || nameFromUrl(item.finalUrl || item.url);
-}
-
-function totalBytes(item) {
-  if (item.totalBytes > 0) return item.totalBytes;
-  if (item.state === 'complete' && item.fileSize > 0) return item.fileSize;
-  return -1;
-}
-
-function errorLabel(error) {
-  if (!error) return '';
-  if (error.startsWith('NETWORK_')) return t('errNetwork');
-  if (error.startsWith('SERVER_')) return t('errServer');
-  if (error === 'FILE_NO_SPACE') return t('errDiskFull');
-  if (error === 'FILE_ACCESS_DENIED' || error === 'SERVER_FORBIDDEN') return t('errAccess');
-  if (error === 'FILE_TOO_LARGE') return t('errTooLarge');
-  if (error === 'FILE_BLOCKED' || error.startsWith('FILE_VIRUS') || error === 'FILE_SECURITY_CHECK_FAILED') return t('errBlocked');
-  if (error === 'CRASH' || error === 'USER_SHUTDOWN') return t('errCrash');
-  return '';
-}
-
-/** "queued" | "downloading" | "paused" | "complete" | "deleted" | "cancelled" | "failed" */
-function stateOf(item) {
-  if (item.state === 'queued') return 'queued';
-  if (item.state === 'in_progress') return item.paused ? 'paused' : 'downloading';
-  if (item.state === 'complete') return item.exists === false ? 'deleted' : 'complete';
-  return item.error === 'USER_CANCELED' ? 'cancelled' : 'failed';
-}
-
-const STATE_LABEL = {
-  queued: 'stateQueued',
-  downloading: 'stateDownloading',
-  paused: 'statePaused',
-  complete: 'stateComplete',
-  deleted: 'stateDeleted',
-  cancelled: 'stateCancelled',
-  failed: 'stateFailed',
-};
 
 /** Which buttons a row shows in each state. */
 const VISIBLE_ACTIONS = {
   queued: ['copy', 'cancel'],
-  downloading: ['pause', 'copy', 'cancel'],
-  paused: ['resume', 'copy', 'cancel'],
+  downloading: ['pause', 'details', 'copy', 'cancel'],
+  paused: ['resume', 'details', 'copy', 'cancel'],
   complete: ['open', 'show', 'copy', 'remove'],
   deleted: ['retry', 'copy', 'remove'],
   cancelled: ['retry', 'copy', 'remove'],
@@ -367,16 +298,9 @@ function updateRow(row, item) {
   let speedText = '';
   let etaText = '';
   if (state === 'downloading') {
-    const speed = speeds.get(item.id)?.speed;
-    let seconds = NaN;
-    if (speed != null) {
-      speedText = t('speedPerSecond', { size: formatBytes(speed) });
-      if (known && speed > 0) seconds = (total - received) / speed;
-    }
-    if (!Number.isFinite(seconds) && item.estimatedEndTime) {
-      seconds = (Date.parse(item.estimatedEndTime) - Date.now()) / 1000;
-    }
-    const duration = formatDuration(seconds);
+    const speed = speeds.get(item.id);
+    if (speed != null) speedText = t('speedPerSecond', { size: formatBytes(speed) });
+    const duration = formatDuration(secondsLeft(item, speed));
     if (duration) etaText = t('timeLeft', { time: duration });
   }
   setText(row, 'speed', speedText);
@@ -455,6 +379,8 @@ async function runAction(action, item) {
       return chrome.downloads.open(item.id);
     case 'show':
       return chrome.downloads.show(item.id);
+    case 'details':
+      return openProgressWindow(item.id);
     case 'copy':
       await navigator.clipboard.writeText(item.finalUrl || item.url);
       return showToast(t('linkCopied'));
