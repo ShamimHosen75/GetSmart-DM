@@ -48,9 +48,9 @@ EXTENSION_EXCLUDE_FILES = re.compile(
     r"(\.pem$|\.zip$|\.log$|\.test\.js$|\.spec\.js$|^\.|^Thumbs\.db$|^desktop\.ini$)", re.I
 )
 
-# One entry per download. To add a platform (for example macOS/Linux), add an
-# entry here: the companion files it ships, its START-HERE.txt lines, and the
-# line ending those text files need. Then mark its size/SHA/link on
+# One entry per download. To add a platform, add an entry here: the companion
+# files it ships, its START-HERE.txt lines, the line ending those text files
+# need, and "unix": True if it needs executable bits. Then mark its size/SHA/link on
 # site/index.html with data-release="<key>-size" and so on.
 PLATFORMS = {
     "windows": {
@@ -61,6 +61,18 @@ PLATFORMS = {
             "2. In Chrome, Edge or Brave open chrome://extensions, turn on Developer mode, "
             "click Load unpacked and choose the getsmart-dm\\extension folder.",
             "3. Double-click getsmart-dm\\companion\\install.bat, wait for Done, then restart the browser.",
+        ],
+    },
+    "macos-linux": {
+        "companion_files": ["host.py", "install.sh", "uninstall.sh", "README.md"],
+        "newline": "\n",
+        "unix": True,  # Unix ZIP entries, so unzip / Archive Utility keep the executable bit
+        "start_here": [
+            "1. Extract this ZIP to a folder you will keep, for example ~/getsmart-dm.",
+            "2. In Chrome, Chromium, Edge or Brave open chrome://extensions, turn on Developer mode, "
+            "click Load unpacked and choose the getsmart-dm/extension folder.",
+            "3. Open Terminal in getsmart-dm/companion, run: bash install.sh, wait for Done, "
+            "then restart the browser.",
         ],
     },
 }
@@ -129,6 +141,8 @@ def zip_entries(root, platform):
             data = f.read()
         if name.lower().endswith((".bat", ".cmd")):
             data = text_with_newline(data, "\r\n")
+        elif name.lower().endswith(".sh"):
+            data = text_with_newline(data, "\n")  # a CRLF shell script fails with "$'\r': command not found"
         entries.append((f"{TOP_FOLDER}/companion/{name}", data))
 
     newline = spec["newline"]
@@ -149,14 +163,25 @@ def check_entries(entries):
         raise ReleaseError(f"refusing to ship {bad}")
 
 
-def write_zip(path, entries):
+EXECUTABLE = re.compile(r"\.(sh|py)$", re.I)
+
+
+def write_zip(path, entries, unix=False):
+    """Write the ZIP. unix=True marks entries as made on Unix, so unzip and macOS
+    Archive Utility apply the file modes: .sh and .py get 0755, the rest 0644.
+    (Mode bits in "MS-DOS" entries are ignored by those tools.)"""
     tmp = path + ".tmp"
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
         for name, data in entries:
             info = zipfile.ZipInfo(name, date_time=ZIP_DATE)
             info.compress_type = zipfile.ZIP_DEFLATED
-            info.external_attr = 0o644 << 16
-            info.create_system = 0  # "MS-DOS", so Windows Explorer shows no odd attributes
+            if unix:
+                mode = 0o755 if EXECUTABLE.search(name) else 0o644
+                info.external_attr = (0o100000 | mode) << 16  # regular file + mode
+                info.create_system = 3  # Unix
+            else:
+                info.external_attr = 0o644 << 16
+                info.create_system = 0  # "MS-DOS", so Windows Explorer shows no odd attributes
             zf.writestr(info, data)
     os.replace(tmp, path)
 
@@ -276,7 +301,7 @@ def release(root, platforms, keep=False, out=print):
         name = ZIP_NAME.format(version=version, platform=platform)
         path = os.path.join(downloads, name)
         entries = zip_entries(root, platform)
-        write_zip(path, entries)
+        write_zip(path, entries, unix=PLATFORMS[platform].get("unix", False))
         size = os.path.getsize(path)
         info = {"name": name, "path": path, "size": size, "size_text": human_size(size),
                 "sha256": sha256_of(path), "files": len(entries)}

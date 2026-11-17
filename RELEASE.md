@@ -2,7 +2,7 @@
 
 A release is one version number shared by the extension and the companion, one ZIP per platform on the website, and one git tag `v<version>`.
 
-Currently built: **Windows** (`getsmart-dm-v<version>-windows.zip`).
+Currently built: **Windows** (`getsmart-dm-v<version>-windows.zip`) and **macOS/Linux** (`getsmart-dm-v<version>-macos-linux.zip`).
 
 ## Checklist
 
@@ -45,9 +45,19 @@ Use a Windows user account that has never had GetSmart DM (a new local account, 
 - [ ] Repeat the extension check in Edge and Brave if they are installed.
 - [ ] `uninstall.bat` removes the registration; downloaded files are left alone.
 
+### 4b. Test the macOS/Linux ZIP
+
+On a Mac and on a Linux desktop (a fresh user account if possible):
+
+- [ ] Check the SHA-256: `shasum -a 256 getsmart-dm-v<version>-macos-linux.zip` (macOS) or `sha256sum ...` (Linux).
+- [ ] Extract it and follow only `START-HERE.txt`. `ls -l getsmart-dm/companion` shows `install.sh` as executable.
+- [ ] Load `getsmart-dm/extension` unpacked; the ID is `ejkhmcfjnohjikdgfgkhjficmiaoghma`.
+- [ ] `bash install.sh` as your normal user ends with `Done`. Restart the browser: companion connected, a video download works.
+- [ ] `bash uninstall.sh` removes the manifests; downloaded files are left alone.
+
 ### 5. Commit and tag
 
-- [ ] Commit the version bump, `CHANGELOG.md`, `site/index.html`, `site/version.json` and the new ZIP in `site/downloads/` (release ZIPs are allowed by `.gitignore`):
+- [ ] Commit the version bump, `CHANGELOG.md`, `site/index.html`, `site/version.json` and the new ZIPs in `site/downloads/` (release ZIPs are allowed by `.gitignore`):
   ```
   git add -A
   git commit -m "chore: release v<version>"

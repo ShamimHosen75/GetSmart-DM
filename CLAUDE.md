@@ -4,7 +4,7 @@ Permanent rules for anyone (human or AI) working in this repo. Read this first, 
 
 ## Project overview
 
-**GetSmart DM** ("Download Smarter. Faster. Better.") is a free download manager for **Chrome, Edge and Brave on Windows**.
+**GetSmart DM** ("Download Smarter. Faster. Better.") is a free download manager for **Chrome, Edge and Brave on Windows**, with a companion installer for **macOS and Linux** too (Step 5).
 
 - Distributed from our own website as a ZIP. It is **not** published on the Chrome Web Store, because it downloads videos from social sites.
 - It is an original product. **Never copy the name, logo, UI, text or code of Internet Download Manager or any other product.**
@@ -14,7 +14,7 @@ Permanent rules for anyone (human or AI) working in this repo. Read this first, 
 | Folder | Contents |
 |---|---|
 | `extension/` | Chrome extension, Manifest V3, plain JavaScript ES modules, no build step |
-| `companion/` | Windows companion app: Python native-messaging host that runs yt-dlp + ffmpeg |
+| `companion/` | Companion app: Python native-messaging host that runs yt-dlp + ffmpeg. One `host.py` for all systems; `*.bat` installers for Windows, `*.sh` for macOS/Linux |
 | `site/` | Static download website (HTML/CSS, no framework) |
 | `scripts/` | Packaging and release scripts |
 | `shared/` | Contracts shared by extension and companion; `shared/protocol.md` is the protocol spec |
@@ -29,16 +29,21 @@ Step 0 (done): repo skeleton (this file, folders, `.gitignore`, `shared/protocol
 2. `companion/`
 3. `site/`
 4. `scripts/`
+5. Companion for macOS and Linux (`companion/install.sh`, `uninstall.sh`, macOS/Linux release ZIP)
 
-Later: companion for macOS/Linux, Android app.
+Later: Android app.
 
 ## Current step
 
-**Step 4: `scripts/`.** Current step = 4.
+**Step 5: companion for macOS and Linux.** Current step = 5.
 
-Step 4 builds the release tooling: `scripts/release.py` (Windows ZIP, size + SHA-256, `site/version.json`, `site/index.html` via `data-release` markers), `scripts/bump.py`, `CHANGELOG.md`, `RELEASE.md` (checklist and `v<version>` tags), the popup "Update available" footer link (`extension/update-check.js`) and the `test` GitHub Actions workflow.
+Step 5 adds `companion/install.sh` and `uninstall.sh` (bash 3.2 compatible, no sudo, system `python3`, yt-dlp + ffmpeg into the companion folder, manifest copied to Chrome/Chromium/Edge/Brave `NativeMessagingHosts` folders), the `macos-linux` entry in `scripts/release.py` `PLATFORMS`, the companion README section and the website FAQ answer. `host.py` stays one file for all systems: Windows-only code is behind `IS_WIN`; on Linux it reads the XDG Downloads folder.
 
-Status: **release tooling done**, waiting for the owner's "continue". Open: the website domain for `SITE_URL` in `extension/update-check.js`.
+Status: **Step 5 done**, waiting for the owner's "continue". Tested for real on Linux x86_64 (install, Chromium native messaging, a download, uninstall). macOS has not been run yet.
+
+Step 4 (`scripts/`) builds the release tooling: `scripts/release.py` (Windows ZIP, size + SHA-256, `site/version.json`, `site/index.html` via `data-release` markers), `scripts/bump.py`, `CHANGELOG.md`, `RELEASE.md` (checklist and `v<version>` tags), the popup "Update available" footer link (`extension/update-check.js`) and the `test` GitHub Actions workflow.
+
+Step 4 status: **release tooling done**, waiting for the owner's "continue". Open: the website domain for `SITE_URL` in `extension/update-check.js`.
 
 Earlier steps are not finished yet:
 - Step 1 (`extension/`): M1 skeleton done; M2 to M9 (including the M7 companion bridge and `scripts/test_extension.py`) not built yet.
@@ -57,7 +62,8 @@ Update this section at the end of every milestone.
 
 ## Companion rules
 
-- **Python 3 standard library only.** It runs on an embedded Python with no pip, so no third-party imports.
+- **Python 3 standard library only.** It runs on an embedded Python (Windows) or the system `python3` 3.8+ (macOS, Linux) with no pip, so no third-party imports.
+- `install.sh` / `uninstall.sh` must run on the **bash 3.2** that ships with macOS and must **never need sudo**.
 - Logs to `host.log` in the same folder as the companion script/executable.
 - **Never deletes user files.** It may only clean up its own temporary/partial files it created for a download that was canceled or failed.
 - yt-dlp and ffmpeg are external binaries it calls; they are downloaded tools and are not committed (see `.gitignore`).

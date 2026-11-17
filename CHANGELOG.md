@@ -17,7 +17,9 @@ Development snapshot, not released to users.
 
 - Windows native-messaging host (`host.py`): hello, add_video with progress, cancel, ping; YouTube refused unless enabled.
 - `install.bat`, `update.bat` and `uninstall.bat` for the current Windows user, no admin rights needed.
+- macOS and Linux: `install.sh` and `uninstall.sh` (no sudo, system Python 3, yt-dlp and ffmpeg into the companion folder, registered for Chrome, Chromium, Edge and Brave). On Linux videos go to the desktop's Downloads folder even when it has a translated name.
 
 ### Website
 
-- Release tooling: `scripts/release.py` builds the Windows ZIP and updates the download page and `version.json`; `scripts/bump.py` bumps the version everywhere.
+- FAQ: Mac and Linux answer with the macOS/Linux download.
+- Release tooling: `scripts/release.py` builds the Windows and macOS/Linux ZIPs and updates the download page and `version.json`; `scripts/bump.py` bumps the version everywhere.

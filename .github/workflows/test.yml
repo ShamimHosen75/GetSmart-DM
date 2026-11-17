@@ -39,6 +39,10 @@ jobs:
           # longer accepts --load-extension, which the extension tests need.
           python -m playwright install --with-deps chromium
 
+      # macOS/Linux installer scripts (shellcheck ships with ubuntu-latest).
+      - name: Shell scripts (shellcheck companion/*.sh)
+        run: shellcheck -s bash -e SC1091 companion/*.sh
+
       # Standard-library tests (no browser).
       - name: Release tooling (scripts/test_release.py)
         run: python scripts/test_release.py

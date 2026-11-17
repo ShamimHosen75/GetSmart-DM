@@ -258,6 +258,27 @@ class HelperTest(unittest.TestCase):
         self.assertIn("ffmpeg", f(["ERROR: Postprocessing: ffprobe and ffmpeg not found"]))
         self.assertEqual(f(["something", "ERROR: weird thing"]), "weird thing")
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "XDG user dirs are Linux only")
+    def test_xdg_download_dir(self):
+        with tempfile.TemporaryDirectory() as cfg:
+            old = os.environ.get("XDG_CONFIG_HOME")
+            os.environ["XDG_CONFIG_HOME"] = cfg
+            try:
+                home = os.path.expanduser("~")
+                self.assertIsNone(self.h.xdg_download_dir())  # no user-dirs.dirs
+                path = os.path.join(cfg, "user-dirs.dirs")
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write('# comment\nXDG_DOWNLOAD_DIR="$HOME/Téléchargements"\n')
+                self.assertEqual(self.h.downloads_folder(), os.path.join(home, "Téléchargements"))
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write('XDG_DOWNLOAD_DIR="$HOME/"\n')  # disabled: falls back to ~/Downloads
+                self.assertEqual(self.h.downloads_folder(), os.path.join(home, "Downloads"))
+            finally:
+                if old is None:
+                    os.environ.pop("XDG_CONFIG_HOME", None)
+                else:
+                    os.environ["XDG_CONFIG_HOME"] = old
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
