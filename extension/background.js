@@ -8,8 +8,9 @@
 //   menus.js          context menus (M4)
 //   media.js          media detection for the "This page" tab (M6)
 //   native-bridge.js  companion app connection and video jobs (M7)
+//   progress.html     per-download progress window, opened here on start (M11)
 
-import { seedDefaultSettings } from './common.js';
+import { autoOpenProgress, seedDefaultSettings } from './common.js';
 import { enqueue, pump, registerQueueListeners, removeQueued } from './queue.js';
 import { buildMenus, registerMenuListeners } from './menus.js';
 import { registerMediaListeners, overlayHandlers } from './media.js';
@@ -59,6 +60,12 @@ chrome.downloads.onErased.addListener(updateBadge);
 chrome.downloads.onChanged.addListener((delta) => {
   if (delta.state || delta.paused) updateBadge();
 });
+
+// ---------- Progress window on download start (M11) ----------
+// "ours" downloads are opened from queue.js, which knows the id it started
+// (byExtensionId is not filled in yet when onCreated fires).
+
+chrome.downloads.onCreated.addListener((item) => autoOpenProgress(item.id, 'all'));
 
 // ---------- Messages from extension pages ----------
 

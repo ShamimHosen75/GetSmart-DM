@@ -289,6 +289,7 @@ def reset(b):
         await chrome.storage.sync.clear();
     }""")
     time.sleep(0.3)
+    close_progress_windows(b)
 
 
 def tab_id_for(b, url):
@@ -418,6 +419,45 @@ def check_pause_resume_ui(b, base):
     return "paused from the row (next queued item started), resumed"
 
 
+def progress_windows(b):
+    """Popup windows showing progress.html (Playwright does not list them as pages)."""
+    return b.call("""async () => [...new Set((await chrome.runtime.getContexts({contextTypes: ['TAB']}))
+        .filter((c) => c.documentUrl.includes('/progress.html')).map((c) => c.windowId))]""")
+
+
+def close_progress_windows(b):
+    b.call("async (ids) => { for (const id of ids) await chrome.windows.remove(id); }", progress_windows(b))
+
+
+def check_progress_window(b, base):
+    reset(b)
+    enqueue(b, [{"url": base + "/f/big.zip?size=6000000&slow=1"}])
+    wait_for(lambda: len(progress_windows(b)) == 1, what="progress window opened on start")
+    did = b.call("async () => (await chrome.downloads.search({}))[0].id")
+    # The popup's details button focuses that window instead of opening another one.
+    b.call("async (id) => { const m = await import('./common.js'); await m.openProgressWindow(id); }", did)
+    time.sleep(0.5)
+    assert len(progress_windows(b)) == 1, progress_windows(b)
+    close_progress_windows(b)
+    page = b.page("progress.html?id=%d" % did)
+    wait_for(lambda: page.locator("#f-rate").inner_text().endswith("/s"), what="transfer rate")
+    assert page.locator("#p-name").inner_text() == "big.zip", page.locator("#p-name").inner_text()
+    assert "5.7 MB" in page.locator("#f-size").inner_text(), page.locator("#f-size").inner_text()
+    wait_for(lambda: page.locator("#f-resume").inner_text() == "Yes", what="resume probe says Yes")
+    page.click("#b-pause")
+    wait_for(lambda: page.locator("body").get_attribute("data-state") == "paused", what="paused")
+    page.click("#b-resume")
+    wait_for(lambda: page.locator("body").get_attribute("data-state") == "downloading", what="resumed")
+    page.click("#b-details")
+    assert page.locator("#p-details").is_hidden()
+    page.click("#b-details")
+    page.click("#b-cancel")
+    wait_for(lambda: page.locator("body").get_attribute("data-state") == "cancelled", what="cancelled")
+    page.close()
+    reset(b)
+    return "opened on start, one window per download; size, rate, resume probe; pause, resume, hide details, cancel"
+
+
 def check_grabber(b, base):
     reset(b)
     page = b.page()
@@ -524,6 +564,7 @@ def check_filter_and_clear(b, base):
 CHECKS = [
     ("media detection and badge", check_media_detection),
     ("YouTube blocked", check_youtube_blocked),
+    ("progress window", check_progress_window),  # before other downloads: auto-open allows 3 per 10 s
     ("folder sorting", check_folder_sorting),
     ("custom and Bangla file names", check_names),
     ("queue limit (max 2)", check_queue_limit),

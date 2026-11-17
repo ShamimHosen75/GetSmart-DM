@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GetSmart DM</title>
+    <link rel="icon" href="icons/icon32.png" />
+    <link rel="stylesheet" href="ui.css" />
+    <script type="module" src="progress.js"></script>
+  </head>
+  <body class="progress-page">
+    <header class="p-head">
+      <span class="dl-type" id="p-type"></span>
+      <div class="p-title">
+        <h1 class="p-name" id="p-name"></h1>
+        <div class="p-state" id="p-state"></div>
+      </div>
+    </header>
+
+    <div class="p-bar-row">
+      <div class="dl-progress p-progress" id="p-progress"><div class="dl-bar" id="p-bar"></div></div>
+      <div class="p-percent" id="p-percent"></div>
+    </div>
+
+    <div id="p-details">
+      <nav class="tabs" role="tablist">
+        <button class="tab" role="tab" type="button" data-panel="status" aria-selected="true" data-i18n="progTabStatus"></button>
+        <button class="tab" role="tab" type="button" data-panel="speed" aria-selected="false" data-i18n="progTabSpeed"></button>
+        <button class="tab" role="tab" type="button" data-panel="finish" aria-selected="false" data-i18n="progTabFinish"></button>
+      </nav>
+
+      <section class="panel p-panel" data-panel="status">
+        <dl class="p-facts">
+          <dt data-i18n="progAddress"></dt>
+          <dd class="p-url" id="f-url"></dd>
+          <dt data-i18n="progStatus"></dt>
+          <dd id="f-status"></dd>
+          <dt data-i18n="progFileSize"></dt>
+          <dd id="f-size"></dd>
+          <dt data-i18n="progDownloaded"></dt>
+          <dd id="f-done"></dd>
+          <dt data-i18n="progRate"></dt>
+          <dd id="f-rate"></dd>
+          <dt data-i18n="progTimeLeft"></dt>
+          <dd id="f-eta"></dd>
+          <dt data-i18n="progResume"></dt>
+          <dd id="f-resume"></dd>
+          <dt data-i18n="progSavedTo"></dt>
+          <dd class="p-url" id="f-path"></dd>
+        </dl>
+      </section>
+
+      <section class="panel p-panel" data-panel="speed" hidden>
+        <p class="note" data-i18n="progSpeedBrowser"></p>
+      </section>
+
+      <section class="panel p-panel" data-panel="finish" hidden>
+        <label class="row">
+          <div>
+            <div class="row-label" data-i18n="progFinishShow"></div>
+          </div>
+          <input type="checkbox" class="switch" id="fin-show" />
+        </label>
+        <label class="row">
+          <div>
+            <div class="row-label" data-i18n="progFinishClose"></div>
+          </div>
+          <input type="checkbox" class="switch" id="fin-close" />
+        </label>
+        <p class="note" data-i18n="progFinishOpenNote"></p>
+      </section>
+    </div>
+
+    <div class="empty" id="p-gone" hidden>
+      <div class="empty-title" data-i18n="progGoneTitle"></div>
+      <div class="empty-body" data-i18n="progGoneBody"></div>
+    </div>
+
+    <footer class="p-buttons">
+      <button type="button" class="text-button" id="b-details"></button>
+      <span class="p-spacer"></span>
+      <button type="button" class="text-button" id="b-cancel" data-i18n="actCancel"></button>
+      <button type="button" class="text-button" id="b-show" data-i18n="actShow"></button>
+      <button type="button" class="primary-button" id="b-pause" data-i18n="actPause"></button>
+      <button type="button" class="primary-button" id="b-resume" data-i18n="actResume"></button>
+      <button type="button" class="primary-button" id="b-retry" data-i18n="actRetry"></button>
+      <button type="button" class="primary-button" id="b-open" data-i18n="actOpen"></button>
+      <button type="button" class="text-button" id="b-close" data-i18n="closeButton"></button>
+    </footer>
+  </body>
+</html>

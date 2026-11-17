@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   mediaDetection: true, // list video/audio files pages play ("This page" tab)
   minMediaSizeKB: 200, // ignore smaller media responses
   showVideoButton: true, // floating "Download" button over videos (M10)
+  progressWindow: 'ours', // open a progress window: off | ours (downloads GetSmart DM starts) | all (M11)
   disabledSites: [], // hosts where media detection is off
   defaultQuality: 'best', // best | 1080 | 720 | 480 | 360 | audio
   allowYouTube: false, // off by default; enabling shows a Terms of Service warning
@@ -248,4 +249,50 @@ export function isHttpUrl(url) {
 /** Short random id. */
 export function randomId() {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+}
+
+// ---------- Progress window (M11) ----------
+
+export const PROGRESS_WINDOW_SIZE = { width: 520, height: 470 };
+
+/** Open (or focus) the progress window for a Chrome download id or a companion file job ("f:<id>"). */
+export async function openProgressWindow(id) {
+  const url = chrome.runtime.getURL(`progress.html?id=${encodeURIComponent(id)}`);
+  let open = [];
+  try {
+    // runtime.getContexts (Chrome 116+) sees our own pages without the "tabs" permission.
+    open = await chrome.runtime.getContexts({ contextTypes: ['TAB'], documentUrls: [url] });
+  } catch {
+    open = [];
+  }
+  if (open[0]) {
+    await chrome.windows.update(open[0].windowId, { focused: true });
+    return open[0];
+  }
+  return chrome.windows.create({ url, type: 'popup', focused: true, ...PROGRESS_WINDOW_SIZE });
+}
+
+const AUTO_OPEN_LIMIT = 3; // at most this many windows ...
+const AUTO_OPEN_WINDOW_MS = 10000; // ... per 10 s, so a batch does not bury the screen
+let autoOpened = [];
+
+/**
+ * Service worker: open the progress window for a download that just started,
+ * if the "Progress window" setting equals `mode` ("ours" from the queue,
+ * "all" from downloads.onCreated).
+ */
+export async function autoOpenProgress(id, mode) {
+  try {
+    const { progressWindow } = await cachedSettings();
+    if (progressWindow !== mode) return;
+    const [item] = await chrome.downloads.search({ id });
+    if (!item || item.state !== 'in_progress') return; // tiny files can be done already
+    const now = Date.now();
+    autoOpened = autoOpened.filter((time) => now - time < AUTO_OPEN_WINDOW_MS);
+    if (autoOpened.length >= AUTO_OPEN_LIMIT) return;
+    autoOpened.push(now);
+    await openProgressWindow(id);
+  } catch (err) {
+    console.warn('GetSmart DM: could not open the progress window', err);
+  }
 }

@@ -14,6 +14,7 @@
 
 import {
   CATEGORY_FOLDERS,
+  autoOpenProgress,
   MAX_SIMULTANEOUS_RANGE,
   ROOT_FOLDER,
   baseName,
@@ -123,7 +124,9 @@ async function startDownload(entry, settings) {
     conflictAction: 'uniquify',
     saveAs: Boolean(settings.askWhereToSave),
   };
-  return chrome.downloads.download(options);
+  const id = await chrome.downloads.download(options);
+  autoOpenProgress(id, 'ours'); // not awaited: the queue does not wait for a window
+  return id;
 }
 
 // ---------- File names and folder sorting ----------

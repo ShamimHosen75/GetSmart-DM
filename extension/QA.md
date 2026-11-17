@@ -133,3 +133,17 @@ Run `python scripts/test_extension.py` first (all PASS), then by hand:
 - [ ] No button on YouTube (unless Allow YouTube is on, then only the companion entry), on Netflix/other DRM sites, on disabled sites, or when "Download button on videos" is off in Settings.
 - [ ] The page's own styles do not change the button; clicking elsewhere closes the menu; the page keeps working (play/pause clicks still reach the player).
 - [ ] Bangla UI: the button and menu are in Bangla.
+
+## M11 Progress window
+
+- [ ] Add a large file with the "+" panel: a small window opens with the file name, a progress bar with percent, and the Status tab (address, status, file size, downloaded with percent, transfer rate, time left, can resume, saved to).
+- [ ] "Can resume" shows "Checking…" and then "Yes" for a normal file server, "No" for a server without Range support.
+- [ ] Pause, Resume and Cancel in the window act on the download, and the popup list follows.
+- [ ] "Hide details" shrinks the window to the name, bar and buttons; "Show details" brings them back.
+- [ ] In the popup, the details button of a running row opens the window; clicking it again focuses the same window instead of opening another.
+- [ ] When finished: with "Show the file in its folder" on, the folder opens when the download completes; with "Close this window" on, the window closes. With both off, the window stays with Open file / Show in folder / Close.
+- [ ] Settings > Downloads > Progress window: "Never" opens no window, "For every download" also opens one for downloads you start in Chrome itself.
+- [ ] Add 10 links at once: at most 3 windows open in 10 seconds.
+- [ ] Remove the download from the list while its window is open: "This download is gone".
+- [ ] Dark theme and Bangla look right; the window title shows the percent.
+
