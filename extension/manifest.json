@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "GetSmart DM",
+  "short_name": "GetSmart DM",
+  "description": "Download Smarter. Faster. Better. A free download manager with queue, folder sorting and media detection.",
+  "version": "0.0.1",
+  "minimum_chrome_version": "116",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwNgdEvwKE+BJI59R/ytVCacVXxFdxPraQPwbeMT9t2Tf89lM61HiasvbdokM5H1FMTj2fTch8KkPLAk6lP5xKOmavPEspnWX/u8rztPQqu9LSUsizylRVDpNEGQP7C3eU0mVxUE92gR1xXvL+PJPcTMAhNT5m31FotLfneL7Uy80YAxd8fSvDKhPf4YJmZQEO4NiCu4p02igJ9cs7YqLoI6yBgFU2u0YNMH7e2AT6E47U9BKH4EOySZZdUId1goMNCqpOxswjSBPY2fSrN0l94SmaUho66gnWVZZhSnnCwNj/QW1ZZs0jrdQI5zYc6nF2p874a02Ne38XmO18YtWQQIDAQAB",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "GetSmart DM",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "permissions": [
+    "downloads",
+    "downloads.open",
+    "contextMenus",
+    "storage",
+    "webRequest",
+    "webNavigation",
+    "scripting",
+    "notifications",
+    "nativeMessaging"
+  ],
+  "host_permissions": ["<all_urls>"]
+}
