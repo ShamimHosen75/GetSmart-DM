@@ -47,7 +47,7 @@ Step 4 status: **release tooling done**, waiting for the owner's "continue". Ope
 
 Earlier steps are not finished yet:
 - Step 1 (`extension/`): M1 to M9 done, version 0.1.0 (`scripts/test_extension.py` passes). Next: M10+ download-manager features the owner asked for (video overlay button, per-download progress panel, multi-connection downloads through the companion, full manager page, speed limiter, scheduler, on-completion options).
-- Step 2 (`companion/`): M1 (`host.py` + `scripts/test_host.py`) and M2 (bat files + README) done; M3 (`scripts/test_companion.py`, needs the extension's M7 bridge) and M4 (`QA.md`, 0.1.0, CHANGELOG entries) not done. Companion milestones: M1 host.py, M2 install/update/uninstall.bat + README, M3 end-to-end test, M4 QA.md + 0.1.0 + CHANGELOG.
+- Step 2 (`companion/`): M1 (`host.py` + `scripts/test_host.py`), M2 (bat files + README), M3 (`scripts/test_companion.py`, end to end with the extension's M7 bridge) and M4 (`companion/QA.md`, version 0.1.0, CHANGELOG) done. Open: the owner's real `install.bat` run on Windows and the `companion/QA.md` real-site pass. Companion milestones: M1 host.py, M2 install/update/uninstall.bat + README, M3 end-to-end test, M4 QA.md + 0.1.0 + CHANGELOG.
 - Step 3 (`site/`): built (index, privacy, terms, `scripts/test_site.py`, `scripts/deploy_site.md`), waiting for "continue". Popup screenshots show the M1 popup and are placeholders.
 
 Update this section at the end of every milestone.
