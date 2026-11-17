@@ -109,3 +109,17 @@ Needs the companion installed (`companion/install.bat` on Windows).
 - [ ] Companion line shows connected with the yt-dlp / ffmpeg versions and the save folder, or "not installed" with help text.
 - [ ] Default video quality is used by the right-click video menu and preselected in the popup card.
 - [ ] Allow YouTube: clicking the switch opens the Terms of Service warning. Cancel leaves it off; "I understand, turn it on" turns it on. Turning it off needs no warning.
+
+## M9 Release checks (0.1.0)
+
+Run `python scripts/test_extension.py` first (all PASS), then by hand:
+
+- [ ] **Service worker asleep:** on `chrome://extensions` > GetSmart DM > "Service worker", wait 5 minutes until it shows "inactive". Then: start a download from a site (it is sorted into a folder), right-click a link > "Download link with GetSmart DM" (it starts), open a page with a video (green badge appears), open the popup (list correct). Each wakes the worker with no error on the card.
+- [ ] **Queue after sleep:** with max 1, add 3 links, let the worker sleep, then cancel the running one: the next queued link starts.
+- [ ] **Incognito:** turn on "Allow in Incognito" for GetSmart DM. Downloads from an incognito window appear in the popup opened there, are sorted, and media detection works. The popup in a normal window does not list incognito downloads.
+- [ ] **Alt-click:** Alt+click on a link (Chrome's own "download link" shortcut) downloads it directly without the queue; it still appears in the list and is sorted into a folder.
+- [ ] **chrome:// pages:** on `chrome://settings`, `edge://settings` and the Web Store: the popup opens without errors, "This page" shows "Nothing found", "Grab all links" says Chrome does not allow the page.
+- [ ] **Dark mode:** set Windows to dark mode with Theme = Automatic: popup, settings and grabber are dark with readable text, badges and type tiles. Theme = Light overrides it.
+- [ ] **Bangla UI:** Language = বাংলা: popup, settings, grabber, context menus and notifications are in Bangla with no English left except file names, sizes and product names; long Bangla labels do not overflow.
+- [ ] **Edge and Brave:** Load unpacked works and the ID is the same.
+- [ ] Version in Settings > About is 0.1.0.
