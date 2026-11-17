@@ -167,6 +167,18 @@ const STRINGS = {
     ytDialogBody2: 'Only download videos you own or have permission to save. You are responsible for how you use this feature.',
     ytDialogAccept: 'I understand, turn it on',
 
+    // Video button over players (M10)
+    setVideoButton: 'Download button on videos',
+    setVideoButtonHint: 'Show a small Download button at the corner of a video while the pointer is over it.',
+    overlayButton: 'Download',
+    overlayLoading: 'Looking for files…',
+    overlayVideoSite: 'This video',
+    overlayViaCompanion: 'With the companion app, at your default quality',
+    overlayFiles: 'Files this page played',
+    overlayNothing: 'Nothing to download yet. Play the video for a few seconds, then try again.',
+    overlayStarted: 'Added to GetSmart DM',
+    overlayFailed: 'Could not add it',
+
     // Options
     settingsTitle: 'Settings',
     sectionAppearance: 'Appearance',
@@ -341,6 +353,17 @@ const STRINGS = {
     ytDialogBody1: 'YouTube যদি কোনো ভিডিওর জন্য ডাউনলোড বাটন বা লিংক না দেখায়, তবে তাদের পরিষেবার শর্তাবলী সেই ভিডিও ডাউনলোড করার অনুমতি দেয় না।',
     ytDialogBody2: 'শুধু নিজের ভিডিও বা যেগুলো সংরক্ষণের অনুমতি আছে সেগুলোই ডাউনলোড করুন। এই সুবিধা কীভাবে ব্যবহার করবেন তার দায়িত্ব আপনার।',
     ytDialogAccept: 'আমি বুঝেছি, চালু করুন',
+
+    setVideoButton: 'ভিডিওর উপর ডাউনলোড বাটন',
+    setVideoButtonHint: 'পয়েন্টার ভিডিওর উপর থাকলে কোণে একটি ছোট ডাউনলোড বাটন দেখান।',
+    overlayButton: 'ডাউনলোড',
+    overlayLoading: 'ফাইল খোঁজা হচ্ছে…',
+    overlayVideoSite: 'এই ভিডিও',
+    overlayViaCompanion: 'সহায়ক অ্যাপ দিয়ে, আপনার ডিফল্ট মানে',
+    overlayFiles: 'এই পেজ যে ফাইলগুলো চালিয়েছে',
+    overlayNothing: 'এখনও ডাউনলোড করার মতো কিছু নেই। ভিডিওটি কয়েক সেকেন্ড চালিয়ে আবার চেষ্টা করুন।',
+    overlayStarted: 'GetSmart DM-এ যোগ হয়েছে',
+    overlayFailed: 'যোগ করা যায়নি',
 
     settingsTitle: 'সেটিংস',
     sectionAppearance: 'চেহারা',

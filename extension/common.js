@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   notifications: true, // notify when a download finishes or fails
   mediaDetection: true, // list video/audio files pages play ("This page" tab)
   minMediaSizeKB: 200, // ignore smaller media responses
+  showVideoButton: true, // floating "Download" button over videos (M10)
   disabledSites: [], // hosts where media detection is off
   defaultQuality: 'best', // best | 1080 | 720 | 480 | 360 | audio
   allowYouTube: false, // off by default; enabling shows a Terms of Service warning

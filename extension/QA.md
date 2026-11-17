@@ -123,3 +123,13 @@ Run `python scripts/test_extension.py` first (all PASS), then by hand:
 - [ ] **Bangla UI:** Language = বাংলা: popup, settings, grabber, context menus and notifications are in Bangla with no English left except file names, sizes and product names; long Bangla labels do not overflow.
 - [ ] **Edge and Brave:** Load unpacked works and the ID is the same.
 - [ ] Version in Settings > About is 0.1.0.
+
+## M10 Download button on videos
+
+- [ ] On a page with a plain `<video>` (for example a free stock-video site), move the pointer over the video: a "Download" pill appears at its top-right corner and fades after 2.5 s without movement. Small videos (under 200×112) get no button.
+- [ ] Click it: the menu lists the files the page played (with size and type) and the video's own file. Choosing one adds it to the queue and shows "Added to GetSmart DM".
+- [ ] On a supported video site (Facebook, X, Vimeo...), the menu also offers "Download video" through the companion at the default quality.
+- [ ] If nothing is known yet: "Nothing to download yet. Play the video for a few seconds, then try again."
+- [ ] No button on YouTube (unless Allow YouTube is on, then only the companion entry), on Netflix/other DRM sites, on disabled sites, or when "Download button on videos" is off in Settings.
+- [ ] The page's own styles do not change the button; clicking elsewhere closes the menu; the page keeps working (play/pause clicks still reach the player).
+- [ ] Bangla UI: the button and menu are in Bangla.
