@@ -50,6 +50,54 @@ Cancel a running download.
 { "type": "cancel", "v": 1, "id": "a1b2c3" }
 ```
 
+### `add_file` (multi-connection file download)
+Download one file over several HTTP connections at once. Also used to **resume** a paused or interrupted file: send `add_file` again with the same `id`, `url`, `folder` and `filename`, and the companion continues from its partial file.
+```json
+{ "type": "add_file", "v": 1, "id": "f1e2d3", "url": "https://example.com/big.zip", "filename": "big.zip", "folder": "GetSmart DM/Archives", "connections": 8, "headers": { "Referer": "https://example.com/", "User-Agent": "Mozilla/5.0 ..." } }
+```
+| Field | Required | Meaning |
+|---|---|---|
+| `id` | yes | Unique download id chosen by the extension; echoed in every `progress` |
+| `url` | yes | `http` or `https` URL of the file |
+| `filename` | no | File name to save as. The companion makes it safe for the file system. If absent, the name comes from `Content-Disposition` or the URL |
+| `folder` | no | Folder **relative to the user's Downloads folder** (for example `GetSmart DM/Archives`). Must not contain `..`. If absent, the Downloads folder itself |
+| `connections` | no | Number of parallel connections, 1 to 16. Default 8 |
+| `headers` | no | Extra request headers. Only `Referer`, `User-Agent` and `Accept-Language` are used |
+| `speed_limit` | no | Bytes per second for this file, `0` or absent = no limit |
+
+The companion first asks the server for one byte (`Range: bytes=0-0`). If the server does not answer `206` with a total size, or asks for a login (`401`/`403`), the companion does not download and answers `progress` with `state: "error"` and an `error_code`, so the extension can let the browser download the file instead.
+
+While downloading, the file is written to `<name>.gsdmpart` next to the final file, with its state in `<name>.gsdmpart.json`. When all bytes are in, it is renamed to the final name (with ` (1)`, ` (2)`... added if that name exists).
+
+### `pause_file`
+Stop the connections of a running file download and keep the partial file, so `add_file` with the same `id` can resume it.
+```json
+{ "type": "pause_file", "v": 1, "id": "f1e2d3" }
+```
+
+### `cancel` (files)
+`cancel` also stops a file download, running or paused, and removes its own `.gsdmpart` and `.gsdmpart.json` files. To cancel a paused file the companion does not know any more (it was restarted), the extension sends `add_file` fields along with `cancel`: `{ "type": "cancel", "id": ..., "url": ..., "filename": ..., "folder": ... }`.
+
+### `set_speed_limit`
+Limit the total speed of all file downloads, or of one file.
+```json
+{ "type": "set_speed_limit", "v": 1, "limit": 524288 }
+{ "type": "set_speed_limit", "v": 1, "id": "f1e2d3", "limit": 0 }
+```
+| Field | Required | Meaning |
+|---|---|---|
+| `limit` | yes | Bytes per second, `0` = no limit |
+| `id` | no | If present, the limit applies to that file only; otherwise to all file downloads together |
+
+Video downloads (`add_video`) are not limited.
+
+### `open_file`
+Open a finished file, or show it in its folder.
+```json
+{ "type": "open_file", "v": 1, "path": "C:\\Users\\me\\Downloads\\GetSmart DM\\Archives\\big.zip", "reveal": true }
+```
+Only paths inside the user's Downloads folder that exist are opened. `reveal: true` opens the folder with the file selected where the system allows it.
+
 ### `ping`
 Liveness check.
 ```json
@@ -69,6 +117,8 @@ Reply to `hello`.
 | `ytdlp` | yt-dlp version, or `null` if not found |
 | `ffmpeg` | ffmpeg version, or `null` if not found |
 | `dir` | Default download folder: `<user Downloads folder>\GetSmart DM\Video` |
+| `downloads` | The user's Downloads folder (the root that `add_file` `folder` is relative to) |
+| `features` | List of optional features this companion supports. `"files"` = `add_file`, `pause_file`, `set_speed_limit` and `open_file`. An older companion sends no `features`; the extension then uses the browser for files |
 
 ### `progress`
 Sent repeatedly while a download runs, and once with a final state.
@@ -86,6 +136,17 @@ Sent repeatedly while a download runs, and once with a final state.
 | `filename` | no | Output file name (full path once `done`) |
 | `error` | no | Human-readable message, present when `state` is `error` |
 | `note` | no | Human-readable notice that is not an error, e.g. ffmpeg is missing so a lower-quality single-file format was used |
+
+File downloads (`add_file`) use the same message with these differences and extra fields:
+
+| Field | Meaning |
+|---|---|
+| `state` | Also `paused` (after `pause_file`; not final) |
+| `filename` | Full path of the final file (also while running, so the extension can show where it goes) |
+| `segments` | While running: one `[start, end, done]` per part of the file, in bytes (`end` inclusive, `done` = bytes of that part already written). At most 32 entries |
+| `connections` | Number of connections downloading right now |
+| `resumable` | `true` when the server supports ranges (always `true` once a file download runs) |
+| `error_code` | With `state: "error"`: `no_range` (server cannot send parts), `auth` (`401`/`403`), `http` (other HTTP error), `network`, `disk`, `bad_request`. The extension falls back to the browser for `no_range` and `auth` |
 
 `done`, `error` and `canceled` are final: no more `progress` follows for that `id`.
 
