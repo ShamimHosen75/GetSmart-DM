@@ -18,7 +18,7 @@ export const VIDEO_SITES = [
   'streamable.com',
 ];
 
-/** YouTube: only behind the off-by-default allowYouTube setting. */
+/** YouTube: through the companion while the allowYouTube setting is on (default on). */
 export const YOUTUBE_HOSTS = ['youtube.com', 'youtu.be', 'youtube-nocookie.com', 'googlevideo.com'];
 
 /**

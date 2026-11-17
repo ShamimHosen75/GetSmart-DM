@@ -5,7 +5,8 @@
 //   - on supported video sites: "Download video" through the companion app,
 //   - the video/audio files this tab played (from media detection),
 //   - the <video> element's own file address when it is a plain http(s) file.
-// It never runs where the service worker says no: YouTube (unless allowed),
+// In feeds (Facebook, X, Instagram...) the video's own post link is used.
+// It never runs where the service worker says no: YouTube (when turned off),
 // DRM services, sites the user disabled, or when the setting is off.
 // Everything lives in a closed shadow root so page CSS cannot touch it.
 
@@ -89,6 +90,34 @@
     button.addEventListener('mouseenter', () => clearTimeout(hideTimer));
     menu.addEventListener('mouseenter', () => clearTimeout(hideTimer));
     (document.documentElement || document.body).append(host);
+  }
+
+  // Links that point at one video or post, per site, so a video in a feed is
+  // downloaded from its own page instead of the feed's address.
+  const POST_LINKS = [
+    /\/watch\?v=|\/shorts\/|youtu\.be\//, // YouTube
+    /\/videos\/|\/reel\/|\/watch\/?\?v=|\/share\/[vr]\/|fb\.watch\//, // Facebook
+    /\/status\/\d+/, // X / Twitter
+    /\/(p|reel|reels|tv)\/[\w-]+/, // Instagram
+    /\/video\/\d+/, // TikTok
+  ];
+
+  function isPostLink(href) {
+    return POST_LINKS.some((re) => re.test(href));
+  }
+
+  /** The address of the post or video page this <video> belongs to. */
+  function videoPageUrl(video) {
+    if (isPostLink(location.href)) return location.href;
+    let node = video;
+    for (let depth = 0; node && depth < 14; depth += 1, node = node.parentElement) {
+      const own = node.closest?.('a[href]');
+      if (own && isPostLink(own.href)) return own.href;
+      for (const a of node.querySelectorAll?.('a[href]') || []) {
+        if (isPostLink(a.href)) return a.href;
+      }
+    }
+    return location.href;
   }
 
   function visibleVideos() {
@@ -205,7 +234,7 @@
     const parts = [];
     if (reply?.site === 'video') {
       parts.push(head(s('overlayVideoSite')));
-      parts.push(item(s('downloadVideo'), s('overlayViaCompanion'), () => send({ type: 'addVideo', url: location.href, quality: info.quality, title: document.title })));
+      parts.push(item(s('downloadVideo'), s('overlayViaCompanion'), () => send({ type: 'addVideo', url: videoPageUrl(currentVideo), quality: info.quality, title: document.title })));
     }
     const seen = new Set();
     const files = [];

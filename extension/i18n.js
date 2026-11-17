@@ -101,7 +101,7 @@ const STRINGS = {
     // This page (M6)
     actDownload: 'Download',
     noteDetectionOff: 'Media detection is turned off in Settings.',
-    noteYouTube: 'Media detection is always off on YouTube.',
+    noteYouTube: 'YouTube plays videos in small pieces, so they are not listed here. Use Download video above (needs the companion app).',
     noteDrm: 'This service protects its media with DRM. GetSmart DM does not download from it.',
     noteSiteDisabled: 'Media detection is turned off for this site in Settings.',
 
@@ -161,11 +161,13 @@ const STRINGS = {
     setDefaultQuality: 'Default video quality',
     setDefaultQualityHint: 'Used by the right-click menu and preselected in the popup.',
     setAllowYouTube: 'Allow YouTube downloads',
-    setAllowYouTubeHint: 'Off by default. Read the warning before turning it on.',
+    setAllowYouTubeHint: 'Download YouTube videos with the companion app. You are responsible for having the right to download a video.',
     ytDialogTitle: 'Before you turn on YouTube downloads',
     ytDialogBody1: 'YouTube\'s Terms of Service do not allow downloading videos unless YouTube shows a download button or link for that video.',
     ytDialogBody2: 'Only download videos you own or have permission to save. You are responsible for how you use this feature.',
     ytDialogAccept: 'I understand, turn it on',
+    ytNoticeTitle: 'About downloading from YouTube',
+    ytNoticeBody: 'Only download videos you own or have permission to save, and follow YouTube\'s Terms of Service. You are responsible for what you download.',
 
     // Video button over players (M10)
     setVideoButton: 'Download button on videos',
@@ -394,7 +396,7 @@ const STRINGS = {
 
     actDownload: 'ডাউনলোড',
     noteDetectionOff: 'সেটিংসে মিডিয়া শনাক্তকরণ বন্ধ করা আছে।',
-    noteYouTube: 'YouTube-এ মিডিয়া শনাক্তকরণ সবসময় বন্ধ থাকে।',
+    noteYouTube: 'YouTube ভিডিও ছোট ছোট টুকরোয় চালায়, তাই এখানে তালিকা হয় না। উপরের ভিডিও ডাউনলোড ব্যবহার করুন (সহায়ক অ্যাপ লাগবে)।',
     noteDrm: 'এই সেবা DRM দিয়ে তাদের মিডিয়া সুরক্ষিত রাখে। GetSmart DM এখান থেকে ডাউনলোড করে না।',
     noteSiteDisabled: 'সেটিংসে এই সাইটের জন্য মিডিয়া শনাক্তকরণ বন্ধ করা আছে।',
 
@@ -452,11 +454,13 @@ const STRINGS = {
     setDefaultQuality: 'ভিডিওর ডিফল্ট মান',
     setDefaultQualityHint: 'রাইট-ক্লিক মেনুতে ব্যবহার হয় এবং পপআপে আগে থেকে বাছাই থাকে।',
     setAllowYouTube: 'YouTube ডাউনলোড চালু করুন',
-    setAllowYouTubeHint: 'শুরুতে বন্ধ থাকে। চালু করার আগে সতর্কবার্তা পড়ুন।',
+    setAllowYouTubeHint: 'সহায়ক অ্যাপ দিয়ে YouTube ভিডিও ডাউনলোড করুন। কোনো ভিডিও ডাউনলোডের অধিকার আছে কিনা তা দেখার দায়িত্ব আপনার।',
     ytDialogTitle: 'YouTube ডাউনলোড চালু করার আগে',
     ytDialogBody1: 'YouTube যদি কোনো ভিডিওর জন্য ডাউনলোড বাটন বা লিংক না দেখায়, তবে তাদের পরিষেবার শর্তাবলী সেই ভিডিও ডাউনলোড করার অনুমতি দেয় না।',
     ytDialogBody2: 'শুধু নিজের ভিডিও বা যেগুলো সংরক্ষণের অনুমতি আছে সেগুলোই ডাউনলোড করুন। এই সুবিধা কীভাবে ব্যবহার করবেন তার দায়িত্ব আপনার।',
     ytDialogAccept: 'আমি বুঝেছি, চালু করুন',
+    ytNoticeTitle: 'YouTube থেকে ডাউনলোড সম্পর্কে',
+    ytNoticeBody: 'শুধু নিজের ভিডিও বা যেগুলো সংরক্ষণের অনুমতি আছে সেগুলোই ডাউনলোড করুন এবং YouTube-এর পরিষেবার শর্তাবলী মেনে চলুন। কী ডাউনলোড করছেন তার দায়িত্ব আপনার।',
 
     setVideoButton: 'ভিডিওর উপর ডাউনলোড বাটন',
     setVideoButtonHint: 'পয়েন্টার ভিডিওর উপর থাকলে কোণে একটি ছোট ডাউনলোড বাটন দেখান।',

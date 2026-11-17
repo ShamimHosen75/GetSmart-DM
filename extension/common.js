@@ -26,7 +26,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   progressWindow: 'ours', // open a progress window: off | ours (downloads GetSmart DM starts) | all (M11)
   disabledSites: [], // hosts where media detection is off
   defaultQuality: 'best', // best | 1080 | 720 | 480 | 360 | audio
-  allowYouTube: false, // off by default; enabling shows a Terms of Service warning
+  allowYouTube: true, // on by default (owner's decision); the first YouTube download shows a one-time notice
 });
 
 export const MAX_SIMULTANEOUS_RANGE = [1, 10];

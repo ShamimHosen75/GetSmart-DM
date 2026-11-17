@@ -261,6 +261,15 @@ export async function addVideo({ url, quality, title }) {
   if (youtube && !settings.allowYouTube) return { error: t('videoErrYouTubeOff') };
   const q = VIDEO_QUALITIES.includes(quality) ? quality : settings.defaultQuality;
 
+  if (youtube) {
+    // One-time notice, the first time someone downloads from YouTube.
+    const { ytNoticeShown } = await chrome.storage.local.get('ytNoticeShown');
+    if (!ytNoticeShown) {
+      await chrome.storage.local.set({ ytNoticeShown: true });
+      await notifyAlways('ytNoticeTitle', 'ytNoticeBody');
+    }
+  }
+
   const connected = await bridge.ensureConnected();
   if (!connected) {
     return { error: bridge.status === 'missing' ? t('companionMissing') : t('companionError'), status: bridge.status };

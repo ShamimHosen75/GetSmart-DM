@@ -184,3 +184,12 @@ Needs the companion installed (install.bat).
 - [ ] When the queue is done = "Show a notification": after the last waiting download finishes, a "Queue finished" notification appears (once). "Close the browser" closes every browser window. Paused downloads keep the queue from counting as done.
 - [ ] Bangla day names and labels; dark theme.
 
+## YouTube on by default; videos in feeds
+
+- [ ] Fresh install: Settings > Video sites > "Allow YouTube downloads" is on.
+- [ ] On a YouTube watch page, the popup's video card offers Download video; the first YouTube download shows the one-time notice "About downloading from YouTube"; later ones do not.
+- [ ] The Download button over the YouTube player offers "Download video" through the companion.
+- [ ] Turn YouTube off: no button on YouTube, the card says it is off, the right-click entry is gone. Turning it on again shows the warning dialog.
+- [ ] Facebook and X feeds: the Download button over a video in the feed downloads that post's video (its own /videos/, /reel/ or /status/ address), not the feed page.
+- [ ] Netflix, Prime Video, Disney+, Spotify: no button, and video downloads are refused.
+

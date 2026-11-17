@@ -76,7 +76,7 @@ Update this section at the end of every milestone.
 
 ## Content rules (non-negotiable)
 
-- **YouTube downloading is never a default.** It exists only behind an **off-by-default setting** that shows a Terms-of-Service warning before it can be enabled.
+- **YouTube** is supported through the companion (yt-dlp) and is **on by default** (owner's decision, 2026-11-17). The first YouTube download shows a one-time notice that the user is responsible for having the right to download and for the site's terms. The setting can be turned off; turning it back on shows the warning dialog.
 - **Never attempt DRM-protected content** (Netflix, Prime Video, Disney+, Spotify, or any other DRM source). Detect and refuse; do not try to work around DRM.
 
 ## QA rules

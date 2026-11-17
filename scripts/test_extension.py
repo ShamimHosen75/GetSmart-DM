@@ -330,7 +330,14 @@ def check_media_detection(b, base):
     return "4 found (HLS, DASH, small file and XHR 206 skipped); badge 4; cleared on navigation"
 
 
-def check_youtube_blocked(b, base):
+def check_youtube(b, base):
+    reset(b)
+    # On by default: YouTube counts as a video site for the companion.
+    state = b.message({"type": "getVideoState", "url": "https://www.youtube.com/watch?v=abc"})
+    assert state["site"] == "video", state
+    # Turned off: refused.
+    b.call("() => chrome.storage.sync.set({allowYouTube: false})")
+    time.sleep(0.3)
     page = b.page()
     loaded = False
     try:
@@ -350,8 +357,9 @@ def check_youtube_blocked(b, base):
     assert "error" in refused, refused
     drm = b.message({"type": "addVideo", "url": "https://www.netflix.com/watch/1", "quality": "best"})
     assert "error" in drm, drm
+    reset(b)
     how = "real page served as www.youtube.com" if loaded else "host mapping refused here; checked the worker's decisions"
-    return "nothing detected, video download refused, DRM refused (%s)" % how
+    return "on by default; when off: nothing detected, video download refused; DRM refused (%s)" % how
 
 
 def enqueue(b, items):
@@ -544,7 +552,9 @@ def check_settings(b, base):
     options.fill("#disabledSites", "https://www.Example.com/x\nfoo.org\nfoo.org\nnot a host")
     options.press("#disabledSites", "Tab")
     options.select_option("#defaultQuality", "720")
-    options.click("#allowYouTube")
+    options.click("#allowYouTube")  # on by default: this turns it off, no dialog
+    wait_for(lambda: b.call("() => chrome.storage.sync.get('allowYouTube')").get("allowYouTube") is False, what="YouTube off")
+    options.click("#allowYouTube")  # turning it on again shows the warning
     options.click("#yt-dialog button[value=cancel]")
     time.sleep(0.5)
     saved = b.call("() => chrome.storage.sync.get(null)")
@@ -713,7 +723,7 @@ def check_companion_files(b, base):
 
 CHECKS = [
     ("media detection and badge", check_media_detection),
-    ("YouTube blocked", check_youtube_blocked),
+    ("YouTube on by default, off refuses, DRM", check_youtube),
     ("progress window", check_progress_window),  # before other downloads: auto-open allows 3 per 10 s
     ("folder sorting", check_folder_sorting),
     ("custom and Bangla file names", check_names),
