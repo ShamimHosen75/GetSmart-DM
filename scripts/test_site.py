@@ -13,8 +13,9 @@ What it does, in order:
   3. Links: serves site/ on a local port and requests every internal href/src
      on every page. Fails on any non-200 or a #fragment with no matching id.
      External links are listed, not fetched.
-  4. Download link: #download-link must point at
-     downloads/getsmart-dm-v<version>-windows.zip, matching #release-version.
+  4. Download links: every data-release="<platform>-zip" link (Windows in the
+     hero, macOS/Linux in the FAQ) must point at
+     downloads/getsmart-dm-v<version>-<platform>.zip, matching #release-version.
      A missing ZIP is reported as EXPECTED-MISSING (the Step 4 release script
      creates it) and does not fail the run, unless --strict is given.
   5. HTML validation with html5validator (needs Java) if it is installed;
@@ -215,6 +216,7 @@ def serve():
 
 
 def check_links(base_url, download_href):
+    """download_href: the set of release ZIP links, which check_download covers."""
     parsed = {name: parse(name) for name in PAGES}
     external = set()
     bad = []
@@ -225,8 +227,8 @@ def check_links(base_url, download_href):
             if url.scheme in ("http", "https", "mailto"):
                 external.add(value)
                 continue
-            if value == download_href:
-                continue  # checked separately in check_download
+            if value in download_href:
+                continue  # release ZIPs are checked separately in check_download
             target = url.path or name
             if url.fragment:
                 if target not in parsed:
@@ -253,29 +255,34 @@ def check_links(base_url, download_href):
 # ---------------------------------------------------------------------------
 
 def check_download(strict):
+    """Check every release ZIP link (data-release="<platform>-zip"). Returns their hrefs."""
     index = parse("index.html")
-    link = index.by_id.get("download-link", {})
-    href = link.get("href", "")
-    version_match = re.search(
-        r'id="release-version"[^>]*>([^<]+)<', (SITE / "index.html").read_text(encoding="utf-8")
-    )
+    html_text = (SITE / "index.html").read_text(encoding="utf-8")
+    version_match = re.search(r'id="release-version"[^>]*>([^<]+)<', html_text)
     version = version_match.group(1).strip() if version_match else ""
-    expected = f"downloads/getsmart-dm-v{version}-windows.zip"
-    if href != expected:
-        report("FAIL", "download link", f"href is '{href}', expected '{expected}' (from #release-version)")
-        return href
-    zip_path = SITE / href
-    if zip_path.is_file():
-        report("PASS", "download link", f"{href} exists ({zip_path.stat().st_size / 1_048_576:.1f} MB)")
-    elif strict:
-        report("FAIL", "download link", f"{href} does not exist")
-    else:
-        report(
-            "EXPECTED-MISSING",
-            "download link",
-            f"{href} not built yet; the Step 4 release script puts it in site/downloads/",
-        )
-    return href
+    link = index.by_id.get("download-link", {})
+    if link.get("data-release") != "windows-zip":
+        report("FAIL", "download link", '#download-link has no data-release="windows-zip"')
+    hrefs = set()
+    for platform, href in re.findall(
+            r'<a\b[^>]*\bdata-release="([\w-]+)-zip"[^>]*\bhref="([^"]*)"', html_text):
+        hrefs.add(href)
+        check = f"download link ({platform})"
+        expected = f"downloads/getsmart-dm-v{version}-{platform}.zip"
+        if href != expected:
+            report("FAIL", check, f"href is '{href}', expected '{expected}' (from #release-version)")
+            continue
+        zip_path = SITE / href
+        if zip_path.is_file():
+            report("PASS", check, f"{href} exists ({zip_path.stat().st_size / 1_048_576:.1f} MB)")
+        elif strict:
+            report("FAIL", check, f"{href} does not exist")
+        else:
+            report("EXPECTED-MISSING", check,
+                   f"{href} not built yet; scripts/release.py puts it in site/downloads/")
+    if not hrefs:
+        report("FAIL", "download link", 'no data-release="<platform>-zip" links found')
+    return hrefs
 
 
 # ---------------------------------------------------------------------------

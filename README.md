@@ -2,12 +2,12 @@
 
 **Download Smarter. Faster. Better.**
 
-A free download manager for Chrome, Edge and Brave on Windows, distributed as a ZIP from our own website.
+A free download manager for Chrome, Edge and Brave on Windows (macOS and Linux too, with their own companion installer), distributed as a ZIP from our own website.
 
 | Folder | What it is |
 |---|---|
 | `extension/` | Browser extension (Manifest V3, plain JS modules) |
-| `companion/` | Windows companion app (Python native-messaging host running yt-dlp + ffmpeg) |
+| `companion/` | Companion app (Python native-messaging host running yt-dlp + ffmpeg); `install.bat` for Windows, `install.sh` for macOS and Linux |
 | `site/` | Static download website |
 | `scripts/` | Packaging and release scripts |
 | `shared/` | Extension and companion contract (`protocol.md`) |

@@ -25,3 +25,4 @@ The full release steps are in [`RELEASE.md`](../RELEASE.md). The **test** GitHub
 | `data-release="windows-zip"` | `href="downloads/getsmart-dm-v<version>-windows.zip"` |
 | `data-release="windows-size"` | the size, e.g. `48 KB` |
 | `data-release="windows-sha256"` | the hex SHA-256 |
+| `data-release="macos-linux-zip"`, `-size`, `-sha256` | the same for the macOS/Linux ZIP (in the FAQ) |

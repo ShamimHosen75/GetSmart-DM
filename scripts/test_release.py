@@ -115,6 +115,45 @@ class ReleaseTest(RepoCopy):
         with zipfile.ZipFile(builds["windows"]["path"]) as zf:
             self.assertEqual(zf.read("getsmart-dm/companion/update.bat"), b"@echo off\r\necho hi\r\n")
 
+    def test_macos_linux_zip(self):
+        self.write("companion/install.sh", "#!/usr/bin/env bash\r\necho hi\r\n")  # CRLF checkout
+        self.write("companion/yt-dlp", "binary")
+        self.write("companion/ffmpeg", "binary")
+        self.write("companion/run_host.sh", "#!/bin/sh\n")
+        _, builds = release.release(self.root, ["macos-linux"], out=self.out.write)
+        info = builds["macos-linux"]
+        self.assertEqual(info["name"], "getsmart-dm-v1.2.3-macos-linux.zip")
+        with zipfile.ZipFile(info["path"]) as zf:
+            names = zf.namelist()
+            infos = {i.filename: i for i in zf.infolist()}
+            start_here = zf.read("getsmart-dm/START-HERE.txt").decode()
+            install_sh = zf.read("getsmart-dm/companion/install.sh")
+        companion = sorted(n for n in names if n.startswith("getsmart-dm/companion/"))
+        self.assertEqual(companion, [f"getsmart-dm/companion/{n}" for n in
+                                     ["README.md", "host.py", "install.sh", "uninstall.sh"]])
+        self.assertIn("getsmart-dm/extension/manifest.json", names)
+        for forbidden in (".pem", ".bat", ".exe", "yt-dlp", "ffmpeg", "run_host", ".log"):
+            self.assertFalse([n for n in names if forbidden in n], forbidden)
+        self.assertEqual(install_sh, b"#!/usr/bin/env bash\necho hi\n")
+        self.assertNotIn("\r", start_here)
+        self.assertIn("bash install.sh", start_here)
+        for name, zi in infos.items():
+            self.assertEqual(zi.create_system, 3, name)
+            want = 0o755 if name.endswith((".sh", ".py")) else 0o644
+            self.assertEqual((zi.external_attr >> 16) & 0o777, want, name)
+
+    def test_all_platforms_share_one_site_update(self):
+        self.write("site/index.html", SITE_HTML.replace(
+            "</body>", '<a data-release="macos-linux-zip" href="x">Mac</a>'
+            '<span data-release="macos-linux-size">?</span>'
+            '<code data-release="macos-linux-sha256">?</code></body>'))
+        _, builds = release.release(self.root, list(release.PLATFORMS), out=self.out.write)
+        html = self.read("site/index.html")
+        self.assertIn('href="downloads/getsmart-dm-v1.2.3-macos-linux.zip"', html)
+        self.assertIn(builds["macos-linux"]["sha256"], html)
+        self.assertIn(builds["windows"]["sha256"], html)
+        self.assertNotIn("warning", self.out.getvalue())
+
     def test_size_and_sha_are_reported_and_reproducible(self):
         _, first = self.run_release()
         path = first["windows"]["path"]

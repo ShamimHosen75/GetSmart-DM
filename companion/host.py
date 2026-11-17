@@ -32,6 +32,7 @@ HOST_NAME = "com.getsmartdm.host"
 HERE = os.path.dirname(os.path.abspath(__file__))
 IS_WIN = os.name == "nt"
 CREATE_NO_WINDOW = 0x08000000 if IS_WIN else 0
+INSTALLER = "install.bat" if IS_WIN else "install.sh"
 DOWNLOADS_GUID = "{374DE290-123F-4565-9164-39C4925E51D8}"
 
 PROGRESS_INTERVAL = 0.5  # seconds between progress messages per job
@@ -162,7 +163,28 @@ def downloads_folder():
                     return os.path.expandvars(value)
         except OSError as e:
             log.warning("could not read Downloads folder from registry: %s", e)
+    elif sys.platform.startswith("linux"):
+        xdg = xdg_download_dir()
+        if xdg:
+            return xdg
     return os.path.join(os.path.expanduser("~"), "Downloads")
+
+
+def xdg_download_dir():
+    """XDG_DOWNLOAD_DIR from user-dirs.dirs (Linux desktops may name it e.g. "Téléchargements")."""
+    home = os.path.expanduser("~")
+    config = os.environ.get("XDG_CONFIG_HOME") or os.path.join(home, ".config")
+    try:
+        with open(os.path.join(config, "user-dirs.dirs"), encoding="utf-8") as f:
+            for line in f:
+                m = re.match(r'\s*XDG_DOWNLOAD_DIR\s*=\s*"(.*)"\s*$', line)
+                if m:
+                    value = m.group(1).replace("$HOME", home)
+                    if os.path.isabs(value) and os.path.normpath(value) != os.path.normpath(home):
+                        return value
+    except OSError:
+        pass
+    return None
 
 
 def default_dir():
@@ -202,7 +224,7 @@ ERROR_RULES = (
     (re.compile(r"HTTP Error 404|404:? Not Found|\b404\b", re.I),
      "Video not found (404). The link may be broken or the post was deleted."),
     (re.compile(r"ffmpeg|ffprobe", re.I),
-     "ffmpeg is missing or failed. Run install.bat in the companion folder again."),
+     "ffmpeg is missing or failed. Run " + INSTALLER + " in the companion folder again."),
     (re.compile(r"Unable to download webpage|urlopen error|getaddrinfo|Name or service not known|"
                 r"timed? ?out|Connection (refused|reset|aborted)|Network is unreachable|"
                 r"No route to host|Temporary failure in name resolution|SSL|ConnectionError|"
@@ -234,13 +256,13 @@ def format_args(quality, ffmpeg):
         if ffmpeg:
             return ["-f", "ba/b", "-x", "--audio-format", "mp3", "--ffmpeg-location", ffmpeg], None
         return ["-f", "ba/b"], ("ffmpeg was not found, so the audio was saved in its original "
-                                "format instead of MP3. Run install.bat to fix this.")
+                                "format instead of MP3. Run " + INSTALLER + " to fix this.")
     if ffmpeg:
         fmt = "bv*+ba/b" if quality == "best" else "bv*[height<={0}]+ba/b[height<={0}]/b".format(quality)
         return ["-f", fmt, "--merge-output-format", "mp4", "--ffmpeg-location", ffmpeg], None
     fmt = "b" if quality == "best" else "b[height<={0}]/b".format(quality)
     return ["-f", fmt], ("ffmpeg was not found, so a single file with video and sound was "
-                         "downloaded; quality may be lower. Run install.bat to fix this.")
+                         "downloaded; quality may be lower. Run " + INSTALLER + " to fix this.")
 
 
 def build_command(base, url, quality, outdir, ffmpeg):
@@ -313,7 +335,7 @@ class Job:
         base = ytdlp_base()
         if not base:
             log.error("job %s: yt-dlp not found", self.id)
-            self.progress("error", error="yt-dlp is missing. Run install.bat in the companion folder.")
+            self.progress("error", error="yt-dlp is missing. Run " + INSTALLER + " in the companion folder.")
             return
         ffmpeg = find_binary("ffmpeg")
         cmd, note = build_command(base, self.url, self.quality, self.dir, ffmpeg)
@@ -515,7 +537,7 @@ class Host:
 
 
 def check():
-    """``host.py --check``: print what hello would report, for install.bat."""
+    """``host.py --check``: print what hello would report, for install.bat / install.sh."""
     ffmpeg = find_binary("ffmpeg")
     print(json.dumps({"version": VERSION, "python": sys.version.split()[0], "ytdlp": ytdlp_version(),
                       "ffmpeg": ffmpeg_version(ffmpeg), "dir": default_dir()}, indent=2))
