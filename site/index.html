@@ -49,16 +49,16 @@
             The Mac/Linux ZIP uses the same keys with "macos-linux-" (in the FAQ).
             Keep these attributes (and plain-text contents) when editing this block.
           -->
-          <a class="btn btn-primary btn-big" id="download-link" data-release="windows-zip" href="downloads/sidm-v0.1.0-windows.zip" download>
+          <a class="btn btn-primary btn-big" id="download-link" data-release="windows-zip" href="downloads/sidm-v0.2.0-windows.zip" download>
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
             Download for Windows
           </a>
           <p class="release-meta">
             <span>Version <span id="release-version" data-release="version">0.2.0</span></span>
-            <span>ZIP, <span id="release-size" data-release="windows-size">size to be confirmed</span></span>
+            <span>ZIP, <span id="release-size" data-release="windows-size">131 KB</span></span>
             <span>Windows 10 and 11</span>
           </p>
-          <p class="release-hash">SHA-256: <code data-release="windows-sha256">published with the release</code></p>
+          <p class="release-hash">SHA-256: <code data-release="windows-sha256">48baf296fcaa4a627f7447dd48970deb3c809df396c14e34d9f24af060dc8192</code></p>
           <p class="hero-note">Then follow the <a href="#install">3 install steps</a>. Takes about two minutes.</p>
         </div>
       </section>
@@ -242,7 +242,7 @@
             <details>
               <summary>Does it work on Mac or Linux? Is there an Android version?</summary>
               <div class="answer">
-                <p>Yes for Mac and Linux. The extension is the same; only the companion installer is different. Use the <a data-release="macos-linux-zip" href="downloads/sidm-v0.1.0-macos-linux.zip" download>Mac and Linux ZIP</a> (<span data-release="macos-linux-size">size to be confirmed</span>, SHA-256 <code data-release="macos-linux-sha256">published with the release</code>).</p>
+                <p>Yes for Mac and Linux. The extension is the same; only the companion installer is different. Use the <a data-release="macos-linux-zip" href="downloads/sidm-v0.2.0-macos-linux.zip" download>Mac and Linux ZIP</a> (<span data-release="macos-linux-size">133 KB</span>, SHA-256 <code data-release="macos-linux-sha256">5a4330b537b5e5d5285565530c7f229d9f2942b31bdd3259b5688fdb128025e3</code>).</p>
                 <p>Load the extension the same way as above in Chrome, Chromium, Edge or Brave. Then open Terminal in the <code>companion</code> folder and run <code>bash install.sh</code>. No <code>sudo</code> needed. It uses the Python 3 that comes with your system (on a Mac, if you are asked to install the Command Line Tools, say yes), downloads yt-dlp and ffmpeg into that folder (on a Mac it uses Homebrew's ffmpeg if you have Homebrew), and connects them to your browsers. To update yt-dlp later, run <code>./yt-dlp -U</code> in the same folder.</p>
                 <p>Browsers installed as Snap or Flatpak packages on Linux cannot start the companion; use the browser's regular package instead. There is no Android app yet. It is planned, with no date.</p>
               </div>
