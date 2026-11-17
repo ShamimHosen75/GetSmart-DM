@@ -283,7 +283,7 @@ def files_on_disk(root):
 def reset(b):
     """Cancel and erase every download, clear the queue and the settings."""
     b.call("""async () => {
-        await chrome.storage.local.set({queue: []});
+        await chrome.storage.local.set({queue: [], queuePaused: false});
         for (const d of await chrome.downloads.search({state: 'in_progress'})) { try { await chrome.downloads.cancel(d.id); } catch {} }
         await chrome.downloads.erase({});
         await chrome.storage.sync.clear();
@@ -458,6 +458,46 @@ def check_progress_window(b, base):
     return "opened on start, one window per download; size, rate, resume probe; pause, resume, hide details, cancel"
 
 
+def check_manager(b, base):
+    reset(b)
+    b.call("() => chrome.storage.sync.set({maxSimultaneous: 1, progressWindow: 'off'})")
+    time.sleep(0.3)
+    enqueue(b, [{"url": base + "/f/m%d.zip?size=4000000&slow=1" % i} for i in range(3)])
+    wait_for(lambda: running(b) == 1 and queued(b) == 2, what="1 running + 2 queued")
+    m = b.page("manager.html")
+    m.wait_for_selector("#m-rows tr[data-state=downloading]")
+    assert m.locator("#m-rows tr").count() == 3
+    m.click('.m-node[data-view="queue"]')
+    wait_for(lambda: m.locator("#m-rows tr").count() == 2, what="queue view")
+    m.click('.m-node[data-view="all"]')
+    m.click('[data-tool="queue"]')
+    wait_for(lambda: b.call("async () => (await chrome.storage.local.get('queuePaused')).queuePaused") is True, what="queue stopped")
+    m.click("#m-rows tr[data-state=downloading]")
+    m.click('[data-tool="stop"]')
+    wait_for(lambda: m.locator("#m-rows tr[data-state=paused]").count() == 1, what="stopped from toolbar")
+    time.sleep(1)
+    assert running(b) == 0 and queued(b) == 2, "stopped queue must not start the next item"
+    m.click('[data-tool="resume"]')
+    wait_for(lambda: running(b) == 1, what="resumed from toolbar")
+    m.click('[data-tool="stopAll"]')
+    wait_for(lambda: running(b) == 0, what="stop all")
+    m.click('th[data-sort="name"]')
+    names = m.eval_on_selector_all("#m-rows .m-name", "els => els.map(e => e.textContent)")
+    assert names == sorted(names), names
+    m.click("#m-rows tr >> nth=0")
+    m.keyboard.press("Control+a")
+    assert m.locator('#m-rows tr[aria-selected="true"]').count() == 3
+    m.keyboard.press("Delete")
+    m.click('#delete-dialog button[value="delete"]')
+    wait_for(lambda: m.locator("#m-rows tr").count() == 0, what="all deleted")
+    assert queued(b) == 0 and not b.call("() => chrome.downloads.search({})")
+    m.click('[data-tool="queue"]')
+    wait_for(lambda: b.call("async () => (await chrome.storage.local.get('queuePaused')).queuePaused") is False, what="queue started")
+    m.close()
+    reset(b)
+    return "category tree, stop/start queue, stop and resume, stop all, sort, Ctrl+A, delete dialog"
+
+
 def check_grabber(b, base):
     reset(b)
     page = b.page()
@@ -569,6 +609,7 @@ CHECKS = [
     ("custom and Bangla file names", check_names),
     ("queue limit (max 2)", check_queue_limit),
     ("pause/resume from the UI", check_pause_resume_ui),
+    ("manager page", check_manager),
     ("link grabber select + download", check_grabber),
     ("settings save", check_settings),
     ("category filter + clear finished", check_filter_and_clear),

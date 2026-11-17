@@ -71,6 +71,7 @@ python scripts/extension_id.py --pem extension-key.pem --print-key
 | `options.html` / `options.js` | Settings page |
 | `overlay.js` | Content script: the Download button over videos (closed shadow root) |
 | `progress.html` / `progress.js` | Progress window for one download (`progress.html?id=<id>`) |
+| `manager.html` / `manager.js` | Download manager page: category tree, sortable table, toolbar |
 | `download-info.js` | State, name, size and error text of a download, shared by the lists |
 | `speed.js` | Transfer rate from byte samples, and time left |
 | `update-check.js` | "Update available" footer link |
@@ -85,6 +86,7 @@ Extension pages talk to the service worker with `chrome.runtime.sendMessage({ ty
 |---|---|---|
 | `enqueue` | `items: [{ url, filename? }]` | `{ added, rejected }` |
 | `removeQueued` | `qid` | `{ ok }` |
+| `setQueuePaused` | `paused` | `{ ok }` (stops or starts taking items from the queue) |
 | `getVideoState` | `url` | `{ site, drm, companion, jobs, defaultQuality }` |
 | `addVideo` | `url, quality, title?` | `{ id }` or `{ error }` |
 | `cancelVideo` / `retryVideo` / `removeVideo` / `openVideoFolder` | `id` | `{ ok }` or `{ error }` |

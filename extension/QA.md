@@ -147,3 +147,15 @@ Run `python scripts/test_extension.py` first (all PASS), then by hand:
 - [ ] Remove the download from the list while its window is open: "This download is gone".
 - [ ] Dark theme and Bangla look right; the window title shows the percent.
 
+## M12 Download manager page
+
+- [ ] Popup header: the manager button opens the manager in a tab; clicking it again focuses that tab.
+- [ ] The left tree shows All (with the file categories under it), Unfinished, Finished and Queue, each with a live count. Clicking one filters the table.
+- [ ] Table columns: file name, size, status (with percent and a bar while running), time left, transfer rate, last try, address. Clicking a column header sorts, clicking again reverses.
+- [ ] Selection: click, Ctrl/Cmd-click, Shift-click, Ctrl+A, Esc. Double-click or Enter opens a finished file, or the progress window of a running one.
+- [ ] Toolbar: Add URL opens the links box; Resume and Stop act on the selected rows and are greyed out when they cannot; Stop all pauses everything and stops the queue so nothing new starts.
+- [ ] Delete asks first; "Also delete the finished files from the disk" is off by default and only removes files of finished downloads. Delete completed clears finished rows from the list and keeps the files.
+- [ ] Stop queue: waiting items stay waiting even when slots are free; the status bar says "Queue stopped". Start queue starts them.
+- [ ] Grabber opens the grabber for the active web tab, or explains that a web page must be open first. Settings opens the settings page.
+- [ ] The status bar shows items, selected, total speed and waiting items. Dark theme and Bangla look right.
+

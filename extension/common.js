@@ -251,6 +251,24 @@ export function randomId() {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
 }
 
+// ---------- Manager page (M12) ----------
+
+/** Focus the manager tab if it is open, otherwise open it. */
+export async function openManager() {
+  const url = chrome.runtime.getURL('manager.html');
+  try {
+    const [open] = await chrome.runtime.getContexts({ contextTypes: ['TAB'], documentUrls: [url] });
+    if (open) {
+      await chrome.tabs.update(open.tabId, { active: true });
+      await chrome.windows.update(open.windowId, { focused: true });
+      return;
+    }
+  } catch {
+    // fall through and open a new tab
+  }
+  await chrome.tabs.create({ url });
+}
+
 // ---------- Progress window (M11) ----------
 
 export const PROGRESS_WINDOW_SIZE = { width: 520, height: 470 };

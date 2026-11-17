@@ -11,7 +11,7 @@
 //   progress.html     per-download progress window, opened here on start (M11)
 
 import { autoOpenProgress, seedDefaultSettings } from './common.js';
-import { enqueue, pump, registerQueueListeners, removeQueued } from './queue.js';
+import { enqueue, pump, registerQueueListeners, removeQueued, setQueuePaused } from './queue.js';
 import { buildMenus, registerMenuListeners } from './menus.js';
 import { registerMediaListeners, overlayHandlers } from './media.js';
 import { videoHandlers } from './native-bridge.js';
@@ -74,6 +74,7 @@ const CONTENT_SCRIPT_CALLS = new Set(['overlayInfo', 'overlayMedia', 'enqueue', 
 const handlers = {
   enqueue: (msg) => enqueue(msg.items || []),
   removeQueued: (msg) => removeQueued(msg.qid),
+  setQueuePaused: (msg) => setQueuePaused(msg.paused),
   ...overlayHandlers, // overlayInfo, overlayMedia (content script video button)
   ...videoHandlers, // getVideoState, addVideo, cancelVideo, retryVideo, removeVideo, openVideoFolder
 };

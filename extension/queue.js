@@ -88,6 +88,13 @@ export function removeQueued(qid) {
   });
 }
 
+/** Stop or start taking items from the queue. Running downloads are not touched. */
+export async function setQueuePaused(paused) {
+  await chrome.storage.local.set({ queuePaused: Boolean(paused) });
+  if (!paused) await pump();
+  return { ok: true };
+}
+
 /** Start queued items while there are free slots. */
 export function pump() {
   return locked(pumpUnlocked);
@@ -100,6 +107,8 @@ async function pumpUnlocked() {
 
   let queue = await getQueue();
   if (!queue.length) return;
+  const { queuePaused } = await chrome.storage.local.get('queuePaused');
+  if (queuePaused) return; // "Stop queue" in the manager (M12) or the scheduler (M14)
   const running = await chrome.downloads.search({ state: 'in_progress', paused: false });
   let free = limit - running.length;
 

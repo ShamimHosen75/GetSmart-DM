@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GetSmart DM</title>
+    <link rel="icon" href="icons/icon32.png" />
+    <link rel="stylesheet" href="ui.css" />
+    <script type="module" src="manager.js"></script>
+  </head>
+  <body class="manager">
+    <header class="app-header">
+      <div class="brand">
+        <img src="icons/icon32.png" alt="" />
+        <div>
+          <div class="brand-name" data-i18n="appName"></div>
+          <div class="brand-tagline" data-i18n="tagline"></div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="m-toolbar" aria-label="Toolbar">
+      <button type="button" class="m-tool" id="open-add" data-tool="add" aria-expanded="false" aria-controls="add-panel">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg><span data-i18n="mAddUrl"></span>
+      </button>
+      <span class="m-sep"></span>
+      <button type="button" class="m-tool" data-tool="resume">
+        <svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" /></svg><span data-i18n="actResume"></span>
+      </button>
+      <button type="button" class="m-tool" data-tool="stop">
+        <svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14" /></svg><span data-i18n="mStop"></span>
+      </button>
+      <button type="button" class="m-tool" data-tool="stopAll">
+        <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg><span data-i18n="mStopAll"></span>
+      </button>
+      <span class="m-sep"></span>
+      <button type="button" class="m-tool" data-tool="delete">
+        <svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12.5h8L17 7" /></svg><span data-i18n="mDelete"></span>
+      </button>
+      <button type="button" class="m-tool" data-tool="deleteCompleted">
+        <svg viewBox="0 0 24 24"><path d="M5 12.5l4 4L19 7" /></svg><span data-i18n="mDeleteCompleted"></span>
+      </button>
+      <span class="m-sep"></span>
+      <button type="button" class="m-tool" data-tool="queue" id="tool-queue">
+        <svg viewBox="0 0 24 24"><path d="M4 7h11M4 12h11M4 17h7M17 14v6l4-3z" /></svg><span id="tool-queue-label"></span>
+      </button>
+      <button type="button" class="m-tool" data-tool="scheduler" id="tool-scheduler">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7.5" /><path d="M12 9v4l2.5 2M9 3h6" /></svg><span data-i18n="mScheduler"></span>
+      </button>
+      <button type="button" class="m-tool" data-tool="grabber">
+        <svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></svg><span data-i18n="mGrabber"></span>
+      </button>
+      <button type="button" class="m-tool" data-tool="options">
+        <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg><span data-i18n="openSettings"></span>
+      </button>
+    </nav>
+
+    <form class="add-panel m-add" id="add-panel" hidden>
+      <label class="add-title" for="add-urls" data-i18n="addLinks"></label>
+      <textarea id="add-urls" rows="4" spellcheck="false" data-i18n-placeholder="addLinksPlaceholder"></textarea>
+      <div class="row-hint" id="add-hint" data-i18n="addLinksHint"></div>
+      <div class="add-buttons">
+        <button type="button" class="text-button" id="add-cancel" data-i18n="cancelButton"></button>
+        <button type="submit" class="primary-button" id="add-submit" data-i18n="addButton"></button>
+      </div>
+    </form>
+
+    <div class="m-body">
+      <aside class="m-side" aria-label="Categories">
+        <ul class="m-tree" id="m-tree" role="tree"></ul>
+      </aside>
+
+      <main class="m-main">
+        <div class="m-filter">
+          <div class="search">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="M16 16l4 4" />
+            </svg>
+            <input type="search" id="m-search" data-i18n-placeholder="searchDownloads" />
+          </div>
+        </div>
+        <div class="m-table-wrap" id="m-wrap" tabindex="0">
+          <table class="m-table" id="m-table">
+            <thead>
+              <tr>
+                <th data-sort="name" data-i18n="colName"></th>
+                <th data-sort="size" data-i18n="colSize"></th>
+                <th data-sort="status" data-i18n="colStatus"></th>
+                <th data-sort="eta" data-i18n="colTimeLeft"></th>
+                <th data-sort="rate" data-i18n="colRate"></th>
+                <th data-sort="lastTry" data-i18n="colLastTry"></th>
+                <th data-sort="address" data-i18n="colAddress"></th>
+              </tr>
+            </thead>
+            <tbody id="m-rows"></tbody>
+          </table>
+          <div class="empty" id="m-empty" hidden>
+            <div class="empty-title" data-i18n="noMatchTitle"></div>
+            <div class="empty-body" id="m-empty-body"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <footer class="m-status" id="m-status" role="status"></footer>
+
+    <dialog class="dialog" id="delete-dialog">
+      <form method="dialog">
+        <h2 class="dialog-title" id="delete-title"></h2>
+        <label class="m-check"><input type="checkbox" id="delete-files" /> <span data-i18n="mDeleteFiles"></span></label>
+        <div class="add-buttons">
+          <button value="cancel" class="text-button" data-i18n="cancelButton"></button>
+          <button value="delete" class="primary-button danger" data-i18n="mDelete"></button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="dl-toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
