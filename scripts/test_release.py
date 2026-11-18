@@ -330,6 +330,15 @@ class BumpTest(RepoCopy):
         self.assertTrue(os.path.isfile(self.path("site/downloads/sidm-v1.2.3-android.apk")))
         self.assertNotIn("warning", self.out.getvalue())
 
+    def test_android_only_leaves_other_downloads(self):
+        self._android()
+        self._apk("apks/app-arm64-v8a-release.apk")
+        self._apk("apks/app-armeabi-v7a-release.apk")
+        code = release.main(["--android-only", "--apk-dir", self.path("apks"), "--root", self.root])
+        self.assertEqual(code, 0)
+        files = sorted(os.listdir(self.path("site/downloads")))
+        self.assertEqual(files, ["sidm-v1.2.3-android-32bit.apk", "sidm-v1.2.3-android.apk"])
+
     def test_unsigned_apk_refused(self):
         self._android()
         self._apk("apks/app-arm64-v8a-release.apk", signed=False)

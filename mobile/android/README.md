@@ -52,6 +52,10 @@ python scripts/release.py --apk-dir mobile/android/app/build/outputs/apk/release
 
 which copies them to `site/downloads/sidm-v<version>-android.apk` and `-android-32bit.apk`, refuses unsigned APKs, and fills in the size and SHA-256 on the website (`data-release="android-*"` markers).
 
+Add `--android-only` to leave the other downloads as they are. GitHub Actions can do all of this: Actions > android > Run workflow, pick the release branch, tick "publish". It builds the signed APKs with the secrets above, runs `release.py --android-only` and commits the APKs and website changes to that branch.
+
+Each APK is about 60 MB (Python, yt-dlp and ffmpeg are inside), so check that the website host accepts files that large (Cloudflare Pages, for one, stops at 25 MB per file).
+
 ## License note
 
 youtubedl-android is GPL-3.0 and is part of the APK, so the APK as a whole is distributed under GPL-3.0 terms: SIDM's source code is public in this repository, and the About screen links to it.

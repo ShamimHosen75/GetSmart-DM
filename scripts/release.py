@@ -470,10 +470,15 @@ def main(argv=None):
                         help="skip the Windows setup program (when NSIS is not installed)")
     parser.add_argument("--apk-dir", help="folder with the signed app-<abi>-release.apk files; "
                         "adds the Android downloads (sidm-v<version>-android.apk, -android-32bit.apk)")
+    parser.add_argument("--android-only", action="store_true",
+                        help="with --apk-dir: add only the Android downloads, leave the other files as they are")
     parser.add_argument("--root", default=ROOT, help=argparse.SUPPRESS)  # used by tests
     args = parser.parse_args(argv)
+    if args.android_only and not args.apk_dir:
+        parser.error("--android-only needs --apk-dir")
+    platforms = [] if args.android_only else (args.platform or list(PLATFORMS))
     try:
-        release(args.root, args.platform or list(PLATFORMS), keep=args.keep, setup=not args.no_setup,
+        release(args.root, platforms, keep=args.keep, setup=not args.no_setup,
                 apk_dir=args.apk_dir)
     except ReleaseError as err:
         print(f"release.py: error: {err}", file=sys.stderr)
