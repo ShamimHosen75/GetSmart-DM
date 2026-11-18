@@ -79,6 +79,9 @@ class DeviceTest {
     @Test
     fun realSitesReport(): Unit = runBlocking {
         assertTrue(withTimeout(240_000) { app.engine.video.awaitReady() })
+        // Like a phone on its first day: the app brings yt-dlp up to date first.
+        val updated = runCatching { app.engine.video.update(waitMs = 300_000) }
+        Log.i("SIDM-SITES", "yt-dlp update: ${updated.getOrElse { "failed: ${it.message}" } ?: "already latest"}, now ${app.engine.video.version.value}")
         val sites = listOf(
             "Vimeo" to "https://vimeo.com/76979871",
             "Dailymotion" to "https://www.dailymotion.com/video/x5kesuj",

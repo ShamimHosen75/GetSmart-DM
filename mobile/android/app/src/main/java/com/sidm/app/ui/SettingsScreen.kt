@@ -40,6 +40,7 @@ import com.sidm.app.LocalLang
 import com.sidm.app.SettingsRepo
 import com.sidm.app.SidmApp
 import com.sidm.app.Strings
+import com.sidm.app.VideoTools
 import com.sidm.app.t
 import com.sidm.core.Units
 import kotlinx.coroutines.Dispatchers
@@ -114,6 +115,8 @@ fun SettingsScreen(app: SidmApp, model: AppModel) {
                         val msg = try {
                             val v = withContext(Dispatchers.IO) { app.updates.updateEngineNow() }
                             if (v.isEmpty()) "setEngineUpToDate" to emptyList() else "setEngineUpdated" to listOf<Any>(v)
+                        } catch (e: VideoTools.BusyException) {
+                            "setEngineBusy" to emptyList()
                         } catch (e: Exception) {
                             "setEngineFailed" to listOf<Any>(e.message ?: "")
                         }

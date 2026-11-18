@@ -73,7 +73,7 @@ class VideoTools(private val context: Context) {
             val request = YoutubeDLRequest(url)
             request.addCommands(YtdlpArgs.forInfo(cookies?.absolutePath, if (cookies != null) userAgent else null))
             val response = try {
-                YoutubeDL.getInstance().execute(request, null, null)
+                running { YoutubeDL.getInstance().execute(request, null, null) }
             } catch (e: Exception) {
                 val msg = e.message.orEmpty()
                 Log.w(TAG, "info failed (${com.sidm.core.Links.hostOf(url)}): ${YtdlpArgs.lastError(msg).take(300)}")
@@ -100,9 +100,11 @@ class VideoTools(private val context: Context) {
         val request = YoutubeDLRequest(url)
         request.addCommands(YtdlpArgs.forDownload(options))
         try {
-            YoutubeDL.getInstance().execute(request, id) { progress: Float, eta: Long, line: String ->
-                val total = YtdlpArgs.parseProgress(line)?.second ?: -1L
-                onProgress(progress / 100f, eta, total, line)
+            running {
+                YoutubeDL.getInstance().execute(request, id) { progress: Float, eta: Long, line: String ->
+                    val total = YtdlpArgs.parseProgress(line)?.second ?: -1L
+                    onProgress(progress / 100f, eta, total, line)
+                }
             }
         } catch (e: YoutubeDL.CanceledException) {
             throw e
@@ -121,12 +123,57 @@ class VideoTools(private val context: Context) {
         runCatching { YoutubeDL.getInstance().destroyProcessById(id) }
     }
 
-    /** Updates yt-dlp to its latest stable release. Returns the new version, or null if it was up to date. */
-    fun update(): String? {
-        val status = YoutubeDL.getInstance().updateYoutubeDL(context, YoutubeDL.UpdateChannel.STABLE)
-        val v = readVersion()
-        _version.value = v
-        return if (status == YoutubeDL.UpdateStatus.DONE) v else null
+    // An update replaces the yt-dlp file, so it must not happen while yt-dlp runs
+    // (Python then fails with "bad local file header"). Runs wait while an update
+    // is in progress; an update waits until no run is active.
+    private val gate = Object()
+    private var activeRuns = 0
+    private var updating = false
+
+    private inline fun <T> running(block: () -> T): T {
+        synchronized(gate) {
+            while (updating) gate.wait()
+            activeRuns++
+        }
+        try {
+            return block()
+        } finally {
+            synchronized(gate) {
+                activeRuns--
+                gate.notifyAll()
+            }
+        }
+    }
+
+    class BusyException : Exception("yt-dlp is busy with a download")
+
+    /**
+     * Updates yt-dlp to its latest stable release. Returns the new version, or
+     * null if it was up to date. Waits up to [waitMs] for running downloads to
+     * finish, then throws [BusyException].
+     */
+    fun update(waitMs: Long = 10 * 60_000L): String? {
+        synchronized(gate) {
+            val until = System.currentTimeMillis() + waitMs
+            while (activeRuns > 0 || updating) {
+                val left = until - System.currentTimeMillis()
+                if (left <= 0) throw BusyException()
+                gate.wait(left)
+            }
+            updating = true
+        }
+        try {
+            val status = YoutubeDL.getInstance().updateYoutubeDL(context, YoutubeDL.UpdateChannel.STABLE)
+            val v = readVersion()
+            _version.value = v
+            Log.i(TAG, "yt-dlp update: $status, now $v")
+            return if (status == YoutubeDL.UpdateStatus.DONE) v else null
+        } finally {
+            synchronized(gate) {
+                updating = false
+                gate.notifyAll()
+            }
+        }
     }
 
     /**

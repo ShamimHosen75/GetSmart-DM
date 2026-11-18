@@ -50,14 +50,16 @@ class Updates(private val context: Context, private val settings: SettingsRepo, 
         val s = settings.value
         if (!s.autoUpdateEngine || System.currentTimeMillis() - s.lastEngineUpdateCheck < DAY) return
         if (!video.awaitReady()) return
-        runCatching { video.update() }.onFailure { Log.w(TAG, "engine update failed", it) }
-        settings.update { it.copy(lastEngineUpdateCheck = System.currentTimeMillis()) }
+        // Only a finished check counts, so an offline start tries again next time.
+        runCatching { video.update() }
+            .onSuccess { settings.update { it.copy(lastEngineUpdateCheck = System.currentTimeMillis()) } }
+            .onFailure { Log.w(TAG, "engine update failed", it) }
     }
 
     /** Settings' "Update now": returns the new version, "" if already up to date. Throws on failure. */
     suspend fun updateEngineNow(): String {
         if (!video.awaitReady()) throw IllegalStateException("engine not ready")
-        val v = video.update()
+        val v = video.update(waitMs = 0)
         settings.update { it.copy(lastEngineUpdateCheck = System.currentTimeMillis()) }
         return v ?: ""
     }
