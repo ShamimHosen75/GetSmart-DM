@@ -275,7 +275,7 @@ class BumpTest(RepoCopy):
         changelog = self.read("CHANGELOG.md")
         self.assertIn("## [1.3.0] - 2026-11-17", changelog)
         section = changelog.split("## [1.3.0] - 2026-11-17", 1)[1]
-        self.assertEqual(re.findall(r"^### (\w+)", section, re.M), ["Extension", "Companion", "Website"])
+        self.assertEqual(re.findall(r"^### (\w+)", section, re.M), ["Extension", "Companion", "Website", "Android"])
 
         # release works straight after a bump
         version, _ = self.run_release()
@@ -290,12 +290,61 @@ class BumpTest(RepoCopy):
         bump.bump(self.root, "1.2.4", today=datetime.date(2026, 11, 18), out=self.out.write)
         self.assertEqual(self.read("CHANGELOG.md").count("## [1.2.4]"), 1)  # not duplicated
 
+    def _android(self, version="1.2.3", code=4):
+        self.write(release.ANDROID_GRADLE.replace(os.sep, "/"),
+                   f'plugins {{}}\n\nval sidmVersionName = "{version}"\nval sidmVersionCode = {code}\n')
+
+    def _apk(self, rel, signed=True):
+        path = self.path(rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr("AndroidManifest.xml", "x")
+            if signed:
+                zf.writestr("META-INF/CERT.RSA", "sig")
+        return path
+
+    def test_android_version_is_checked_and_bumped(self):
+        self._android("1.2.3", 4)
+        self.run_release()  # same version: fine
+        self._android("1.2.2", 4)
+        with self.assertRaises(release.ReleaseError):
+            self.run_release()
+        self._android("1.2.3", 4)
+        bump.bump(self.root, "patch", today=datetime.date(2026, 11, 18), out=self.out.write)
+        gradle = self.read(release.ANDROID_GRADLE.replace(os.sep, "/"))
+        self.assertIn('val sidmVersionName = "1.2.4"', gradle)
+        self.assertIn("val sidmVersionCode = 5", gradle)
+
+    def test_android_apks_copied_and_marked(self):
+        self._android()
+        self._apk("apks/app-arm64-v8a-release.apk")
+        self._apk("apks/app-armeabi-v7a-release.apk")
+        extra = "".join('<a data-release="%s-zip" href="x">z</a><span data-release="%s-size">?</span>'
+                        '<code data-release="%s-sha256">?</code>' % (k, k, k) for k in release.APK_PLATFORMS)
+        self.write("site/index.html", SITE_HTML.replace("</body>", extra + "</body>"))
+        _, builds = release.release(self.root, ["extension"], out=self.out.write, apk_dir=self.path("apks"))
+        html = self.read("site/index.html")
+        self.assertIn('href="downloads/sidm-v1.2.3-android.apk"', html)
+        self.assertIn('href="downloads/sidm-v1.2.3-android-32bit.apk"', html)
+        self.assertIn(builds["android"]["sha256"], html)
+        self.assertTrue(os.path.isfile(self.path("site/downloads/sidm-v1.2.3-android.apk")))
+        self.assertNotIn("warning", self.out.getvalue())
+
+    def test_unsigned_apk_refused(self):
+        self._android()
+        self._apk("apks/app-arm64-v8a-release.apk", signed=False)
+        self._apk("apks/app-armeabi-v7a-release.apk")
+        with self.assertRaises(release.ReleaseError):
+            release.release(self.root, ["extension"], out=self.out.write, apk_dir=self.path("apks"))
+
     def test_repo_changelog_has_the_three_subheadings(self):
         with open(os.path.join(ROOT, "CHANGELOG.md"), encoding="utf-8") as f:
             text = f.read()
         for section in re.split(r"^## ", text, flags=re.M)[1:]:
-            self.assertEqual(re.findall(r"^### (\w+)", section, re.M),
-                             ["Extension", "Companion", "Website"], section.splitlines()[0])
+            # Versions before the Android app (0.5.0) have three parts, later ones four.
+            self.assertIn(re.findall(r"^### (\w+)", section, re.M),
+                          (["Extension", "Companion", "Website"], ["Extension", "Companion", "Website", "Android"]),
+                          section.splitlines()[0])
 
 
 if __name__ == "__main__":

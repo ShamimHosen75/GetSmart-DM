@@ -10,6 +10,8 @@ The current version is read from extension/manifest.json. The new one is
 written to:
 - extension/manifest.json  "version"
 - companion/host.py        VERSION = "..."
+- mobile/android/app/build.gradle.kts  sidmVersionName, and sidmVersionCode + 1
+  (Android only installs an update whose versionCode is higher)
 - site/index.html          every data-release="version" element (if the page exists)
 - CHANGELOG.md             a new empty section with today's date, on top
 
@@ -28,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import release  # noqa: E402  (shares the version readers and the site markers)
 
 ROOT = release.ROOT
-CHANGELOG_SECTIONS = ("Extension", "Companion", "Website")
+CHANGELOG_SECTIONS = ("Extension", "Companion", "Website", "Android")
 
 
 def next_version(current, part):
@@ -65,6 +67,21 @@ def bump_manifest(root, version):
 def bump_host(root, version):
     path = os.path.join(root, "companion", "host.py")
     _rewrite(path, r'^(VERSION\s*=\s*)(["\'])[^"\']*\2', rf'\g<1>"{version}"', "VERSION = \"...\"")
+
+
+def bump_android(root, version):
+    """Returns the new versionCode, or None when the Android app is not in this tree."""
+    path = os.path.join(root, release.ANDROID_GRADLE)
+    if not os.path.isfile(path):
+        return None
+    _rewrite(path, r'^(val sidmVersionName\s*=\s*)"[^"]*"', rf'\g<1>"{version}"', "val sidmVersionName")
+    with open(path, encoding="utf-8") as f:
+        match = re.search(r"^val sidmVersionCode\s*=\s*(\d+)", f.read(), re.M)
+    if not match:
+        raise release.ReleaseError("could not find val sidmVersionCode in " + release.ANDROID_GRADLE)
+    code = int(match.group(1)) + 1
+    _rewrite(path, r"^(val sidmVersionCode\s*=\s*)\d+", rf"\g<1>{code}", "val sidmVersionCode")
+    return code
 
 
 def bump_site(root, version):
@@ -113,12 +130,15 @@ def bump(root, part, today=None, out=print):
 
     bump_manifest(root, version)
     bump_host(root, version)
+    android_code = bump_android(root, version)
     site = bump_site(root, version)
     added = bump_changelog(root, version, date)
 
     out(f"{current} -> {version}")
     out("  extension/manifest.json")
     out("  companion/host.py")
+    if android_code is not None:
+        out(f"  {release.ANDROID_GRADLE} (versionCode {android_code})")
     if site is None:
         out("  site/index.html not found, skipped")
     else:

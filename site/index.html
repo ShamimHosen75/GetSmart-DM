@@ -61,6 +61,7 @@
           </p>
           <p class="release-hash">SHA-256: <code data-release="extension-sha256">87ca27dcf4df653df10d76026832b8db09c46d7e3c8a88a31e451e89df441941</code></p>
           <p class="hero-note">Then follow the <a href="#install">2 install steps</a>. Takes about a minute, and there is nothing else to install.</p>
+          <p class="hero-note">On an Android phone? <a href="#android">Get SIDM for Android</a>.</p>
         </div>
       </section>
 
@@ -194,8 +195,58 @@
         </div>
       </section>
 
+      <!-- Android -->
+      <!--
+        Android downloads, rewritten by scripts/release.py --apk-dir:
+          data-release="android-zip" / "android-size" / "android-sha256"              sidm-v<version>-android.apk (64-bit ARM)
+          data-release="android-32bit-zip" / "android-32bit-size" / "android-32bit-sha256"  sidm-v<version>-android-32bit.apk
+      -->
+      <section class="alt" id="android" aria-labelledby="android-title">
+        <div class="wrap">
+          <div class="section-head">
+            <h2 id="android-title">SIDM for Android</h2>
+            <p>Save videos from Facebook, Instagram, TikTok, X, YouTube and over a thousand other sites, and files from any link, straight to your phone. Free, no account, not in the Play Store, so you install it from here.</p>
+          </div>
+
+          <a class="btn btn-primary btn-big" id="android-link" data-release="android-zip" href="downloads/sidm-v0.4.0-android.apk" download>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+            Download for Android
+          </a>
+          <p class="release-meta">
+            <span>Version <span data-release="version">0.4.0</span></span>
+            <span>APK, <span data-release="android-size">50 MB</span></span>
+            <span>Android 8 and newer</span>
+          </p>
+          <p class="release-hash">SHA-256: <code data-release="android-sha256">not built yet</code></p>
+          <p class="hero-note">Phone older than about 2017? Try the <a data-release="android-32bit-zip" href="downloads/sidm-v0.4.0-android-32bit.apk" download>32-bit version</a> (<span data-release="android-32bit-size">45 MB</span>, SHA-256 <code data-release="android-32bit-sha256">not built yet</code>).</p>
+
+          <ol class="steps">
+            <li class="step">
+              <div>
+                <h3>Download on your phone</h3>
+                <p>Open this page on your Android phone and tap <b>Download for Android</b>. If Chrome asks whether to keep the file, tap <b>Download anyway</b>.</p>
+              </div>
+            </li>
+            <li class="step">
+              <div>
+                <h3>Install it</h3>
+                <p>Tap the downloaded file. Android asks once to allow installs from your browser: tap <b>Settings</b>, switch on <b>Allow from this source</b>, go back and tap <b>Install</b>. Google Play Protect may say the app is from an unknown developer, because SIDM is not in the Play Store: tap <b>More details</b>, then <b>Install anyway</b>.</p>
+              </div>
+            </li>
+            <li class="step">
+              <div>
+                <h3>Share a video to SIDM</h3>
+                <p>In Instagram, TikTok, Facebook, YouTube or X, tap <b>Share</b>, then <b>SIDM</b>. Pick the quality and tap <b>Download</b>. Files go to <b>Downloads/SIDM</b> and show up in your Gallery. You can also paste a link, or browse inside SIDM.</p>
+              </div>
+            </li>
+          </ol>
+          <p>SIDM tells you when a new version is out. Its video engine updates by itself every day, so sites keep working when they change. Only save videos you own or have permission to download. DRM-protected services such as Netflix, Prime Video, Disney+ and Spotify are not supported.</p>
+          <p>On an iPhone? SIDM for iPhone is not available yet.</p>
+        </div>
+      </section>
+
       <!-- FAQ -->
-      <section class="alt" id="faq" aria-labelledby="faq-title">
+      <section id="faq" aria-labelledby="faq-title">
         <div class="wrap">
           <div class="section-head">
             <h2 id="faq-title">Questions and answers</h2>

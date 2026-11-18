@@ -19,7 +19,11 @@ What it does:
 3. Prints each ZIP's size and SHA-256.
 4. Writes site/version.json ({"version": "x.y.z"}), which the extension checks
    once a day to show "Update available".
-5. Updates the version, size, SHA-256 and download link on site/index.html.
+5. With --apk-dir, copies the signed Android APKs (built by GitHub Actions or
+   ./gradlew :app:assembleRelease in mobile/android) to
+   site/downloads/sidm-v<version>-android.apk (64-bit ARM, nearly every phone)
+   and sidm-v<version>-android-32bit.apk (older 32-bit phones). See APK_PLATFORMS.
+6. Updates the version, size, SHA-256 and download link on site/index.html.
    It only touches elements marked with data-release="..." attributes:
        data-release="version"            text = 1.2.3 (any number of these)
        data-release="<platform>-zip"     href = downloads/<zip name>
@@ -113,6 +117,16 @@ PLATFORMS = {
     },
 }
 
+# Android APKs: platform key -> processor type of the Gradle split APK
+# (app-<abi>-release.apk). They are copied, not built, by --apk-dir, because the
+# Android build needs the Android SDK (GitHub Actions has it).
+APK_PLATFORMS = {
+    "android": "arm64-v8a",
+    "android-32bit": "armeabi-v7a",
+}
+APK_NAME = "sidm-v{version}-{platform}.apk"
+ANDROID_GRADLE = os.path.join("mobile", "android", "app", "build.gradle.kts")
+
 
 class ReleaseError(Exception):
     pass
@@ -137,6 +151,31 @@ def read_companion_version(root):
     if not match:
         raise ReleaseError("could not find VERSION = \"...\" in companion/host.py")
     return match.group(1)
+
+
+ANDROID_VERSION_RE = re.compile(r'^val sidmVersionName\s*=\s*"([^"]+)"', re.M)
+
+
+def read_android_version(root):
+    """The Android app's versionName, or None if the Android app is not in this tree."""
+    path = os.path.join(root, ANDROID_GRADLE)
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        match = ANDROID_VERSION_RE.search(f.read())
+    if not match:
+        raise ReleaseError(f'could not find val sidmVersionName = "..." in {ANDROID_GRADLE}')
+    return match.group(1)
+
+
+def apk_is_signed(path):
+    """True if the APK has a v1 (META-INF/*.RSA) or v2+ (APK Signing Block) signature."""
+    with open(path, "rb") as f:
+        data = f.read()
+    if b"APK Sig Block 42" in data[-(4 << 20):] or b"APK Sig Block 42" in data:
+        return True
+    with zipfile.ZipFile(path) as zf:
+        return any(re.match(r"META-INF/[^/]+\.(RSA|DSA|EC)$", n) for n in zf.namelist())
 
 
 # --- ZIP contents -------------------------------------------------------------
@@ -242,7 +281,7 @@ def human_size(size):
 
 def remove_old_zips(downloads, platform, keep_name):
     removed = []
-    ext = "exe" if PLATFORMS[platform].get("setup_file") else "zip"
+    ext = "apk" if platform in APK_PLATFORMS else "exe" if PLATFORMS[platform].get("setup_file") else "zip"
     for path in glob.glob(os.path.join(downloads, f"sidm-v*-{platform}.{ext}")):
         if os.path.basename(path) != keep_name:
             os.remove(path)
@@ -337,13 +376,19 @@ def build_setup_bytes(root, version):
             return f.read()
 
 
-def release(root, platforms, keep=False, out=print, setup=True):
+def release(root, platforms, keep=False, out=print, setup=True, apk_dir=None):
     version = read_extension_version(root)
     companion_version = read_companion_version(root)
     if companion_version != version:
         raise ReleaseError(
             f"version mismatch: extension/manifest.json is {version}, companion/host.py is "
             f"{companion_version}. Run scripts/bump.py to set both."
+        )
+    android_version = read_android_version(root)
+    if android_version is not None and android_version != version:
+        raise ReleaseError(
+            f"version mismatch: extension/manifest.json is {version}, {ANDROID_GRADLE} is "
+            f"{android_version}. Run scripts/bump.py to set all of them."
         )
 
     site = os.path.join(root, "site")
@@ -380,6 +425,28 @@ def release(root, platforms, keep=False, out=print, setup=True):
             for old in remove_old_zips(downloads, platform, name):
                 out(f"    removed old {old}")
 
+    if apk_dir:
+        for platform, abi in APK_PLATFORMS.items():
+            source = os.path.join(apk_dir, f"app-{abi}-release.apk")
+            if not os.path.isfile(source):
+                raise ReleaseError(f"{source} not found (expected the signed release APK for {abi})")
+            if not apk_is_signed(source):
+                raise ReleaseError(f"{source} is not signed; sign it with the SIDM release key first")
+            name = APK_NAME.format(version=version, platform=platform)
+            path = os.path.join(downloads, name)
+            with open(source, "rb") as src, open(path, "wb") as dst:
+                dst.write(src.read())
+            size = os.path.getsize(path)
+            info = {"name": name, "path": path, "size": size, "size_text": human_size(size),
+                    "sha256": sha256_of(path), "files": 1}
+            builds[platform] = info
+            out(f"  {os.path.relpath(path, root)}")
+            out(f"    size:    {size} bytes ({info['size_text']})")
+            out(f"    sha256:  {info['sha256']}")
+            if not keep:
+                for old in remove_old_zips(downloads, platform, name):
+                    out(f"    removed old {old}")
+
     write_version_json(site, version)
     out("  site/version.json updated")
 
@@ -401,10 +468,13 @@ def main(argv=None):
                         help="build only this platform (repeatable); default: all")
     parser.add_argument("--no-setup", action="store_true",
                         help="skip the Windows setup program (when NSIS is not installed)")
+    parser.add_argument("--apk-dir", help="folder with the signed app-<abi>-release.apk files; "
+                        "adds the Android downloads (sidm-v<version>-android.apk, -android-32bit.apk)")
     parser.add_argument("--root", default=ROOT, help=argparse.SUPPRESS)  # used by tests
     args = parser.parse_args(argv)
     try:
-        release(args.root, args.platform or list(PLATFORMS), keep=args.keep, setup=not args.no_setup)
+        release(args.root, args.platform or list(PLATFORMS), keep=args.keep, setup=not args.no_setup,
+                apk_dir=args.apk_dir)
     except ReleaseError as err:
         print(f"release.py: error: {err}", file=sys.stderr)
         return 1

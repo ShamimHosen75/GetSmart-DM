@@ -217,7 +217,7 @@ class Engine(
         val online = net.online
         val wifiOk = !s.wifiOnly || net.unmetered
         for (item in items) {
-            if (item.status == Status.RUNNING && item.id !in running) store.update(item.id) { it.copy(status = Status.QUEUED) }
+            if (item.status == Status.RUNNING && !running.containsKey(item.id)) store.update(item.id) { it.copy(status = Status.QUEUED) }
             if (item.status == Status.WAITING_NETWORK && online && wifiOk) store.update(item.id) { it.copy(status = Status.QUEUED) }
         }
         val queued = store.items.value.filter { it.status == Status.QUEUED }.sortedBy { it.createdAt }
