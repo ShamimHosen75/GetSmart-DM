@@ -1,0 +1,71 @@
+# Builds and tests SIDM for Android (mobile/android/).
+#
+# The release APKs are signed with the SIDM release key when the repository has
+# the SIDM_KEYSTORE_BASE64 / SIDM_KEYSTORE_PASSWORD secrets; otherwise they are
+# left unsigned and signed afterwards (see mobile/android/README.md).
+# The debug APKs are always signed with a throwaway debug key, for testing.
+name: android
+
+on:
+  push:
+    paths:
+      - "mobile/android/**"
+      - ".github/workflows/android.yml"
+  pull_request:
+    paths:
+      - "mobile/android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile/android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Release signing key (when the secrets exist)
+        env:
+          KEYSTORE_B64: ${{ secrets.SIDM_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/sidm-release.jks"
+            echo "SIDM_KEYSTORE=$RUNNER_TEMP/sidm-release.jks" >> "$GITHUB_ENV"
+          fi
+
+      - name: Unit tests (core engine + app strings)
+        run: ./gradlew --no-daemon :core:test :app:testDebugUnitTest
+
+      - name: Build APKs
+        env:
+          SIDM_KEYSTORE_PASSWORD: ${{ secrets.SIDM_KEYSTORE_PASSWORD }}
+          SIDM_KEY_PASSWORD: ${{ secrets.SIDM_KEYSTORE_PASSWORD }}
+          SIDM_SITE_URL: ${{ vars.SIDM_SITE_URL }}
+        run: ./gradlew --no-daemon :app:assembleRelease :app:assembleDebug
+
+      - name: APK sizes
+        run: find app/build/outputs/apk -name '*.apk' -exec ls -la {} \;
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sidm-android-apks
+          path: mobile/android/app/build/outputs/apk/**/*.apk
+          retention-days: 14
+          compression-level: 0

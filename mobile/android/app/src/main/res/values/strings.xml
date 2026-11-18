@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only what Android itself shows before the app runs. Every in-app string is in Strings.kt (English and Bangla). -->
+<resources>
+    <string name="app_name">SIDM</string>
+    <string name="share_label">Download with SIDM</string>
+</resources>
