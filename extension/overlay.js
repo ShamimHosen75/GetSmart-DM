@@ -3,8 +3,10 @@
 // Shows a small "Download" button at the top-right corner of a video while the
 // pointer is over it, or for a moment when a video starts playing. Clicking
 // opens a short menu with what can be saved:
-//   - on video sites, and on any other page that plays a video: the qualities
-//     the companion app can download (or how to install it, if it is missing),
+//   - the qualities SIDM can save by itself from the streams the page played
+//     (HLS, DASH, MP4 pieces; joined into one MP4 in the browser, M15),
+//   - when the optional companion app is installed: its qualities too (needed
+//     for YouTube, whose streams the browser cannot save by itself),
 //   - the video/audio files this tab played (from media detection),
 //   - the <video> element's own file address when it is a plain http(s) file.
 // In feeds (Facebook, X, Instagram...) the video's own post link is used.
@@ -291,20 +293,29 @@
 
     const reply = await send({ type: 'overlayMedia' });
     const parts = [];
-    if (reply?.site === 'video' || reply?.site === 'generic') {
-      parts.push(head(reply.site === 'video' ? s('overlayQualities') : s('overlayTryCompanion')));
-      if (reply.companion === 'connected') {
-        const pageUrl = videoPageUrl(currentVideo);
-        for (const [quality, key] of QUALITIES) {
-          const meta = quality === info.quality ? s('overlayDefault') : '';
-          parts.push(item(s(key), meta, () => send({ type: 'addVideo', url: pageUrl, quality, title: document.title })));
-        }
-      } else if (reply.companion === 'missing') {
-        parts.push(note(s('overlayNeedCompanion')));
-        parts.push(item(s('overlayInstallHelp'), '', () => send({ type: 'overlayCompanionHelp' }), { closeOnly: true }));
-      } else {
-        parts.push(note(s('overlayCompanionError')));
+    const options = reply?.streams?.options || [];
+    if (options.length) {
+      // Saved by the browser itself, no install needed (M15).
+      parts.push(head(s('overlayQualities')));
+      for (const o of options) {
+        const name = o.audioOnly ? s('qualityAudio') : o.label || s('overlayVideoSite');
+        const meta = [formatSize(o.size), o.hasAudio || o.audioOnly ? '' : s('overlayNoSound')].filter(Boolean).join(' · ');
+        parts.push(item(name, meta, () => send({ type: 'addStream', optionId: o.id, title: document.title })));
       }
+    } else if (reply?.streams?.refused) {
+      parts.push(note(s(reply.streams.refused === 'live' ? 'overlayLive' : 'overlayEncrypted')));
+    }
+    if (reply?.companion === 'connected' && (reply.site === 'video' || reply.site === 'generic')) {
+      // The optional companion app, when it is installed: YouTube and other sites the browser cannot save.
+      parts.push(head(s('overlayViaCompanion')));
+      const pageUrl = videoPageUrl(currentVideo);
+      for (const [quality, key] of QUALITIES) {
+        const meta = quality === info.quality ? s('overlayDefault') : '';
+        parts.push(item(s(key), meta, () => send({ type: 'addVideo', url: pageUrl, quality, title: document.title })));
+      }
+    } else if (!options.length && reply?.youtube) {
+      parts.push(note(s('overlayYouTubeCompanion')));
+      parts.push(item(s('overlayInstallHelp'), '', () => send({ type: 'overlayCompanionHelp' }), { closeOnly: true }));
     }
     const seen = new Set();
     const files = [];

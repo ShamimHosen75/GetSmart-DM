@@ -392,7 +392,7 @@ async function confirmDelete(records) {
         await chrome.runtime.sendMessage({ type: 'removeQueued', qid: rec.item.qid });
         continue;
       }
-      if (rec.item.engine === 'companion') {
+      if (rec.item.engine) {
         // Cancels a running or paused file first; the companion removes only its own partial file.
         // Finished companion files stay on disk: the browser cannot delete files it did not download.
         await itemAction('erase', rec.item);

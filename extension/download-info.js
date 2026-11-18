@@ -86,10 +86,42 @@ export function fileJobItem(job) {
   };
 }
 
-/** Companion file jobs as download items, read from chrome.storage.local. */
+/** A video being downloaded in the browser (M15), shaped like a chrome.downloads item, id "s:<job id>". */
+export function streamJobItem(job) {
+  const iso = (time) => (time ? new Date(time).toISOString() : undefined);
+  const final = job.state === 'error' || job.state === 'canceled';
+  return {
+    id: `s:${job.id}`,
+    jobId: job.id,
+    engine: 'stream',
+    url: job.pageUrl || '',
+    finalUrl: job.pageUrl || '',
+    filename: `${job.name}.mp4`,
+    mime: 'video/mp4',
+    state: FILE_STATE[job.state] || 'interrupted',
+    paused: job.state === 'paused',
+    bytesReceived: job.downloaded || 0,
+    totalBytes: job.total > 0 ? job.total : -1,
+    fileSize: job.total,
+    error: job.state === 'canceled' ? 'USER_CANCELED' : job.state === 'error' ? 'STREAM' : undefined,
+    errorText: job.state === 'error' ? streamError(job) : '',
+    canResume: job.state === 'paused' || job.state === 'error' || job.state === 'canceled',
+    exists: true,
+    startTime: iso(job.createdAt),
+    endTime: final ? iso(job.endedAt || job.updatedAt) : undefined,
+    speed: job.speed || 0,
+  };
+}
+
+function streamError(job) {
+  const key = { encrypted: 'streamErrEncrypted', live: 'streamErrLive', forbidden: 'streamErrForbidden', gone: 'streamErrGone' }[job.code];
+  return key ? t(key) : job.error || '';
+}
+
+/** Companion file jobs and in-browser video jobs as download items, from chrome.storage.local. */
 export async function fileJobItems() {
-  const { fileJobs = {} } = await chrome.storage.local.get('fileJobs');
-  return Object.values(fileJobs).map(fileJobItem);
+  const { fileJobs = {}, streamJobs = {} } = await chrome.storage.local.get(['fileJobs', 'streamJobs']);
+  return [...Object.values(fileJobs).map(fileJobItem), ...Object.values(streamJobs).map(streamJobItem)];
 }
 
 /** Why a download failed, in words, or "". */
@@ -99,6 +131,15 @@ export function failureText(item) {
 
 /** Pause, resume, cancel, open, show or erase any download (browser or companion). */
 export function itemAction(action, item) {
+  if (item.engine === 'stream') {
+    // Retry starts again; resume picks up where it paused when the pieces are still in memory.
+    const type = { pause: 'pauseStream', resume: item.state === 'interrupted' ? 'retryStream' : 'resumeStream', cancel: 'cancelStream', erase: 'eraseStream' }[action];
+    if (!type) return Promise.resolve();
+    return chrome.runtime.sendMessage({ type, id: item.jobId }).then((reply) => {
+      if (reply?.error) throw new Error(reply.error);
+      return reply;
+    });
+  }
   if (item.engine === 'companion') {
     const id = item.jobId;
     const type = { pause: 'pauseFile', resume: 'resumeFile', cancel: 'cancelFile', erase: 'eraseFile', open: 'openFile', show: 'openFile' }[action];

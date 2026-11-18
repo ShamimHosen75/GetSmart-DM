@@ -150,6 +150,15 @@ async function startBrowserDownload(entry, settings) {
   return id;
 }
 
+/**
+ * Save a file the extension made itself (a blob: URL from the offscreen page,
+ * M15) under `filename`, with the usual folder sorting. Returns the download id.
+ */
+export async function saveFile(url, filename) {
+  const settings = await cachedSettings();
+  return startBrowserDownload({ url, filename }, settings);
+}
+
 setFileJobHooks({
   // The companion turned a file down (no ranges, login needed): the browser downloads it.
   fallback: async (entry) => {

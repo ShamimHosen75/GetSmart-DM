@@ -125,7 +125,7 @@ export const CATEGORIES = ['video', 'music', 'documents', 'programs', 'archives'
 
 const EXTENSION_CATEGORY = new Map();
 for (const [category, list] of Object.entries({
-  video: 'mp4 m4v mkv webm avi mov wmv flv f4v mpg mpeg 3gp 3g2 m2ts mts ogv',
+  video: 'mp4 m4v mkv webm avi mov wmv flv f4v mpg mpeg 3gp 3g2 m2ts mts ts ogv',
   music: 'mp3 m4a aac wav flac ogg oga opus wma aiff aif alac mka',
   documents: 'pdf doc docx docm xls xlsx xlsm ppt pptx odt ods odp rtf txt csv tsv epub mobi md json xml',
   programs: 'exe msi msix msixbundle appx appxbundle apk xapk dmg pkg deb rpm appimage bat cmd ps1 jar',

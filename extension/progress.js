@@ -10,10 +10,10 @@
 // Companion file downloads (M13) also show their parts as a segment bar and a
 // connection table, and take a speed limit.
 //
-// URL: progress.html?id=<chrome download id> or ?id=f:<companion job id>
+// URL: progress.html?id=<chrome download id>, ?id=f:<companion job id> or ?id=s:<in-browser video job id>
 
 import { categoryOf, fileExtension, formatBytes, formatDuration, initPage } from './common.js';
-import { STATE_LABEL, displayName, failureText, fileJobItem, itemAction, stateOf, totalBytes } from './download-info.js';
+import { STATE_LABEL, displayName, failureText, fileJobItem, itemAction, streamJobItem, stateOf, totalBytes } from './download-info.js';
 import { SpeedTracker, secondsLeft } from './speed.js';
 import { t } from './i18n.js';
 
@@ -24,7 +24,8 @@ const FINISH_DEFAULTS_KEY = 'finishDefaults'; // storage.local: last choice, use
 
 const rawId = new URLSearchParams(location.search).get('id') || '';
 const companion = rawId.startsWith('f:');
-const id = companion ? rawId : Number(rawId);
+const stream = rawId.startsWith('s:'); // video downloaded in the browser (M15)
+const id = companion || stream ? rawId : Number(rawId);
 const speeds = new SpeedTracker();
 const $ = (sel) => document.getElementById(sel);
 
@@ -40,6 +41,11 @@ let sawRunning = false; // the "When finished" choices only apply to a download 
 // ---------- Data ----------
 
 async function find() {
+  if (stream) {
+    const { streamJobs = {} } = await chrome.storage.local.get('streamJobs');
+    const job = streamJobs[id.slice(2)];
+    return job ? streamJobItem(job) : null;
+  }
   if (!companion) return (await chrome.downloads.search({ id }))[0];
   const { fileJobs = {} } = await chrome.storage.local.get('fileJobs');
   const job = fileJobs[id.slice(2)];
@@ -78,7 +84,7 @@ async function probeResume(url) {
 function maybeProbeResume() {
   // Chrome knows for paused and interrupted downloads; ask the server only while running.
   const url = item.finalUrl || item.url;
-  if (companion) return; // the companion only takes servers that can resume
+  if (companion || stream) return; // the companion only takes servers that can resume; streams keep their pieces
   if (stateOf(item) !== 'downloading' || !/^https?:/i.test(url) || resumeProbe.url === url) return;
   resumeProbe = { url, result: undefined };
   probeResume(url).then((result) => {
@@ -90,7 +96,7 @@ function maybeProbeResume() {
 // ---------- Rendering ----------
 
 function resumeText(state) {
-  if (companion) return t('progResumeYes');
+  if (companion || stream) return t('progResumeYes');
   if (state === 'paused' || state === 'failed' || state === 'cancelled') {
     return item.canResume ? t('progResumeYes') : t('progResumeNo');
   }
@@ -328,6 +334,7 @@ async function main() {
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (companion && area === 'local' && changes.fileJobs) refresh();
+    if (stream && area === 'local' && changes.streamJobs) refresh();
   });
   chrome.downloads.onErased.addListener((erased) => {
     if (erased === id) showGone();
@@ -339,7 +346,7 @@ async function main() {
     }
   });
 
-  if (!companion && (!Number.isInteger(id) || id < 0)) {
+  if (!companion && !stream && (!Number.isInteger(id) || id < 0)) {
     showGone();
     return;
   }

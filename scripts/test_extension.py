@@ -93,6 +93,60 @@ fetch("/f/part.mp4?size=300000&mime=video/mp4", {headers: {Range: "bytes=0-99"}}
     "/empty.html": """<!doctype html><html><head><title>Nothing</title></head><body>No links.</body></html>""",
 }
 
+# Video pages for the in-browser engine (M15): each plays like a real player
+# would (fetches a playlist, a manifest or pieces of MP4 files) next to a
+# <video> in a shadow root. Files come from /sv/, made with ffmpeg at start.
+STREAM_PAGE = """<!doctype html><html><head><title>%s</title></head><body style="margin:0">
+<article style="margin:30px"><div id="player"></div></article>
+<script>
+const root = document.getElementById('player').attachShadow({mode: 'open'});
+const v = document.createElement('video');
+v.style.cssText = 'width:480px;height:270px;display:block;background:#123';
+root.append(v);
+%s
+</script></body></html>"""
+PAGES.update({
+    "/s-hls.html": STREAM_PAGE % ("HLS Test", "fetch('/sv/master.m3u8'); fetch('/sv/v360.m3u8');"),
+    "/s-ts.html": STREAM_PAGE % ("TS Test", "fetch('/sv/ts.m3u8');"),
+    "/s-dash.html": STREAM_PAGE % ("DASH Test", "fetch('/sv/dash.mpd');"),
+    "/s-pieces.html": STREAM_PAGE % ("Pieces Test",
+        "fetch('/sv/v.mp4?bytestart=0&byteend=9999'); fetch('/sv/a.mp4?bytestart=0&byteend=9999');"),
+    "/s-enc.html": STREAM_PAGE % ("Encrypted Test", "fetch('/sv/enc.m3u8');"),
+})
+STREAM_DIR = None  # set by make_stream_fixtures()
+STREAM_MIME = {".m3u8": "application/vnd.apple.mpegurl", ".mpd": "application/dash+xml", ".m4s": "video/iso.segment",
+               ".mp4": "video/mp4", ".ts": "video/mp2t"}
+
+
+def make_stream_fixtures():
+    """HLS (fMP4 with a separate audio playlist, and MPEG-TS), DASH and plain MP4 pieces, made with ffmpeg."""
+    global STREAM_DIR
+    if not shutil.which("ffmpeg"):
+        return False
+    d = tempfile.mkdtemp(prefix="gsdm-sv-")
+    def ff(*args):
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *args], cwd=d, check=True)
+    frag = ["-movflags", "frag_keyframe+empty_moov+default_base_moof"]
+    for size, name in (("640x360", "v.mp4"), ("426x240", "v240.mp4")):
+        ff("-f", "lavfi", "-i", "testsrc=duration=6:size=%s:rate=25" % size, "-c:v", "libx264", "-g", "25",
+           "-pix_fmt", "yuv420p", *frag, name)
+    ff("-f", "lavfi", "-i", "sine=frequency=440:duration=6", "-c:a", "aac", *frag, "a.mp4")
+    hls = ["-c", "copy", "-f", "hls", "-hls_time", "2", "-hls_playlist_type", "vod"]
+    for src, name in (("v.mp4", "v360"), ("v240.mp4", "v240"), ("a.mp4", "aud")):
+        ff("-i", src, *hls, "-hls_segment_type", "fmp4", "-hls_fmp4_init_filename", name + "-init.mp4",
+           "-hls_segment_filename", name + "-%d.m4s", name + ".m3u8")
+    ff("-i", "v.mp4", "-i", "a.mp4", "-map", "0", "-map", "1", *hls, "-hls_segment_filename", "ts-%d.ts", "ts.m3u8")
+    ff("-i", "v.mp4", "-i", "a.mp4", "-map", "0", "-map", "1", "-c", "copy", "-f", "dash", "-seg_duration", "2",
+       "-use_template", "1", "-use_timeline", "1", "dash.mpd")
+    with open(os.path.join(d, "master.m3u8"), "w") as f:
+        f.write('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="English",DEFAULT=YES,URI="aud.m3u8"\n'
+                '#EXT-X-STREAM-INF:BANDWIDTH=900000,RESOLUTION=640x360,AUDIO="aud"\nv360.m3u8\n'
+                '#EXT-X-STREAM-INF:BANDWIDTH=400000,RESOLUTION=426x240,AUDIO="aud"\nv240.m3u8\n')
+    with open(os.path.join(d, "enc.m3u8"), "w") as f:
+        f.write('#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"\n#EXTINF:2,\nts-0.ts\n#EXT-X-ENDLIST\n')
+    STREAM_DIR = d
+    return True
+
 BANGLA_CD = "attachment; filename=\"fallback.mp4\"; filename*=UTF-8''%E0%A6%AD%E0%A6%BF%E0%A6%A1%E0%A6%BF%E0%A6%93.mp4"
 
 
@@ -117,6 +171,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send_simple(200, PAGES[url.path].encode("utf-8"), "text/html; charset=utf-8")
         if url.path == "/404" or url.path.startswith("/missing"):
             return self._send_simple(404, b"not found")
+        if url.path.startswith("/sv/") and STREAM_DIR:
+            return self.serve_stream_file(url.path[4:], query)
         if url.path.endswith(".m3u8"):
             return self._send_simple(200, b"#EXTM3U\n#EXTINF:4,\nseg1.ts\n" + b"#" * 300000, "application/vnd.apple.mpegurl")
         if url.path.endswith(".ts"):
@@ -126,6 +182,28 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if url.path.startswith("/f/"):
             return self.serve_file(query)
         return self._send_simple(404, b"not found")
+
+    def serve_stream_file(self, name, query):
+        path = os.path.join(STREAM_DIR, os.path.basename(name))
+        if not os.path.isfile(path):
+            return self._send_simple(404, b"not found")
+        with open(path, "rb") as f:
+            data = f.read()
+        mime = STREAM_MIME.get(os.path.splitext(path)[1], "application/octet-stream")
+        if "bytestart" in query:  # Facebook-style pieces: the range is in the address
+            data = data[int(query["bytestart"]):int(query.get("byteend", len(data) - 1)) + 1]
+            return self._send_simple(200, data, mime)
+        match = re.match(r"bytes=(\d+)-(\d*)", self.headers.get("Range") or "")
+        if not match:
+            return self._send_simple(200, data, mime)
+        start = int(match.group(1))
+        end = min(int(match.group(2)), len(data) - 1) if match.group(2) else len(data) - 1
+        self.send_response(206)
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Range", "bytes %d-%d/%d" % (start, end, len(data)))
+        self.send_header("Content-Length", str(end - start + 1))
+        self.end_headers()
+        self.wfile.write(data[start:end + 1])
 
     def serve_file(self, query):
         size = int(query.get("size", "100000"))
@@ -203,7 +281,7 @@ class Browser:
             json.dump({"download": {"default_directory": self.downloads, "prompt_for_download": False,
                                     "directory_upgrade": True},
                        "safebrowsing": {"enabled": False}}, f)
-        port = free_port()
+        port = self.port = free_port()
         args = [find_chrome(playwright), "--no-first-run", "--no-default-browser-check", "--no-sandbox",
                 "--remote-debugging-port=%d" % port, "--user-data-dir=" + profile,
                 "--disable-extensions-except=" + EXTENSION, "--load-extension=" + EXTENSION,
@@ -682,16 +760,85 @@ def check_video_button(b, base):
     open_video_menu(page)
     wait_for(lambda: b.call("(k) => chrome.storage.session.get(k)", "video:%d" % tab).get("video:%d" % tab),
              what="page reported a video")
-    # No companion here: the first entry is "How to install it", which opens Settings.
-    page.keyboard.press("Enter")
-    wait_for(lambda: b.call("async () => (await chrome.runtime.getContexts({contextTypes: ['TAB']})).some((c) => c.documentUrl.endsWith('options.html#companion'))"),
-             what="settings opened at the companion section")
+    # Nothing played yet and no companion: the menu says to play the video; it does not push an install.
+    text = page.evaluate("() => document.querySelector('gsdm-video-button') ? 'present' : ''")
+    assert text == "present", "video button not added"
     popup = b.page("popup.html?tab=%d" % tab)
     popup.click("#tab-page")
     popup.wait_for_selector("#video-card:not([hidden]) .v-help")
+    help_text = popup.inner_text("#video-card .v-help")
+    assert "install" not in help_text.lower(), help_text
     popup.close()
     page.close()
-    return "found in a shadow root after load; menu says install the companion and opens Settings; popup offers the video on an unknown site"
+    return "found in a shadow root after load; with nothing played it asks to play the video (no install prompt)"
+
+
+def ffprobe_streams(path):
+    if not shutil.which("ffprobe"):
+        return None
+    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", path],
+                         capture_output=True, text=True, check=True).stdout.split()
+    return sorted(out)
+
+
+def stream_download(b, base, page_path, pick, expect_name, expect_streams):
+    """Open a stream page, ask for the choices, download one, check the saved file."""
+    page = b.page()
+    page.goto(base + page_path)
+    tab = tab_id_for(b, base + page_path)
+    seen = {}
+
+    def wanted():
+        seen["reply"] = b.message({"type": "streamOptions", "tabId": tab})
+        return pick(seen["reply"].get("options") or [])
+
+    option = wait_for(wanted, what="wanted stream choice on %s (have %r)" % (page_path, seen))
+    labels = [o["label"] or "video" for o in seen["reply"]["options"]]
+    added = b.message({"type": "addStream", "optionId": option["id"], "tabId": tab, "title": page.title()})
+    assert added.get("id"), added
+    rel = wait_for(lambda: next((f for f in files_on_disk(b.downloads) if f == expect_name), None), timeout=60,
+                   what=expect_name + " on disk (have %r)" % files_on_disk(b.downloads))
+    streams = ffprobe_streams(os.path.join(b.downloads, rel))
+    if streams is not None:
+        # Joined MPEG-TS pieces repeat their program table, so ffprobe may list each stream twice.
+        got = sorted(set(streams)) if rel.endswith(".ts") else streams
+        assert got == expect_streams, "%s has %r" % (rel, streams)
+    page.close()
+    return labels
+
+
+def check_stream_videos(b, base):
+    if not STREAM_DIR:
+        return "skipped: ffmpeg not installed"
+    reset(b)
+    with_audio = lambda height: (lambda opts: next((o for o in opts if o["label"] == height and o["hasAudio"]), None))
+    hls = stream_download(b, base, "/s-hls.html", with_audio("360p"), "SIDM/Video/HLS Test (360p).mp4", ["audio", "video"])
+    assert hls[:2] == ["360p", "240p"] and len(hls) == 2, "HLS choices %r (variant playlist must not repeat)" % hls
+    dash = stream_download(b, base, "/s-dash.html", with_audio("360p"), "SIDM/Video/DASH Test (360p).mp4", ["audio", "video"])
+    assert "audio" in dash, dash
+    stream_download(b, base, "/s-pieces.html", with_audio("360p"), "SIDM/Video/Pieces Test (360p).mp4", ["audio", "video"])
+    stream_download(b, base, "/s-ts.html", lambda opts: opts[0], "SIDM/Video/TS Test.ts", ["audio", "video"])
+
+    # Encrypted HLS is refused, never downloaded.
+    page = b.page()
+    page.goto(base + "/s-enc.html")
+    tab = tab_id_for(b, base + "/s-enc.html")
+    reply = wait_for(lambda: (lambda r: r if r.get("refused") else None)(b.message({"type": "streamOptions", "tabId": tab})),
+                     what="encrypted stream refused")
+    assert reply["refused"] == "encrypted" and not reply["options"], reply
+    page.close()
+
+    # The video button offers the same choices and downloads from the menu.
+    page = b.page()
+    page.set_viewport_size({"width": 900, "height": 600})
+    page.goto(base + "/s-pieces.html")
+    time.sleep(1)
+    open_video_menu(page)
+    page.keyboard.press("Enter")
+    wait_for(lambda: len([f for f in files_on_disk(b.downloads) if f.startswith("SIDM/Video/Pieces Test (360p)")]) >= 2,
+             timeout=60, what="second download from the video button")
+    page.close()
+    return "HLS fMP4 + separate audio, DASH, Facebook-style MP4 pieces joined into one MP4 (video+audio); TS saved as .ts; encrypted refused; video button menu works"
 
 
 def register_companion(b):
@@ -785,6 +932,7 @@ CHECKS = [
     ("pause/resume from the UI", check_pause_resume_ui),
     ("manager page", check_manager),
     ("video button on any site", check_video_button),
+    ("videos without the companion", check_stream_videos),
     ("link grabber select + download", check_grabber),
     ("settings save", check_settings),
     ("category filter + clear finished", check_filter_and_clear),
@@ -803,6 +951,7 @@ def main():
     except ImportError:
         sys.exit("Playwright is missing: pip install playwright && python -m playwright install chromium")
 
+    make_stream_fixtures()
     server, base = start_server()
     os.environ["GSDM_PORT"] = str(server.server_address[1])
     failures = 0
@@ -810,7 +959,10 @@ def main():
         b = Browser(playwright, args.headed)
         try:
             time.sleep(1)
+            only = os.environ.get("GSDM_ONLY", "")  # run only checks whose name contains this text
             for name, check in CHECKS:
+                if only and only not in name:
+                    continue
                 try:
                     detail = check(b, base)
                     print("PASS  %-36s %s" % (name, detail))
@@ -827,6 +979,8 @@ def main():
         finally:
             b.close()
             server.shutdown()
+            if STREAM_DIR:
+                shutil.rmtree(STREAM_DIR, ignore_errors=True)
     print("\n%s" % ("ALL PASSED" if not failures else "%d FAILED" % failures))
     return 1 if failures else 0
 

@@ -246,6 +246,7 @@ export async function getVideoState({ url, tabId } = {}) {
   return {
     site: url ? videoPageStatus(url, settings.allowYouTube, await tabHasVideo(tabId)) : null,
     drm: url ? isDrmSite(url) : false,
+    youtube: url ? isYouTube(url) : false,
     companion: bridge.publicStatus(),
     jobs: await getJobs(),
     defaultQuality: settings.defaultQuality,

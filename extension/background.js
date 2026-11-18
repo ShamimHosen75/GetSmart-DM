@@ -10,6 +10,7 @@
 //   native-bridge.js  companion app connection and video jobs (M7)
 //   file-jobs.js      multi-connection file downloads through the companion (M13)
 //   scheduler.js      start/stop the queue at set times, "when the queue is done" (M14)
+//   stream-jobs.js    video downloads made in the browser, no install needed (M15)
 //   progress.html     per-download progress window, opened here on start (M11)
 
 import { autoOpenProgress, seedDefaultSettings } from './common.js';
@@ -19,6 +20,7 @@ import { registerMediaListeners, overlayHandlers } from './media.js';
 import { videoHandlers } from './native-bridge.js';
 import { fileHandlers, registerFileJobListeners, runningFileJobs } from './file-jobs.js';
 import { planAlarms, registerSchedulerListeners } from './scheduler.js';
+import { markInterruptedStreams, registerStreamListeners, runningStreamJobs, streamHandlers } from './stream-jobs.js';
 
 const BADGE_COLOR = '#6c3ff0';
 
@@ -32,6 +34,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  markInterruptedStreams();
   updateBadge();
   pump();
   planAlarms();
@@ -42,6 +45,7 @@ registerMenuListeners();
 registerMediaListeners();
 registerSchedulerListeners();
 registerFileJobListeners();
+registerStreamListeners();
 
 /**
  * Content scripts only reach pages loaded after install. Add the video button
@@ -67,7 +71,7 @@ function updateBadge() {
   badgeTimer = setTimeout(async () => {
     try {
       const active = await chrome.downloads.search({ state: 'in_progress', paused: false });
-      const count = active.length + (await runningFileJobs());
+      const count = active.length + (await runningFileJobs()) + (await runningStreamJobs());
       await chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR });
       if (chrome.action.setBadgeTextColor) {
         await chrome.action.setBadgeTextColor({ color: '#ffffff' });
@@ -85,7 +89,7 @@ chrome.downloads.onChanged.addListener((delta) => {
   if (delta.state || delta.paused) updateBadge();
 });
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes.fileJobs) updateBadge();
+  if (area === 'local' && (changes.fileJobs || changes.streamJobs)) updateBadge();
 });
 
 // ---------- Progress window on download start (M11) ----------
@@ -96,7 +100,7 @@ chrome.downloads.onCreated.addListener((item) => autoOpenProgress(item.id, 'all'
 
 // ---------- Messages from extension pages ----------
 
-const CONTENT_SCRIPT_CALLS = new Set(['overlayInfo', 'overlayMedia', 'overlaySawVideo', 'overlayCompanionHelp', 'enqueue', 'addVideo']);
+const CONTENT_SCRIPT_CALLS = new Set(['overlayInfo', 'overlayMedia', 'overlaySawVideo', 'overlayCompanionHelp', 'enqueue', 'addVideo', 'addStream']);
 
 const handlers = {
   enqueue: (msg) => enqueue(msg.items || []),
@@ -105,6 +109,7 @@ const handlers = {
   ...overlayHandlers, // overlayInfo, overlayMedia, overlaySawVideo, overlayCompanionHelp (content script video button)
   ...videoHandlers, // getVideoState, addVideo, cancelVideo, retryVideo, removeVideo, openVideoFolder
   ...fileHandlers, // pauseFile, resumeFile, cancelFile, eraseFile, openFile, setFileSpeedLimit
+  ...streamHandlers, // streamOptions, addStream, pause/resume/retry/cancel/eraseStream; streamProgress/Ready/Failed from offscreen.html
 };
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {

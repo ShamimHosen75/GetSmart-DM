@@ -40,7 +40,8 @@
     "scripting",
     "notifications",
     "nativeMessaging",
-    "alarms"
+    "alarms",
+    "offscreen"
   ],
   "host_permissions": [
     "<all_urls>"

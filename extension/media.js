@@ -11,6 +11,7 @@ import { detectionBlockReason, hostMatches, hostOf, isDrmSite, isYouTube, videoP
 
 export { detectionBlockReason };
 import { bridge } from './native-bridge.js';
+import { classifyStream, clearTabStreams, hasRangeParams, recordStream, streamOptions } from './stream-jobs.js';
 import { setLanguage, t } from './i18n.js';
 
 export const MAX_PER_TAB = 25;
@@ -93,6 +94,7 @@ export function sizeFromHeaders(headers, statusCode) {
 export function classifyResponse({ url, type, statusCode, headers }) {
   if (statusCode < 200 || statusCode >= 300) return null;
   if (type === 'xmlhttprequest' && statusCode === 206) return null;
+  if (hasRangeParams(url)) return null; // a piece of a file a player fetches bit by bit (stream-jobs.js)
 
   const mime = (headers['content-type'] || '').split(';')[0].trim().toLowerCase();
   if (SEGMENT_MIME.has(mime)) return null;
@@ -160,12 +162,13 @@ function addMedia(tabId, entry) {
 }
 
 /** Clear a tab's list, keeping only entries for `keepUrl` (a media file opened directly). */
-export function clearTab(tabId, keepUrl) {
+export function clearTab(tabId, keepUrl, since) {
   return locked(async () => {
     const list = keepUrl ? (await getTabMedia(tabId)).filter((m) => m.url === keepUrl) : [];
     if (list.length) await chrome.storage.session.set({ [storageKey(tabId)]: list });
     else await chrome.storage.session.remove(storageKey(tabId));
     await chrome.storage.session.remove(videoKey(tabId));
+    await clearTabStreams(tabId, since);
     await setBadge(tabId, list.length);
   });
 }
@@ -190,7 +193,14 @@ async function onHeadersReceived(details) {
   const headers = {};
   for (const h of details.responseHeaders || []) headers[h.name.toLowerCase()] = h.value || '';
 
-  const found = classifyResponse({ url: details.url, type: details.type, statusCode: details.statusCode, headers });
+  const response = { url: details.url, type: details.type, statusCode: details.statusCode, headers };
+  const stream = classifyStream(response);
+  if (stream) {
+    const tab = await chrome.tabs.get(details.tabId).catch(() => null);
+    if (tab) await recordStream(details.tabId, stream, tab.url || tab.pendingUrl || '');
+    return;
+  }
+  const found = classifyResponse(response);
   if (!found) return;
 
   const settings = await cachedSettings();
@@ -227,7 +237,7 @@ export function registerMediaListeners() {
   // New page in the tab: start a fresh list. Chrome resets tab badges on
   // navigation, so the badge is set again for whatever is kept.
   chrome.webNavigation.onCommitted.addListener((details) => {
-    if (details.frameId === 0) clearTab(details.tabId, details.url);
+    if (details.frameId === 0) clearTab(details.tabId, details.url, details.timeStamp);
   });
   chrome.tabs.onRemoved.addListener((tabId) => {
     chrome.storage.session.remove(storageKey(tabId));
@@ -251,6 +261,10 @@ const OVERLAY_STRINGS = [
   'overlayNeedCompanion',
   'overlayInstallHelp',
   'overlayCompanionError',
+  'overlayNoSound',
+  'overlayEncrypted',
+  'overlayLive',
+  'overlayYouTubeCompanion',
   'overlayDefault',
   'qualityBest',
   'quality1080',
@@ -287,18 +301,22 @@ export const overlayHandlers = {
   overlayMedia: async (msg, sender) => {
     const settings = await cachedSettings();
     const pageUrl = sender.tab?.url || '';
-    if (!overlayAllowed(pageUrl, sender.url, settings)) return { site: null, media: [] };
+    if (!overlayAllowed(pageUrl, sender.url, settings)) return { site: null, media: [], streams: { options: [] } };
     const media = sender.tab ? await getTabMedia(sender.tab.id) : [];
     const site = videoPageStatus(pageUrl, settings.allowYouTube, true);
-    let companion = null;
-    if (site === 'video' || site === 'generic') {
-      // Give the companion a moment to answer, so the menu can say whether it is installed.
-      await Promise.race([bridge.ensureConnected(), new Promise((resolve) => setTimeout(resolve, 2500))]);
+    // In the browser, no install needed (M15).
+    const streams = await streamOptions({}, sender).catch(() => ({ options: [], refused: '' }));
+    let companion = bridge.status;
+    if (!streams.options.length && settings.useCompanion && (site === 'video' || site === 'generic')) {
+      // Nothing the browser can save by itself: see whether the optional companion is there.
+      await Promise.race([bridge.ensureConnected(), new Promise((resolve) => setTimeout(resolve, 1500))]);
       companion = bridge.status;
     }
     return {
       site,
+      youtube: isYouTube(pageUrl),
       companion,
+      streams,
       media: media.slice().reverse().map(({ url, name, size, mime }) => ({ url, name, size, mime })),
     };
   },
