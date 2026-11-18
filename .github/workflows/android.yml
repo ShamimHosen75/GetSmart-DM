@@ -69,3 +69,58 @@ jobs:
           path: mobile/android/app/build/outputs/apk/**/*.apk
           retention-days: 14
           compression-level: 0
+
+  # On an Android emulator: the app starts, the video engine unpacks and runs,
+  # a real file lands in Downloads/SIDM, DRM is refused, and a report of what
+  # yt-dlp finds on real social sites (report only; sites may block CI machines).
+  device:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Device tests on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          working-directory: mobile/android
+          script: |
+            adb logcat -c
+            ./gradlew --no-daemon :app:connectedDebugAndroidTest || (adb logcat -d -s SIDM-SITES:I SIDM-TEST:I SIDM.engine:* SIDM.video:* AndroidRuntime:E > device-log.txt; exit 1)
+            adb logcat -d -s SIDM-SITES:I SIDM-TEST:I SIDM.engine:* SIDM.video:* AndroidRuntime:E > device-log.txt
+
+      - name: Real sites report
+        if: always()
+        working-directory: mobile/android
+        run: |
+          echo "## What yt-dlp found on real sites (emulator)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -h "SIDM-SITES" device-log.txt | sed 's/^.*SIDM-SITES[^:]*: //' >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat device-log.txt || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sidm-android-device-test
+          path: |
+            mobile/android/device-log.txt
+            mobile/android/app/build/reports/androidTests/
+          retention-days: 14

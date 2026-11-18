@@ -20,6 +20,7 @@ Permanent rules for anyone (human or AI) working in this repo. Read this first, 
 | `site/` | Static download website (HTML/CSS, no framework) |
 | `scripts/` | Packaging and release scripts |
 | `shared/` | Contracts shared by extension and companion; `shared/protocol.md` is the protocol spec |
+| `mobile/android/` | SIDM for Android (Kotlin, Jetpack Compose): `core/` plain-Kotlin engine with JVM tests, `app/` the app. Built and tested by `.github/workflows/android.yml` |
 
 Each folder has its own `README.md`, and each folder that ships features has a `QA.md`.
 
@@ -33,7 +34,7 @@ Step 0 (done): repo skeleton (this file, folders, `.gitignore`, `shared/protocol
 4. `scripts/`
 5. Companion for macOS and Linux (`companion/install.sh`, `uninstall.sh`, macOS/Linux release ZIP)
 
-Later: Android app.
+7. Android app (`mobile/android/`), owner's request 2026-11-18. iPhone: a web app later (owner's decision 2026-11-18), no native iPhone app for now.
 
 ## Current step
 
@@ -53,6 +54,8 @@ Earlier steps are not finished yet:
 - Step 2 (`companion/`): M1 (`host.py` + `scripts/test_host.py`), M2 (bat files + README), M3 (`scripts/test_companion.py`, end to end with the extension's M7 bridge) and M4 (`companion/QA.md`, version 0.1.0, CHANGELOG) done. Open: the owner's real `install.bat` run on Windows and the `companion/QA.md` real-site pass. Companion milestones: M1 host.py, M2 install/update/uninstall.bat + README, M3 end-to-end test, M4 QA.md + 0.1.0 + CHANGELOG.
 - Step 3 (`site/`): built (index, privacy, terms, `scripts/test_site.py`, `scripts/deploy_site.md`), waiting for "continue". Popup screenshots show the M1 popup and are placeholders.
 
+- Step 7 (`mobile/android/`): SIDM for Android, APK installed from the website (not the Play Store). Plan: https://claude.ai/artifact/68wEAHepFM64FqxWChF5Xx. A1 to A6 built in PR #11 (stacked on #10): app shell, multi-connection engine with background service, yt-dlp + ffmpeg on the phone (youtubedl-android), Share to SIDM, SIDM browser, settings, app and yt-dlp updates, release tooling (`release.py --apk-dir`) and the website's Android section. The Android SDK cannot be reached from the cloud sandbox: builds, unit tests and emulator tests run in GitHub Actions. Not yet tried on a real phone.
+
 Update this section at the end of every milestone.
 
 ## Extension rules
@@ -62,6 +65,14 @@ Update this section at the end of every milestone.
 - Original design: **light and dark theme** (follows system by default, overridable in Settings).
 - Fixed extension ID: the public key sits in `manifest.json` `"key"`, so the ID is always **`ejkhmcfjnohjikdgfgkhjficmiaoghma`** (the companion whitelists it). The private key `extension-key.pem` is gitignored and must **never** be committed. `python scripts/extension_id.py` prints the ID.
 - Strings: **English and Bangla** in a built-in dictionary module (`extension/i18n.js`). Do **not** use `chrome.i18n` / `_locales`, because the user must be able to switch language in Settings at runtime. Every user-visible string goes through the dictionary; no hard-coded UI text.
+
+## Android rules
+
+- Kotlin + Jetpack Compose, minSdk 26 (Android 8), compileSdk/targetSdk 35. Logic that needs no Android goes in `core/` with JVM tests.
+- Every user-visible string is in `app/src/main/java/com/sidm/app/Strings.kt` in **English and Bangla** (switchable at runtime, like the extension); `res/values/strings.xml` only holds what Android shows before the app runs. `StringsTest` checks both languages have every key.
+- Videos go through yt-dlp on the phone (youtubedl-android, GPL-3.0, so SIDM's source stays public). yt-dlp updates itself daily; never pin sites to an old yt-dlp.
+- Finished files go to `Downloads/SIDM` through MediaStore. Same content rules as everywhere: DRM refused, YouTube on with the one-time notice (the welcome screen).
+- Release APKs must be signed with the one SIDM release key (never committed; see `mobile/android/README.md`). Losing it means users must uninstall to update.
 
 ## Companion rules
 
@@ -90,7 +101,8 @@ Update this section at the end of every milestone.
 ## Release rules
 
 - The extension and companion always share one version (`x.y.z`). Change it only with `python scripts/bump.py`; `scripts/release.py` refuses to build if they differ.
-- Every version gets a `CHANGELOG.md` section with **Extension / Companion / Website** sub-headings.
+- Every version gets a `CHANGELOG.md` section with **Extension / Companion / Website** sub-headings, plus **Android** from 0.5.0 on.
+- The Android app shares the version (`sidmVersionName` in `mobile/android/app/build.gradle.kts`, set by `bump.py`, which also raises `sidmVersionCode`).
 - Follow `RELEASE.md` for every release. Tags are `v<version>` on `main`.
 
 ## Way of working
