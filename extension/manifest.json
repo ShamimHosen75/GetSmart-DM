@@ -3,7 +3,7 @@
   "name": "SIDM - Smart Internet Download Manager",
   "short_name": "SIDM",
   "description": "Download Smarter. Faster. Better. A free download manager with queue, folder sorting and media detection.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "minimum_chrome_version": "116",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwNgdEvwKE+BJI59R/ytVCacVXxFdxPraQPwbeMT9t2Tf89lM61HiasvbdokM5H1FMTj2fTch8KkPLAk6lP5xKOmavPEspnWX/u8rztPQqu9LSUsizylRVDpNEGQP7C3eU0mVxUE92gR1xXvL+PJPcTMAhNT5m31FotLfneL7Uy80YAxd8fSvDKhPf4YJmZQEO4NiCu4p02igJ9cs7YqLoI6yBgFU2u0YNMH7e2AT6E47U9BKH4EOySZZdUId1goMNCqpOxswjSBPY2fSrN0l94SmaUho66gnWVZZhSnnCwNj/QW1ZZs0jrdQI5zYc6nF2p874a02Ne38XmO18YtWQQIDAQAB",
   "icons": {

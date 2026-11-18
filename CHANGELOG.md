@@ -1,8 +1,37 @@
 # Changelog
 
-All notable changes to SIDM. Newest version first. Each version has three parts: **Extension**, **Companion** and **Website**.
+All notable changes to SIDM. Newest version first. Each version has **Extension**, **Companion** and **Website** parts, plus **Android** from 0.5.0 on.
 
 Add a new section with `python scripts/bump.py patch|minor|major`, then fill in the bullets before running `scripts/release.py`. See `RELEASE.md`.
+
+## [0.5.0] - 2026-11-18
+
+SIDM for Android: an app installed from the website, with the same download engine ideas as the desktop.
+
+### Extension
+
+- No changes besides the version.
+
+### Companion
+
+- No changes besides the version.
+
+### Website
+
+- New "SIDM for Android" section: download links for the APK (most phones) and the 32-bit APK (older phones), with size, SHA-256 and three install steps. Markers `android-*` and `android-32bit-*`.
+- A note for iPhone users: SIDM for iPhone is not available yet.
+- The FAQ section's background no longer clashes with the new section.
+
+### Android
+
+- First version. Android 8 and later, installed from the website (not the Play Store).
+- Paste a link or use Share to SIDM from any app (YouTube, Facebook, Instagram, TikTok, X, Reddit, LinkedIn, Vimeo and the other sites yt-dlp supports). Pick a quality, highest first, or audio only (M4A or MP3).
+- Files download with up to 8 connections at once, pause and resume, keep going in the background with a notification, and wait for Wi-Fi or the network to come back.
+- Built-in SIDM browser: sign in to a site, play the video, tap the download button. Files a page offers are caught too.
+- Settings: English and Bangla, light and dark theme, Wi-Fi only, connections, parallel downloads, speed limit, YouTube on or off (with the notice when turned back on).
+- The video engine (yt-dlp) updates itself every day; the app checks the website for new versions and installs them.
+- DRM services (Netflix, Prime Video, Disney+, Spotify and others) are refused.
+- Saved in `Downloads/SIDM`.
 
 ## [0.4.0] - 2026-11-18
 
