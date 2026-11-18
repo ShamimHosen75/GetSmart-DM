@@ -43,7 +43,7 @@ class DeviceTest {
     }
 
     @Test
-    fun videoEngineStarts() = runBlocking {
+    fun videoEngineStarts(): Unit = runBlocking {
         val ready = withTimeout(240_000) { app.engine.video.awaitReady() }
         assertTrue("video engine failed: ${app.engine.video.state.value}", ready)
         assertNotNull(app.engine.video.version.value)
@@ -51,7 +51,7 @@ class DeviceTest {
     }
 
     @Test
-    fun fileDownloadEndToEnd() = runBlocking {
+    fun fileDownloadEndToEnd(): Unit = runBlocking {
         app.settings.update { it.copy(welcomeDone = true, wifiOnly = false) }
         val url = "https://raw.githubusercontent.com/ShamimHosen75/GetSmart-DM/main/site/assets/icon-128.png"
         val result = withTimeout(120_000) { app.engine.analyze(url) }
@@ -65,7 +65,7 @@ class DeviceTest {
     }
 
     @Test
-    fun drmIsRefused() = runBlocking {
+    fun drmIsRefused(): Unit = runBlocking {
         val r = app.engine.analyze("https://www.netflix.com/watch/80100172")
         assertEquals(Analysis.Error("errDrm"), r)
     }
@@ -77,7 +77,7 @@ class DeviceTest {
      * the results are in the test log ("SIDM-SITES").
      */
     @Test
-    fun realSitesReport() = runBlocking {
+    fun realSitesReport(): Unit = runBlocking {
         assertTrue(withTimeout(240_000) { app.engine.video.awaitReady() })
         val sites = listOf(
             "Vimeo" to "https://vimeo.com/76979871",

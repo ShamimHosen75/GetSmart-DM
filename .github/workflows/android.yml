@@ -116,6 +116,8 @@ jobs:
           grep -h "SIDM-SITES" device-log.txt | sed 's/^.*SIDM-SITES[^:]*: //' >> "$GITHUB_STEP_SUMMARY" || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           cat device-log.txt || true
+          echo "--- failed tests ---"
+          find app/build/outputs/androidTest-results -name '*.xml' -exec grep -h -A25 '<failure' {} + 2>/dev/null | head -150 || true
 
       - uses: actions/upload-artifact@v4
         if: always()
