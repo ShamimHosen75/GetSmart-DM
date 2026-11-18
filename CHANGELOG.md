@@ -4,6 +4,29 @@ All notable changes to SIDM. Newest version first. Each version has three parts:
 
 Add a new section with `python scripts/bump.py patch|minor|major`, then fill in the bullets before running `scripts/release.py`. See `RELEASE.md`.
 
+## [0.4.0] - 2026-11-18
+
+LinkedIn fixed, the highest quality first, and SIDM for Windows: a setup program like any PC download manager's.
+
+### Extension
+
+- LinkedIn fixed: its player loads one MP4 that holds both video and sound, in parts. Those files were dropped; now they are offered and saved whole (also when the MP4 header is at the end of the file).
+- Videos are found in the page's own data too, not only in what the player fetched: the site's API replies (LinkedIn, X, Instagram, Facebook, TikTok, Vimeo and others list every quality there), `<video>` sources and `data-sources`, og:video and JSON-LD. This often works before the video plays, and gives the original resolution even when the player shows a lower one.
+- The video under the pointer is matched to its data by its thumbnail or its length, so a feed with many videos offers the right one. Other videos on the page are listed separately when nothing matches.
+- The highest quality is first and marked "Highest quality"; files keep their source format (MP4, WebM).
+- "Copy debug info" in the video menu: what SIDM saw on the page, without addresses' query strings, to send with a report.
+- Settings: "Install SIDM for Windows" saves the setup program (shipped inside the extension ZIP) to Downloads. The page turns green by itself once it is installed. The YouTube note in the video menu points there.
+- Wording: the companion is now "the SIDM desktop program".
+
+### Companion
+
+- New Windows setup program, `SIDM-Setup.exe` (NSIS, built on Linux by `scripts/build_setup.py`): no admin rights, installs into `%LOCALAPPDATA%\Programs\SIDM`, runs `install.bat /quiet` with no console window, adds Start menu entries ("Update SIDM tools", "Uninstall SIDM") and an entry in Windows Installed apps. The uninstaller removes the browser registration and only SIDM's own files.
+- `install.bat /quiet`: no pauses or progress bars, for the setup program.
+
+### Website
+
+- The install section offers SIDM Setup (`sidm-v<version>-companion-setup.exe`, markers `companion-setup-*`) for YouTube; the companion ZIP stays as an alternative.
+
 ## [0.3.0] - 2026-11-18
 
 No install needed: the extension ZIP is all most people need. The companion app is now optional.

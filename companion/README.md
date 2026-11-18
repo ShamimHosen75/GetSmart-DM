@@ -1,4 +1,4 @@
-# SIDM companion (Windows, macOS, Linux)
+# SIDM desktop program (companion): Windows, macOS, Linux
 
 The companion is **optional**. The SIDM extension saves videos from Facebook, X, LinkedIn, Reddit and most other sites by itself. Install the companion only for **YouTube**, whose streams the browser cannot save, and for multi-connection downloads of big files with a speed limit.
 
@@ -8,12 +8,29 @@ Videos are saved to **`Downloads\SIDM\Video`** (on Linux, your desktop's Downloa
 
 `host.py` is the same on every system; only the installer differs:
 
-- **Windows**: `install.bat`, `update.bat`, `uninstall.bat`. See [Windows](#windows) below.
+- **Windows**: the setup program **SIDM-Setup.exe** (recommended), or `install.bat`, `update.bat`, `uninstall.bat` from the ZIP. See [Windows](#windows) below.
 - **macOS and Linux**: `install.sh`, `uninstall.sh`. See [macOS and Linux](#macos-and-linux) below.
 
 Firefox is not supported yet.
 
 ## Windows
+
+### SIDM Setup (recommended)
+
+Like any Windows program: one file, click **Install**, done.
+
+1. In SIDM **Settings**, click **Install SIDM for Windows**. It saves `SIDM-Setup.exe` (shipped inside the extension ZIP) into your Downloads. It is also on the website as `sidm-v<version>-companion-setup.exe`.
+2. Open it. Windows SmartScreen may say "Windows protected your PC" because the program is new and not signed yet: click **More info**, then **Run anyway**.
+3. Click **Install**. No admin rights are needed. Setup installs into `%LOCALAPPDATA%\Programs\SIDM`, runs `install.bat /quiet` there with no console window (the steps below, shown in Setup's window), and adds:
+   - Start menu: **Update SIDM tools** (newest yt-dlp) and **Uninstall SIDM**
+   - an entry in Windows **Settings > Apps > Installed apps**
+4. The extension finds the program by itself; the Settings page turns green. If it does not, restart the browser.
+
+Uninstall from the Start menu or Installed apps. It removes the browser registration and SIDM's own files in that folder. Your videos in `Downloads\SIDM` are never touched.
+
+Setup is built from `companion/windows/sidm-setup.nsi` with `python scripts/build_setup.py` (needs NSIS 3; on Linux `sudo apt-get install nsis`).
+
+### Install from the ZIP instead
 
 You do **not** need to install Python or anything else yourself. `install.bat` downloads everything it needs into this folder.
 

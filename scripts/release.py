@@ -12,6 +12,10 @@ What it does:
    entry in PLATFORMS. Each ZIP has one top folder, sidm/, holding
    START-HERE.txt and extension/ (the main "extension" ZIP) or companion/
    (the optional "companion-windows" and "companion-macos-linux" ZIPs).
+   The Windows setup program (scripts/build_setup.py, needs NSIS) goes inside
+   the extension ZIP as extension/setup/SIDM-Setup.exe and, as the
+   "companion-setup" platform, to site/downloads/sidm-v<version>-companion-setup.exe.
+   --no-setup skips it.
 3. Prints each ZIP's size and SHA-256.
 4. Writes site/version.json ({"version": "x.y.z"}), which the extension checks
    once a day to show "Update available".
@@ -40,6 +44,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 TOP_FOLDER = "sidm"
 ZIP_NAME = "sidm-v{version}-{platform}.zip"
+SETUP_NAME = "sidm-v{version}-companion-setup.exe"
 # Fixed timestamp for every ZIP entry, so rebuilding gives identical bytes.
 ZIP_DATE = (2024, 1, 1, 0, 0, 0)
 
@@ -58,9 +63,12 @@ EXTENSION_EXCLUDE_FILES = re.compile(
 # The main download is "extension": the extension alone, which is all most
 # people need (videos are saved by the extension itself since M15). The
 # companion ZIPs are optional extras for YouTube and multi-connection downloads.
+SETUP_IN_EXTENSION = "setup/SIDM-Setup.exe"  # inside extension/: Settings can save it for the user
+
 PLATFORMS = {
     "extension": {
         "extension": True,
+        "bundle_setup": True,  # the Windows setup program rides along, so the ZIP is still the only download
         "companion_files": [],
         "newline": "\r\n",
         "start_here": [
@@ -70,8 +78,14 @@ PLATFORMS = {
             "click Load unpacked and choose the sidm/extension folder.",
             "3. Pin SIDM from the puzzle-piece menu. Play a video on Facebook, X, LinkedIn and other sites, "
             "then click Download on the video.",
-            "Optional: YouTube and multi-connection downloads need the companion app (separate ZIP on the website).",
+            "Optional, Windows: for YouTube and multi-connection downloads, open SIDM Settings and click "
+            "Install SIDM for Windows (or run sidm\\extension\\setup\\SIDM-Setup.exe).",
         ],
+    },
+    "companion-setup": {
+        "setup_file": True,  # the same SIDM-Setup.exe as its own download on the website
+        "extension": False,
+        "companion_files": [],
     },
     "companion-windows": {
         "extension": False,
@@ -146,10 +160,12 @@ def text_with_newline(data, newline):
     return text.replace(b"\n", newline.encode()) if newline != "\n" else text
 
 
-def zip_entries(root, platform):
+def zip_entries(root, platform, setup_bytes=None):
     """Return a sorted list of (name inside the ZIP, bytes)."""
     spec = PLATFORMS[platform]
     entries = []
+    if spec.get("bundle_setup") and setup_bytes:
+        entries.append((f"{TOP_FOLDER}/extension/{SETUP_IN_EXTENSION}", setup_bytes))
 
     if spec["extension"]:
         for path, rel in extension_files(root):
@@ -182,6 +198,7 @@ def check_entries(entries, has_extension=True):
     if has_extension and not any(n == f"{TOP_FOLDER}/extension/manifest.json" for n in names):
         raise ReleaseError("extension/manifest.json is not in the ZIP")
     bad = [n for n in names if n.lower().endswith(".pem") or n.lower().endswith(".log")]
+    bad += [n for n in names if n.lower().endswith(".exe") and n != f"{TOP_FOLDER}/extension/{SETUP_IN_EXTENSION}"]
     if bad:  # belt and braces: the private key must never ship
         raise ReleaseError(f"refusing to ship {bad}")
 
@@ -225,7 +242,8 @@ def human_size(size):
 
 def remove_old_zips(downloads, platform, keep_name):
     removed = []
-    for path in glob.glob(os.path.join(downloads, f"sidm-v*-{platform}.zip")):
+    ext = "exe" if PLATFORMS[platform].get("setup_file") else "zip"
+    for path in glob.glob(os.path.join(downloads, f"sidm-v*-{platform}.{ext}")):
         if os.path.basename(path) != keep_name:
             os.remove(path)
             removed.append(os.path.basename(path))
@@ -305,7 +323,21 @@ def write_version_json(site, version):
 
 # --- main ---------------------------------------------------------------------
 
-def release(root, platforms, keep=False, out=print):
+def build_setup_bytes(root, version):
+    """The Windows setup program (scripts/build_setup.py), as bytes."""
+    import tempfile
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from build_setup import SetupError, build_setup
+    with tempfile.TemporaryDirectory(prefix="sidm-release-setup-") as tmp:
+        try:
+            path = build_setup(root, version, tmp)
+        except SetupError as err:
+            raise ReleaseError(f"{err}. Use --no-setup to build without the Windows setup program.")
+        with open(path, "rb") as f:
+            return f.read()
+
+
+def release(root, platforms, keep=False, out=print, setup=True):
     version = read_extension_version(root)
     companion_version = read_companion_version(root)
     if companion_version != version:
@@ -319,12 +351,23 @@ def release(root, platforms, keep=False, out=print):
     os.makedirs(downloads, exist_ok=True)
 
     out(f"SIDM {version}")
+    if not setup:
+        platforms = [p for p in platforms if not PLATFORMS[p].get("setup_file")]
+    needs_setup = setup and any(PLATFORMS[p].get("bundle_setup") or PLATFORMS[p].get("setup_file") for p in platforms)
+    setup_bytes = build_setup_bytes(root, version) if needs_setup else None
     builds = {}
     for platform in platforms:
-        name = ZIP_NAME.format(version=version, platform=platform)
-        path = os.path.join(downloads, name)
-        entries = zip_entries(root, platform)
-        write_zip(path, entries, unix=PLATFORMS[platform].get("unix", False))
+        if PLATFORMS[platform].get("setup_file"):
+            name = SETUP_NAME.format(version=version)
+            path = os.path.join(downloads, name)
+            with open(path, "wb") as f:
+                f.write(setup_bytes)
+            entries = [(name, setup_bytes)]
+        else:
+            name = ZIP_NAME.format(version=version, platform=platform)
+            path = os.path.join(downloads, name)
+            entries = zip_entries(root, platform, setup_bytes)
+            write_zip(path, entries, unix=PLATFORMS[platform].get("unix", False))
         size = os.path.getsize(path)
         info = {"name": name, "path": path, "size": size, "size_text": human_size(size),
                 "sha256": sha256_of(path), "files": len(entries)}
@@ -356,10 +399,12 @@ def main(argv=None):
     parser.add_argument("--keep", action="store_true", help="keep older ZIPs in site/downloads/")
     parser.add_argument("--platform", choices=sorted(PLATFORMS), action="append",
                         help="build only this platform (repeatable); default: all")
+    parser.add_argument("--no-setup", action="store_true",
+                        help="skip the Windows setup program (when NSIS is not installed)")
     parser.add_argument("--root", default=ROOT, help=argparse.SUPPRESS)  # used by tests
     args = parser.parse_args(argv)
     try:
-        release(args.root, args.platform or list(PLATFORMS), keep=args.keep)
+        release(args.root, args.platform or list(PLATFORMS), keep=args.keep, setup=not args.no_setup)
     except ReleaseError as err:
         print(f"release.py: error: {err}", file=sys.stderr)
         return 1

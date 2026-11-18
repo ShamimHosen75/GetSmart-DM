@@ -198,7 +198,7 @@ function streamButtons() {
     button.type = 'button';
     button.dataset.option = o.id;
     const name = o.audioOnly ? t('qualityAudio') : o.label || t('videoThis');
-    const meta = [o.size > 0 ? formatBytes(o.size) : '', o.hasAudio || o.audioOnly ? '' : t('overlayNoSound')].filter(Boolean).join(' · ');
+    const meta = [o.best ? t('overlayBest') : '', o.other ? t('overlayOther') : '', o.size > 0 ? formatBytes(o.size) : '', o.hasAudio || o.audioOnly ? '' : t('overlayNoSound')].filter(Boolean).join(' · ');
     button.append(el('span', 'v-stream-name', name));
     if (meta) button.append(el('span', 'v-stream-meta', meta));
     button.disabled = busy;

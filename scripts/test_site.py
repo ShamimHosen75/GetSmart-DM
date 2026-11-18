@@ -268,7 +268,8 @@ def check_download(strict):
             r'<a\b[^>]*\bdata-release="([\w-]+)-zip"[^>]*\bhref="([^"]*)"', html_text):
         hrefs.add(href)
         check = f"download link ({platform})"
-        expected = f"downloads/sidm-v{version}-{platform}.zip"
+        ext = "exe" if platform == "companion-setup" else "zip"
+        expected = f"downloads/sidm-v{version}-{platform}.{ext}"
         if href != expected:
             report("FAIL", check, f"href is '{href}', expected '{expected}' (from #release-version)")
             continue

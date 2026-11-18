@@ -40,6 +40,8 @@ jobs:
           python -m playwright install --with-deps chromium
           # ffmpeg makes the HLS/DASH test videos for the in-browser video check.
           command -v ffmpeg || sudo apt-get install -y ffmpeg
+          # NSIS builds the Windows setup program (scripts/build_setup.py) on Linux.
+          command -v makensis || sudo apt-get install -y nsis
 
       # macOS/Linux installer scripts (shellcheck ships with ubuntu-latest).
       - name: Shell scripts (shellcheck companion/*.sh)

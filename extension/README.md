@@ -97,6 +97,9 @@ python scripts/extension_id.py --pem extension-key.pem --print-key
 | `offscreen.html` / `offscreen.js` | Hidden page: reads playlists and manifests, downloads pieces, joins them |
 | `mp4.js` | Reads MP4 headers and joins a video and an audio MP4 into one |
 | `stream-parse.js` | HLS and DASH parsers |
+| `page-sources.js` | Finds video addresses in a page's own data (JSON, `<video data-sources>`, og:video); loaded in both worlds (M16) |
+| `page-hook.js` | Runs in the page's own world: reads copies of the site's text/JSON replies for video addresses and passes them to `overlay.js`. Never changes or delays the page's requests; nothing leaves the browser (M16) |
+| `setup/SIDM-Setup.exe` | Windows setup program for the desktop program, added by `scripts/release.py` to the ZIP only (gitignored); Settings saves it for the user |
 | `download-info.js` | State, name, size and error text of a download, shared by the lists |
 | `speed.js` | Transfer rate from byte samples, and time left |
 | `update-check.js` | "Update available" footer link |

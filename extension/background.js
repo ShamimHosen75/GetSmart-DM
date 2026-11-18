@@ -100,7 +100,7 @@ chrome.downloads.onCreated.addListener((item) => autoOpenProgress(item.id, 'all'
 
 // ---------- Messages from extension pages ----------
 
-const CONTENT_SCRIPT_CALLS = new Set(['overlayInfo', 'overlayMedia', 'overlaySawVideo', 'overlayCompanionHelp', 'enqueue', 'addVideo', 'addStream']);
+const CONTENT_SCRIPT_CALLS = new Set(['overlayInfo', 'overlayMedia', 'overlaySawVideo', 'overlayCompanionHelp', 'enqueue', 'addVideo', 'addStream', 'streamDebug', 'savePageSources', 'overlayDebug']);
 
 const handlers = {
   enqueue: (msg) => enqueue(msg.items || []),

@@ -11,7 +11,7 @@ import { detectionBlockReason, hostMatches, hostOf, isDrmSite, isYouTube, videoP
 
 export { detectionBlockReason };
 import { bridge } from './native-bridge.js';
-import { classifyStream, clearTabStreams, hasRangeParams, recordStream, streamOptions } from './stream-jobs.js';
+import { classifyStream, clearTabStreams, hasRangeParams, recordStream, streamDebug, streamOptions } from './stream-jobs.js';
 import { setLanguage, t } from './i18n.js';
 
 export const MAX_PER_TAB = 25;
@@ -266,6 +266,10 @@ const OVERLAY_STRINGS = [
   'overlayLive',
   'overlayYouTubeCompanion',
   'overlayDefault',
+  'overlayBest',
+  'overlayOther',
+  'overlayCopyDebug',
+  'overlayCopied',
   'qualityBest',
   'quality1080',
   'quality720',
@@ -305,7 +309,7 @@ export const overlayHandlers = {
     const media = sender.tab ? await getTabMedia(sender.tab.id) : [];
     const site = videoPageStatus(pageUrl, settings.allowYouTube, true);
     // In the browser, no install needed (M15).
-    const streams = await streamOptions({}, sender).catch(() => ({ options: [], refused: '' }));
+    const streams = await streamOptions({ page: msg.page }, sender).catch(() => ({ options: [], refused: '' }));
     let companion = bridge.status;
     if (!streams.options.length && settings.useCompanion && (site === 'video' || site === 'generic')) {
       // Nothing the browser can save by itself: see whether the optional companion is there.
@@ -318,6 +322,28 @@ export const overlayHandlers = {
       companion,
       streams,
       media: media.slice().reverse().map(({ url, name, size, mime }) => ({ url, name, size, mime })),
+    };
+  },
+  /** "Copy debug info" in the video menu: what the extension side saw (no query strings). */
+  overlayDebug: async (msg, sender) => {
+    const settings = await cachedSettings();
+    const media = sender.tab ? await getTabMedia(sender.tab.id) : [];
+    const strip = (url) => {
+      try {
+        const u = new URL(url);
+        return `${u.protocol}//${u.hostname}${u.pathname}`;
+      } catch {
+        return '';
+      }
+    };
+    return {
+      version: chrome.runtime.getManifest().version,
+      browser: navigator.userAgent,
+      companion: bridge.status,
+      useCompanion: Boolean(settings.useCompanion),
+      site: videoPageStatus(sender.tab?.url || '', settings.allowYouTube, true),
+      files: media.map((m) => ({ url: strip(m.url), mime: m.mime, size: m.size })),
+      ...(await streamDebug({}, sender)),
     };
   },
   /** The video button saw a real video on this page (for the popup's video card). */

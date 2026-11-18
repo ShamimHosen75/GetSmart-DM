@@ -8,6 +8,7 @@
 import { initPage, saveSettings, getSettings } from './common.js';
 import { normaliseSite } from './sites.js';
 import { t } from './i18n.js';
+import { SITE_URL } from './update-check.js';
 
 let toastTimer = 0;
 
@@ -89,6 +90,40 @@ function bindYouTube(settings) {
   });
 }
 
+// The Windows setup program ships inside the extension ZIP (scripts/release.py).
+const SETUP_FILE = 'setup/SIDM-Setup.exe';
+const isWindows = /Windows/i.test(navigator.userAgent);
+
+async function bundledSetup() {
+  try {
+    const res = await fetch(chrome.runtime.getURL(SETUP_FILE), { method: 'HEAD' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** "Install SIDM for Windows": save the setup program into Downloads, or open the download page. */
+async function getSetup() {
+  const hint = document.getElementById('companion-get-hint');
+  if (isWindows && (await bundledSetup())) {
+    await chrome.downloads.download({ url: chrome.runtime.getURL(SETUP_FILE), filename: 'SIDM-Setup.exe', conflictAction: 'overwrite' });
+    hint.textContent = t('setupSaved');
+    return;
+  }
+  const page = SITE_URL ? `${SITE_URL.replace(/\/+$/, '')}/#install` : 'https://github.com/shamimhosen75/GetSmart-DM/releases/latest';
+  await chrome.tabs.create({ url: page });
+}
+
+function showSetupRow(status) {
+  const row = document.getElementById('companion-get-row');
+  row.hidden = status === 'connected';
+  document.getElementById('companion-get').textContent = t(isWindows ? 'setupButton' : 'setupButtonOther');
+  const hint = document.getElementById('companion-get-hint');
+  if (!hint.dataset.saved) hint.textContent = t(isWindows ? 'setupHint' : 'setupHintOther');
+}
+
+let companionTimer = 0;
 async function showCompanion() {
   const box = document.getElementById('companion-status');
   const text = document.getElementById('companion-text');
@@ -116,7 +151,12 @@ async function showCompanion() {
   } else {
     detail.textContent = t('setCompanionHint');
   }
-  if (c.status === 'connecting' || c.status === 'idle') setTimeout(showCompanion, 1000);
+  showSetupRow(c.status);
+  clearTimeout(companionTimer);
+  // Still connecting: look again soon. Not installed: keep looking, so the page
+  // turns green by itself once SIDM Setup has run.
+  if (c.status === 'connecting' || c.status === 'idle') companionTimer = setTimeout(showCompanion, 1000);
+  else if (c.status !== 'connected') companionTimer = setTimeout(showCompanion, 5000);
 }
 
 async function main() {
@@ -140,6 +180,12 @@ async function main() {
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'session' && changes.companion) showCompanion();
+  });
+  document.getElementById('companion-get').addEventListener('click', () => {
+    document.getElementById('companion-get-hint').dataset.saved = '1';
+    getSetup().catch((err) => {
+      document.getElementById('companion-get-hint').textContent = String(err?.message || err);
+    });
   });
   showCompanion();
 }

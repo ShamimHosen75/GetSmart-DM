@@ -223,3 +223,14 @@ Use a profile **without** the companion installed (or run `uninstall.bat` first)
 - [ ] Popup "This page" on a video page: the video card shows the same quality buttons; clicking one says "added".
 - [ ] While a video downloads: pause and resume from the popup row; cancel removes it; Retry starts again.
 - [ ] Settings: the companion section says "optional".
+
+## M16 Page data, highest quality, debug info, SIDM for Windows
+
+- [ ] LinkedIn feed: point at a video post, click **Download**: qualities are listed (no "Nothing to download yet"), the highest is first and says "Highest quality"; the saved MP4 has sound.
+- [ ] X, Instagram, Facebook, Reddit, TikTok, Vimeo: the first choice is the highest quality the site offers, even when the player shows a lower one.
+- [ ] A feed with several videos: the menu on each video offers that video (check the saved file is the one you pointed at).
+- [ ] **Copy debug info** in the menu: paste it somewhere; it lists the page, the video and what was found, with no `?query` parts in addresses.
+- [ ] Settings on Windows, desktop program not installed: **Install SIDM for Windows** shows; clicking saves `SIDM-Setup.exe` to Downloads.
+- [ ] Run SIDM Setup: no console window, no admin prompt, it finishes with "SIDM is ready"; Settings turns green within a few seconds without a browser restart.
+- [ ] YouTube: the menu's video choices come from the desktop program; without it the menu says so and **Get the SIDM desktop program** opens Settings.
+- [ ] Uninstall SIDM from the Start menu: Settings says the program is not installed; videos in Downloads\SIDM are still there.

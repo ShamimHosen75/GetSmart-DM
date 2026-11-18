@@ -178,19 +178,70 @@ function tabOf(msg, sender) {
   return ownPage ? msg.tabId : sender.tab?.id;
 }
 
-/** Choices for the video in a tab: { options: [{ id, label, hasAudio, size, kind }], refused }. */
+const pageKey = (tabId) => `pageSources:${tabId}`;
+const diagKey = (tabId) => `streamDiag:${tabId}`;
+
+/** Video addresses from the page's own data, for the video that played last (the popup uses them). */
+export async function savePageSources(msg, sender) {
+  const tabId = tabOf(msg, sender);
+  if (tabId == null) return { ok: false };
+  await chrome.storage.session.set({ [pageKey(tabId)]: { matched: (msg.page?.matched || []).slice(0, 40), other: (msg.page?.other || []).slice(0, 20) } });
+  return { ok: true };
+}
+
+function blocked(url, settings) {
+  return isDrmSite(url) || isYouTube(url) || hostMatches(hostOf(url), settings.disabledSites || []);
+}
+
+/**
+ * Choices for the video in a tab: { options: [{ id, label, hasAudio, size, kind, best, other }], refused }.
+ * `msg.page` (from the video button) holds the page's own sources for that video.
+ */
 export async function streamOptions(msg, sender) {
   const tabId = tabOf(msg, sender);
   if (tabId == null) return { options: [], refused: '' };
+  const settings = await cachedSettings();
   const streams = await getTabStreams(tabId);
-  if (!streams.length) return { options: [], refused: '' };
-  const reply = await toOffscreen({ type: 'streamResolve', streams });
+  const stored = (await chrome.storage.session.get(pageKey(tabId)))[pageKey(tabId)] || {};
+  const raw = msg.page || stored;
+  const keep = (list) => (Array.isArray(list) ? list : []).filter((p) => p && (p.text || (p.url && /^https?:/i.test(p.url) && !blocked(p.url, settings))));
+  const page = { matched: keep(raw.matched), other: keep(raw.other) };
+  if (!streams.length && !page.matched.length && !page.other.length) return { options: [], refused: '' };
+  const reply = await toOffscreen({ type: 'streamResolve', streams, page });
   const options = (reply?.options || []).map((o) => ({ ...o, id: randomId() }));
-  await chrome.storage.session.set({ [optionsKey(tabId)]: options });
+  await chrome.storage.session.set({ [optionsKey(tabId)]: options, [diagKey(tabId)]: { at: Date.now(), diag: reply?.diag || [], error: reply?.error || '' } });
   return {
     refused: reply?.refused || '',
-    options: options.map((o) => ({ id: o.id, label: o.label, hasAudio: o.hasAudio, size: o.size || 0, kind: o.kind, audioOnly: Boolean(o.audioOnly) })),
+    options: options.map((o) => ({
+      id: o.id,
+      label: o.label,
+      hasAudio: o.hasAudio,
+      size: o.size || 0,
+      kind: o.kind,
+      audioOnly: Boolean(o.audioOnly),
+      best: Boolean(o.best),
+      other: Boolean(o.other),
+    })),
   };
+}
+
+function cleanUrl(url) {
+  try {
+    const u = new URL(url);
+    return `${u.protocol}//${u.hostname}${u.pathname}`;
+  } catch {
+    return '';
+  }
+}
+
+/** What SIDM saw in a tab, without addresses' query strings (they hold sign-in tokens). */
+export async function streamDebug(msg, sender) {
+  const tabId = tabOf(msg, sender);
+  if (tabId == null) return {};
+  const now = Date.now();
+  const streams = (await getTabStreams(tabId)).map((s) => ({ kind: s.kind, url: cleanUrl(s.url), total: s.total, secondsAgo: Math.round((now - s.at) / 1000) }));
+  const diag = (await chrome.storage.session.get(diagKey(tabId)))[diagKey(tabId)] || null;
+  return { streams, lastCheck: diag };
 }
 
 function startJob(job) {
@@ -206,6 +257,15 @@ export async function addStream(msg, sender) {
   if (!option) return { error: 'gone' };
   const title = sanitizeFilename(String(msg.title || '').trim() || 'video', 'video').replace(/\.(mp4|m4a|ts)$/i, '');
   const suffix = option.audioOnly ? '' : option.label ? ` (${option.label})` : '';
+  if (option.kind === 'file') {
+    // One whole file (video with its sound): Chrome downloads it directly, with pause and resume.
+    try {
+      const downloadId = await saveFile(option.url, `${title}${suffix}.${option.ext || 'mp4'}`);
+      return { id: downloadId };
+    } catch (err) {
+      return { error: String(err?.message || err) };
+    }
+  }
   const job = {
     id: `${STREAM_PREFIX}${randomId()}`,
     name: `${title}${suffix}`,
@@ -341,6 +401,8 @@ export function registerStreamListeners() {
 
 export const streamHandlers = {
   streamOptions,
+  streamDebug,
+  savePageSources,
   addStream,
   pauseStream,
   resumeStream,

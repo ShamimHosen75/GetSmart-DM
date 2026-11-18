@@ -112,9 +112,17 @@ PAGES.update({
     "/s-pieces.html": STREAM_PAGE % ("Pieces Test",
         "fetch('/sv/v.mp4?bytestart=0&byteend=9999'); fetch('/sv/a.mp4?bytestart=0&byteend=9999');"),
     "/s-enc.html": STREAM_PAGE % ("Encrypted Test", "fetch('/sv/enc.m3u8');"),
+    # LinkedIn-style (M16): the player shows a blob: URL; every quality is in the page's API reply.
+    "/s-linkedin.html": STREAM_PAGE % ("LinkedIn Test",
+        "v.poster = '/sv/thumb-li-abcdef123.jpg'; v.muted = true;"
+        "fetch('/sv/m360.mp4').then((r) => r.blob()).then((b) => { v.src = URL.createObjectURL(b); });"
+        "setTimeout(() => fetch('/api/li-feed.json').then((r) => r.json()), 300);"),
+    # A plain MP4 (sound inside, header at the end) that the player fetches in parts with Range.
+    "/s-progressive.html": STREAM_PAGE % ("Progressive Test",
+        "const x = new XMLHttpRequest(); x.open('GET', '/sv/mend.mp4'); x.setRequestHeader('Range', 'bytes=0-99999'); x.send();"),
 })
 STREAM_DIR = None  # set by make_stream_fixtures()
-STREAM_MIME = {".m3u8": "application/vnd.apple.mpegurl", ".mpd": "application/dash+xml", ".m4s": "video/iso.segment",
+STREAM_MIME = {".jpg": "image/jpeg", ".m3u8": "application/vnd.apple.mpegurl", ".mpd": "application/dash+xml", ".m4s": "video/iso.segment",
                ".mp4": "video/mp4", ".ts": "video/mp2t"}
 
 
@@ -138,6 +146,14 @@ def make_stream_fixtures():
     ff("-i", "v.mp4", "-i", "a.mp4", "-map", "0", "-map", "1", *hls, "-hls_segment_filename", "ts-%d.ts", "ts.m3u8")
     ff("-i", "v.mp4", "-i", "a.mp4", "-map", "0", "-map", "1", "-c", "copy", "-f", "dash", "-seg_duration", "2",
        "-use_template", "1", "-use_timeline", "1", "dash.mpd")
+    # Plain MP4 files with sound (M16): fast start (header first), and one with the header at the end.
+    for size, name in (("640x360", "m360.mp4"), ("1280x720", "m720.mp4")):
+        ff("-f", "lavfi", "-i", "testsrc=duration=6:size=%s:rate=25" % size, "-f", "lavfi", "-i", "sine=duration=6",
+           "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "-movflags", "+faststart", name)
+    ff("-f", "lavfi", "-i", "testsrc=duration=8:size=640x360:rate=25", "-f", "lavfi", "-i", "sine=duration=8",
+       "-vf", "noise=alls=60:allf=t", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-b:v", "3M", "-c:a", "aac", "-shortest", "mend.mp4")
+    with open(os.path.join(d, "thumb-li-abcdef123.jpg"), "wb") as f:
+        f.write(b"\xff\xd8\xff\xd9")
     with open(os.path.join(d, "master.m3u8"), "w") as f:
         f.write('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="English",DEFAULT=YES,URI="aud.m3u8"\n'
                 '#EXT-X-STREAM-INF:BANDWIDTH=900000,RESOLUTION=640x360,AUDIO="aud"\nv360.m3u8\n'
@@ -171,6 +187,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send_simple(200, PAGES[url.path].encode("utf-8"), "text/html; charset=utf-8")
         if url.path == "/404" or url.path.startswith("/missing"):
             return self._send_simple(404, b"not found")
+        if url.path == "/api/li-feed.json":  # like LinkedIn's API reply: every quality of each video in the feed
+            root = "http://%s/sv/" % self.headers.get("Host")
+            other = {"progressiveStreams": [{"width": 1920, "height": 1080, "streamingLocations": [{"url": root + "other-1080p.mp4"}]}],
+                     "duration": 99000, "thumbnail": {"rootUrl": root + "thumb-other-999999.jpg"}}
+            mine = {"progressiveStreams": [
+                        {"width": 640, "height": 360, "bitRate": 400000, "streamingLocations": [{"url": root + "m360.mp4?e=1&t=token"}]},
+                        {"width": 1280, "height": 720, "bitRate": 1500000, "streamingLocations": [{"url": root + "m720.mp4?e=1&t=token"}]}],
+                    "duration": 6000, "thumbnail": {"rootUrl": root + "thumb-li-abcdef123.jpg"}}
+            body = json.dumps({"elements": [{"content": {"video": other}}, {"content": {"video": mine}}]}).encode()
+            return self._send_simple(200, body, "application/json")
         if url.path.startswith("/sv/") and STREAM_DIR:
             return self.serve_stream_file(url.path[4:], query)
         if url.path.endswith(".m3u8"):
@@ -838,7 +864,23 @@ def check_stream_videos(b, base):
     wait_for(lambda: len([f for f in files_on_disk(b.downloads) if f.startswith("SIDM/Video/Pieces Test (360p)")]) >= 2,
              timeout=60, what="second download from the video button")
     page.close()
-    return "HLS fMP4 + separate audio, DASH, Facebook-style MP4 pieces joined into one MP4 (video+audio); TS saved as .ts; encrypted refused; video button menu works"
+    # A plain MP4 with sound fetched in parts (header at the end): offered as one whole file.
+    stream_download(b, base, "/s-progressive.html", with_audio("360p"), "SIDM/Video/Progressive Test (360p).mp4", ["audio", "video"])
+
+    # LinkedIn-style page data: the menu's first choice is the highest quality of the video under the pointer.
+    page = b.page()
+    page.set_viewport_size({"width": 900, "height": 600})
+    page.goto(base + "/s-linkedin.html")
+    page.wait_for_function("() => document.getElementById('player').shadowRoot?.querySelector('video')?.duration > 0")
+    open_video_menu(page)
+    page.keyboard.press("Enter")
+    rel = wait_for(lambda: next((f for f in files_on_disk(b.downloads) if f.startswith("SIDM/Video/LinkedIn Test")), None),
+                   timeout=60, what="LinkedIn-style download (have %r)" % files_on_disk(b.downloads))
+    assert rel == "SIDM/Video/LinkedIn Test (720p).mp4", rel
+    wait_for(lambda: not any(f.endswith(".crdownload") for f in files_on_disk(b.downloads)), what="download finished")
+    assert ffprobe_streams(os.path.join(b.downloads, rel)) in (None, ["audio", "video"]), rel
+    page.close()
+    return "page data (LinkedIn-style) gives the highest quality first; plain MP4 with sound saved whole; HLS fMP4 + separate audio, DASH, Facebook-style MP4 pieces joined into one MP4 (video+audio); TS saved as .ts; encrypted refused; video button menu works"
 
 
 def register_companion(b):

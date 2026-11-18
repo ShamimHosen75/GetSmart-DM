@@ -101,11 +101,30 @@ class ReleaseTest(RepoCopy):
         self.assertIn("sidm/extension/icons/icon128.png", names)
         # The main download is the extension alone: no companion, nothing to install.
         self.assertFalse([n for n in names if n.startswith("sidm/companion/")])
-        for forbidden in (".pem", "tests/", ".test.js", ".log", ".exe", "python/", "run_host"):
+        for forbidden in (".pem", "tests/", ".test.js", ".log", "python/", "run_host"):
             self.assertFalse([n for n in names if forbidden in n], forbidden)
+        # The Windows setup program rides along (Settings saves it for the user); no other .exe.
+        self.assertEqual([n for n in names if n.endswith(".exe")], ["sidm/extension/setup/SIDM-Setup.exe"])
         self.assertIn("Load unpacked", start_here)
         self.assertNotIn("install.bat", start_here)
         self.assertIn("\r\n", start_here)
+
+    def test_setup_program(self):
+        _, builds = release.release(self.root, ["companion-setup"], out=self.out.write)
+        info = builds["companion-setup"]
+        self.assertEqual(info["name"], "sidm-v1.2.3-companion-setup.exe")
+        with open(info["path"], "rb") as f:
+            data = f.read()
+        self.assertEqual(data[:2], b"MZ")
+        self.assertIn(b"Nullsoft", data)
+        _, again = release.release(self.root, ["companion-setup"], out=self.out.write)
+        self.assertEqual(info["sha256"], again["companion-setup"]["sha256"])  # reproducible
+
+    def test_no_setup(self):
+        _, builds = release.release(self.root, ["extension", "companion-setup"], out=self.out.write, setup=False)
+        self.assertEqual(list(builds), ["extension"])
+        with zipfile.ZipFile(builds["extension"]["path"]) as zf:
+            self.assertFalse([n for n in zf.namelist() if n.endswith(".exe")])
 
     def test_companion_windows_zip(self):
         self.write("companion/update.bat", "@echo off\necho hi\n")  # LF checkout
@@ -154,7 +173,7 @@ class ReleaseTest(RepoCopy):
     def test_all_platforms_share_one_site_update(self):
         extra = "".join('<a data-release="%s-zip" href="x">z</a><span data-release="%s-size">?</span>'
                         '<code data-release="%s-sha256">?</code>' % (k, k, k)
-                        for k in ("companion-windows", "companion-macos-linux"))
+                        for k in ("companion-windows", "companion-macos-linux", "companion-setup"))
         self.write("site/index.html", SITE_HTML.replace("</body>", extra + "</body>"))
         _, builds = release.release(self.root, list(release.PLATFORMS), out=self.out.write)
         html = self.read("site/index.html")

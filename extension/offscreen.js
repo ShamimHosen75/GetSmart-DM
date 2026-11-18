@@ -16,6 +16,8 @@ import { parseM3u8, parseMpd } from './stream-parse.js';
 const PARALLEL = 6;
 const RETRIES = 3;
 const PROBE_BYTES = 512 * 1024;
+const TAIL_BYTES = 2 * 1024 * 1024;
+const PROBE_MS = 8000;
 const PROGRESS_MS = 500;
 
 const jobs = new Map(); // id -> { controller, paused, wake }
@@ -73,7 +75,7 @@ async function resolveHls(stream, seen) {
       const group = pl.audio[v.audio] || [];
       const audio = group.find((a) => a.isDefault) || group[0] || null;
       if (audio) seen.add(audio.url);
-      out.push({ kind: 'hls', height: v.height, bandwidth: v.bandwidth, video: v.url, audio: audio?.url || '' });
+      out.push({ kind: 'hls', height: v.width && v.height ? Math.min(v.width, v.height) : v.height, bandwidth: v.bandwidth, video: v.url, audio: audio?.url || '' });
     }
     return out;
   }
@@ -83,30 +85,78 @@ async function resolveHls(stream, seen) {
 }
 
 async function resolveDash(stream) {
-  const doc = new DOMParser().parseFromString(await fetchText(stream.url), 'application/xml');
-  const mpd = parseMpd(doc, stream.url);
+  const text = stream.text || (await fetchText(stream.url));
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  const mpd = parseMpd(doc, stream.url || stream.base || '');
   if (mpd.protected) return [{ kind: 'refused', reason: 'encrypted' }];
   if (mpd.live) return [{ kind: 'refused', reason: 'live' }];
   const audio = mpd.audio.slice().sort((a, b) => b.bandwidth - a.bandwidth)[0] || null;
-  const out = mpd.video.map((v) => ({ kind: 'dash', height: v.height, bandwidth: v.bandwidth, video: v, audio }));
+  const out = mpd.video.map((v) => ({ kind: 'dash', height: v.width && v.height ? Math.min(v.width, v.height) : v.height, bandwidth: v.bandwidth, video: v, audio }));
   if (audio) out.push({ kind: 'dash', audioOnly: true, height: 0, bandwidth: audio.bandwidth, video: null, audio });
   return out;
 }
 
-/** First bytes of an MP4 piece: track type and size. */
-async function probePiece(stream) {
-  const { bytes, res } = await fetchBytes(stream.url, { start: 0, end: PROBE_BYTES - 1 });
-  const info = readInit(bytes);
-  if (!info || info.tracks.length !== 1) return null;
+/** Index of a 4-letter box type in bytes, searching from the end. */
+function lastIndexOfType(bytes, type) {
+  const c = [...type].map((ch) => ch.charCodeAt(0));
+  for (let i = bytes.length - 4; i >= 4; i -= 1) {
+    if (bytes[i] === c[0] && bytes[i + 1] === c[1] && bytes[i + 2] === c[2] && bytes[i + 3] === c[3]) return i - 4;
+  }
+  return -1;
+}
+
+/**
+ * What an MP4 address holds: its tracks from the header at the start, or at the
+ * end of the file for MP4s written without "fast start". Null if unknown.
+ */
+async function probeMp4(url, knownTotal = 0) {
+  const { bytes, res } = await fetchBytes(url, { start: 0, end: PROBE_BYTES - 1 }, AbortSignal.timeout(PROBE_MS));
   const total = Number(/\/(\d+)\s*$/.exec(res.headers.get('Content-Range') || '')?.[1]) ||
-    (res.status === 200 ? bytes.length : stream.total || 0);
+    (res.status === 200 ? bytes.length : knownTotal || 0);
+  let info = readInit(bytes);
+  if (!info && total > PROBE_BYTES) {
+    const start = Math.max(0, total - TAIL_BYTES);
+    const tail = (await fetchBytes(url, { start, end: total - 1 }, AbortSignal.timeout(PROBE_MS))).bytes;
+    const at = lastIndexOfType(tail, 'moov');
+    if (at >= 0) info = readInit(tail.subarray(at));
+  }
+  return { info, total, mime: (res.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase() };
+}
+
+/** A piece a player fetched bit by bit: one track (to be joined) or a whole file with sound. */
+async function probePiece(stream) {
+  const { info, total } = await probeMp4(stream.url, stream.total);
+  if (!info || !info.tracks.length) {
+    // Header not found: offer the address as one whole file, quality from its address.
+    if (!(total > 0)) return null;
+    return { url: stream.url, at: stream.at, total, encrypted: false, type: 'file', height: sizeFromUrl(stream.url).height, sound: null };
+  }
+  const video = info.tracks.find((t) => t.handler === 'vide');
+  const sound = info.tracks.some((t) => t.handler === 'soun');
+  if (info.tracks.length > 1) {
+    // Video and sound in one file (LinkedIn, plain MP4 players): save it as it is.
+    return { url: stream.url, at: stream.at, total, encrypted: info.encrypted, type: 'file', height: video ? shortSide(video) : 0, sound };
+  }
   const t = info.tracks[0];
   return { url: stream.url, at: stream.at, total, encrypted: info.encrypted, type: t.handler, height: t.height };
+}
+
+function shortSide(t) {
+  return t.width && t.height ? Math.min(t.width, t.height) : t.height || 0;
+}
+
+/** "720" from "1280x720" (or 720x1280 for an upright video) written in a URL. */
+function sizeFromUrl(url) {
+  const wh = /[/_-](\d{3,4})x(\d{3,4})[/_.-]/.exec(url);
+  if (wh) return { height: Math.min(Number(wh[1]), Number(wh[2])) };
+  const p = /[/_-](\d{3,4})p[/_.-]/i.exec(url);
+  return { height: p ? Number(p[1]) : 0 };
 }
 
 async function resolvePieces(streams) {
   const probed = (await Promise.all(streams.map((s) => probePiece(s).catch(() => null)))).filter(Boolean);
   if (probed.some((p) => p.encrypted)) return [{ kind: 'refused', reason: 'encrypted' }];
+  const files = probed.filter((p) => p.type === 'file');
   const videos = probed.filter((p) => p.type === 'vide');
   const audios = probed.filter((p) => p.type === 'soun');
   // Feeds load pieces of many videos: pair each video with the audio seen closest in time.
@@ -115,52 +165,134 @@ async function resolvePieces(streams) {
     const a = nearest(v);
     return { kind: 'pieces', height: v.height, at: v.at, size: v.total + (a?.total || 0), video: v, audio: a };
   });
-  if (!videos.length && audios.length) {
+  for (const f of files) {
+    out.push({ kind: 'file', height: f.height, at: f.at, size: f.total, url: f.url, sound: f.sound });
+  }
+  if (!videos.length && !files.length && audios.length) {
     const a = audios.sort((x, y) => y.at - x.at)[0];
     out.push({ kind: 'pieces', audioOnly: true, height: 0, at: a.at, size: a.total, video: null, audio: a });
   }
   return out;
 }
 
-/** Choices, best first, for the streams captured in one tab. */
-async function resolveStreams(streams) {
-  const seen = new Set();
+function hostPath(url) {
+  try {
+    const u = new URL(url);
+    return `${u.hostname}${u.pathname.length > 60 ? `${u.pathname.slice(0, 60)}…` : u.pathname}`;
+  } catch {
+    return '';
+  }
+}
+
+/** Choices from the video addresses in the page's own data (page-sources.js). */
+async function resolvePageSources(sources, diag, seen) {
   const out = [];
+  const files = sources.filter((p) => p.kind === 'file').slice(0, 12);
+  const probes = await Promise.all(files.map((f) => probeMp4(f.url).catch((err) => ({ error: err }))));
+  files.forEach((f, i) => {
+    const p = probes[i];
+    const fromData = f.width && f.height ? Math.min(f.width, f.height) : f.height || 0;
+    if (p.error) {
+      diag.push({ from: 'page', kind: 'file', at: hostPath(f.url), result: String(p.error.code || p.error.message || p.error) });
+      if (p.error.code === 'gone') return;
+      // Could not look inside (the site may only answer its player): still offer it.
+      out.push({ kind: 'file', height: fromData, bandwidth: f.bitrate, size: 0, url: f.url, sound: null, page: true });
+      return;
+    }
+    if (p.info?.encrypted) {
+      out.push({ kind: 'refused', reason: 'encrypted' });
+      return;
+    }
+    const video = p.info?.tracks.find((t) => t.handler === 'vide');
+    const sound = p.info ? p.info.tracks.some((t) => t.handler === 'soun') : null;
+    if (p.info && !video) return; // sound only: the video's own sound is part of another choice
+    const height = video ? shortSide(video) || fromData : fromData;
+    diag.push({ from: 'page', kind: 'file', at: hostPath(f.url), result: `ok ${height}p${sound === false ? ' no sound' : ''}` });
+    out.push({ kind: 'file', height, bandwidth: f.bitrate, size: p.total, url: f.url, sound, page: true, ext: extOf(f.url, p.mime) });
+  });
+  for (const src of sources.filter((p) => p.kind !== 'file').slice(0, 6)) {
+    if (src.url && seen.has(src.url)) continue;
+    try {
+      const found = src.kind === 'hls' ? await resolveHls(src, seen) : await resolveDash(src);
+      out.push(...found.map((o) => ({ ...o, page: true })));
+      diag.push({ from: 'page', kind: src.kind, at: src.url ? hostPath(src.url) : 'manifest in page data', result: `ok ${found.length}` });
+    } catch (err) {
+      diag.push({ from: 'page', kind: src.kind, at: src.url ? hostPath(src.url) : 'manifest in page data', result: String(err?.message || err) });
+    }
+  }
+  return out;
+}
+
+function extOf(url, mime) {
+  try {
+    const ext = /\.(mp4|m4v|webm|mov)$/i.exec(new URL(url).pathname)?.[1];
+    if (ext) return ext.toLowerCase();
+  } catch {
+    // fall through
+  }
+  return /webm/.test(mime || '') ? 'webm' : 'mp4';
+}
+
+/**
+ * Choices, best first, for one video: the page's own data for that video
+ * (`page.matched`), the streams the tab played, then the page's other videos.
+ */
+async function resolveStreams(streams, page = {}) {
+  const seen = new Set();
+  const diag = [];
+  const matched = await resolvePageSources(page.matched || [], diag, seen);
+  const network = [];
   const byKind = (k) => streams.filter((s) => s.kind === k).sort((a, b) => b.at - a.at);
   for (const s of byKind('hls')) {
     if (seen.has(s.url)) continue;
     try {
-      out.push(...(await resolveHls(s, seen)).map((o) => ({ ...o, at: s.at })));
-    } catch {
-      // A playlist that cannot be read is left out.
+      network.push(...(await resolveHls(s, seen)).map((o) => ({ ...o, at: s.at })));
+      diag.push({ from: 'network', kind: 'hls', at: hostPath(s.url), result: 'ok' });
+    } catch (err) {
+      diag.push({ from: 'network', kind: 'hls', at: hostPath(s.url), result: String(err?.message || err) });
     }
   }
   for (const s of byKind('dash')) {
     try {
-      out.push(...(await resolveDash(s)).map((o) => ({ ...o, at: s.at })));
-    } catch {
-      // A manifest that cannot be read is left out.
+      network.push(...(await resolveDash(s)).map((o) => ({ ...o, at: s.at })));
+      diag.push({ from: 'network', kind: 'dash', at: hostPath(s.url), result: 'ok' });
+    } catch (err) {
+      diag.push({ from: 'network', kind: 'dash', at: hostPath(s.url), result: String(err?.message || err) });
     }
   }
-  out.push(...(await resolvePieces(byKind('piece').slice(0, 16))));
+  const pieces = byKind('piece').slice(0, 16);
+  const fromPieces = await resolvePieces(pieces);
+  diag.push(...pieces.map((s) => ({ from: 'network', kind: 'piece', at: hostPath(s.url), result: '' })));
+  network.push(...fromPieces);
+  const others = matched.length || network.some((o) => o.kind !== 'refused') ? [] : await resolvePageSources((page.other || []).slice(0, 8), diag, seen);
 
-  const refused = out.find((o) => o.kind === 'refused');
-  const usable = out.filter((o) => o.kind !== 'refused' && !(o.media && seen.has(o.video)));
-  // Newest stream first, then the highest quality.
-  usable.sort((a, b) => (b.at - a.at > 3000 ? 1 : a.at - b.at > 3000 ? -1 : 0) || b.height - a.height || b.bandwidth - a.bandwidth);
+  const all = [...matched, ...network, ...others.map((o) => ({ ...o, other: true }))];
+  const refused = all.find((o) => o.kind === 'refused');
+  const pageFiles = new Set(matched.filter((o) => o.kind === 'file').map((o) => o.url));
+  const usable = all.filter((o) => o.kind !== 'refused' && !(o.media && seen.has(o.video)) && !(o.kind === 'file' && !o.page && pageFiles.has(o.url)));
   for (const o of usable) {
     o.label = o.audioOnly ? 'audio' : label(o.height, '');
-    o.hasAudio = Boolean(o.audio) || o.kind === 'hls';
+    o.hasAudio = o.kind === 'file' ? o.sound !== false : Boolean(o.audio) || o.kind === 'hls';
   }
+  // This video's own data first, then what the tab played (newest first), then other videos.
+  // Within each: the highest quality first, with sound before without.
+  const rank = (o) => (o.other ? 2 : o.page ? 0 : 1);
+  usable.sort((a, b) => rank(a) - rank(b) ||
+    (rank(a) === 1 ? (b.at - a.at > 3000 ? 1 : a.at - b.at > 3000 ? -1 : 0) : 0) ||
+    Number(Boolean(a.audioOnly)) - Number(Boolean(b.audioOnly)) ||
+    b.height - a.height || Number(b.hasAudio) - Number(a.hasAudio) || (b.bandwidth || 0) - (a.bandwidth || 0));
   const unique = [];
   const keys = new Set();
   for (const o of usable) {
-    const key = `${o.kind}:${o.label}:${o.kind === 'pieces' ? o.video?.url : ''}`;
+    const key = `${rank(o)}:${o.kind === 'file' ? 'file' : o.kind}:${o.label}:${o.kind === 'pieces' ? o.video?.url : ''}:${o.hasAudio}`;
     if (keys.has(key)) continue;
     keys.add(key);
     unique.push(o);
   }
-  return { options: unique.slice(0, 8), refused: refused?.reason || '' };
+  const options = unique.slice(0, 10);
+  const best = options.find((o) => !o.audioOnly && !o.other);
+  if (best) best.best = true;
+  return { options, refused: refused?.reason || '', diag };
 }
 
 // ---------- Downloading ----------
@@ -292,7 +424,7 @@ async function runJob(job) {
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.target !== 'offscreen' || sender.id !== chrome.runtime.id) return false;
   if (msg.type === 'streamResolve') {
-    resolveStreams(msg.streams || [])
+    resolveStreams(msg.streams || [], msg.page || {})
       .then(sendResponse)
       .catch((err) => sendResponse({ options: [], refused: '', error: String(err?.message || err) }));
     return true;

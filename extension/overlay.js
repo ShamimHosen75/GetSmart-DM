@@ -8,7 +8,9 @@
 //   - when the optional companion app is installed: its qualities too (needed
 //     for YouTube, whose streams the browser cannot save by itself),
 //   - the video/audio files this tab played (from media detection),
-//   - the <video> element's own file address when it is a plain http(s) file.
+//   - the qualities listed in the page's own data for that video (M16: the
+//     site's API replies, <video data-sources>, og:video...), highest first,
+//   - "Copy debug info", for reporting a site that does not work.
 // In feeds (Facebook, X, Instagram...) the video's own post link is used.
 // It never runs where the service worker says no: YouTube (when turned off),
 // DRM services, sites the user disabled, or when the setting is off.
@@ -42,6 +44,106 @@
   let videos = []; // every <video> on the page, including open shadow roots
   let reportedVideo = false;
   let scanQueued = false;
+
+  // Video addresses from the page's own data (page-hook.js / page-sources.js, M16).
+  const S = globalThis.__sidmSources;
+  const MAX_PAGE_SOURCES = 300;
+  const pageSources = new Map(); // key -> source, newest last
+  document.addEventListener('sidm-sources', (event) => {
+    let list;
+    try {
+      list = JSON.parse(event.detail);
+    } catch {
+      return;
+    }
+    if (!Array.isArray(list)) return;
+    for (const src of list) {
+      if (!src || (src.kind !== 'file' && src.kind !== 'hls' && src.kind !== 'dash')) continue;
+      if (src.url ? !S?.isHttp(src.url) : typeof src.text !== 'string') continue;
+      const key = src.url || `text:${src.text.length}:${src.text.slice(0, 200)}`;
+      pageSources.delete(key);
+      pageSources.set(key, { ...src, at: Date.now() });
+    }
+    while (pageSources.size > MAX_PAGE_SOURCES) pageSources.delete(pageSources.keys().next().value);
+  });
+
+  /** Sources written on the <video> itself or the elements around it (src, <source>, data-sources...). */
+  function domSources(video) {
+    if (!S || !video) return [];
+    const out = [];
+    const seen = new Set();
+    const own = video.currentSrc || video.src || '';
+    if (/^https?:/i.test(own)) {
+      const kind = S.kindOf(own, 'src', '') || 'file';
+      out.push({ url: own, kind, width: video.videoWidth, height: video.videoHeight, duration: video.duration || 0, images: [], mime: '' });
+      seen.add(own);
+    }
+    for (const source of video.querySelectorAll('source[src]')) {
+      const kind = S.kindOf(source.src, 'src', source.type) || (/^video\//.test(source.type) ? 'file' : '');
+      if (kind && !seen.has(source.src)) {
+        seen.add(source.src);
+        out.push({ url: source.src, kind, width: 0, height: 0, duration: 0, images: [], mime: source.type || '' });
+      }
+    }
+    let el = video;
+    for (let depth = 0; el && depth < 5; depth += 1, el = el.parentElement) {
+      for (const attr of el.attributes || []) {
+        const v = attr.value;
+        if (v.length < 12 || v.length > 200000 || !/https?:/i.test(v) || attr.name === 'src' || attr.name === 'poster') continue;
+        for (const src of S.fromText(v)) {
+          if (src.url && seen.has(src.url)) continue;
+          if (src.url) seen.add(src.url);
+          out.push(src);
+        }
+      }
+    }
+    return out;
+  }
+
+  function metaSources() {
+    if (!S) return [];
+    const out = [];
+    for (const m of document.querySelectorAll('meta[property^="og:video"], meta[name^="twitter:player:stream"], meta[itemprop="contentUrl"]')) {
+      const url = m.content || '';
+      const kind = S.isHttp(url) ? S.kindOf(url, 'contentUrl', '') : '';
+      if (kind) out.push({ url, kind, width: 0, height: 0, duration: 0, images: [], mime: '' });
+    }
+    return out;
+  }
+
+  /**
+   * Page sources for one <video>: { matched, other }. A source matches when it
+   * sits on the element, or its thumbnail is the video's poster, or its length
+   * is the video's length.
+   */
+  function sourcesFor(video) {
+    const own = domSources(video);
+    const poster = video?.poster && S ? S.imageKey(video.poster) : '';
+    const length = Number(video?.duration) || 0;
+    const matched = [...own];
+    const other = [];
+    const ownUrls = new Set(own.map((o) => o.url));
+    const all = [...pageSources.values()].reverse(); // newest first
+    const single = visibleVideos().length <= 1;
+    for (const src of [...metaSources(), ...all]) {
+      if (src.url && ownUrls.has(src.url)) continue;
+      const byPoster = poster && (src.images || []).some((img) => S.imageKey(img) === poster);
+      const byLength = length > 1 && Number.isFinite(length) && src.duration > 0 &&
+        (Math.abs(src.duration - length) < 1.5 || Math.abs(src.duration / 1000 - length) < 1.5); // some sites give milliseconds
+      if (byPoster || byLength) matched.push(src);
+      else other.push(src);
+    }
+    // One video on the page (a post or watch page) and nothing tied to it: its page data is about it.
+    if (single && !matched.length && other.length) return { matched: other.slice(0, 40), other: [] };
+    return { matched: matched.slice(0, 40), other: other.slice(0, 20) };
+  }
+
+  let pageSaveTimer = 0;
+  /** Tell the extension about the video that is playing, for the popup's video card. */
+  function savePageSources(video) {
+    clearTimeout(pageSaveTimer);
+    pageSaveTimer = setTimeout(() => send({ type: 'savePageSources', page: sourcesFor(video) }), 1500);
+  }
 
   const send = (msg) =>
     new Promise((resolve) => {
@@ -224,7 +326,7 @@
     currentVideo = null;
   }
 
-  function item(name, meta, onClick, { closeOnly = false } = {}) {
+  function item(name, meta, onClick, { closeOnly = false, done = '' } = {}) {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = 'item';
@@ -247,7 +349,7 @@
         return;
       }
       const result = await onClick();
-      menu.replaceChildren(note(result?.error || s('overlayStarted'), !result?.error));
+      menu.replaceChildren(note(result?.error || done || s('overlayStarted'), !result?.error));
       setTimeout(hide, 1600);
     });
     return el;
@@ -291,18 +393,29 @@
     menu.classList.add('show');
     place();
 
-    const reply = await send({ type: 'overlayMedia' });
+    const page = sourcesFor(currentVideo);
+    const reply = await send({ type: 'overlayMedia', page });
     const parts = [];
     const options = reply?.streams?.options || [];
-    if (options.length) {
-      // Saved by the browser itself, no install needed (M15).
-      parts.push(head(s('overlayQualities')));
-      for (const o of options) {
+    const addOptions = (list) => {
+      for (const o of list) {
         const name = o.audioOnly ? s('qualityAudio') : o.label || s('overlayVideoSite');
-        const meta = [formatSize(o.size), o.hasAudio || o.audioOnly ? '' : s('overlayNoSound')].filter(Boolean).join(' · ');
+        const meta = [o.best ? s('overlayBest') : '', formatSize(o.size), o.hasAudio || o.audioOnly ? '' : s('overlayNoSound')].filter(Boolean).join(' · ');
         parts.push(item(name, meta, () => send({ type: 'addStream', optionId: o.id, title: document.title })));
       }
-    } else if (reply?.streams?.refused) {
+    };
+    const mine = options.filter((o) => !o.other);
+    const others = options.filter((o) => o.other);
+    if (mine.length) {
+      // Saved by the browser itself, no install needed (M15, M16).
+      parts.push(head(s('overlayQualities')));
+      addOptions(mine);
+    }
+    if (others.length) {
+      parts.push(head(s('overlayOther')));
+      addOptions(others);
+    }
+    if (!options.length && reply?.streams?.refused) {
       parts.push(note(s(reply.streams.refused === 'live' ? 'overlayLive' : 'overlayEncrypted')));
     }
     if (reply?.companion === 'connected' && (reply.site === 'video' || reply.site === 'generic')) {
@@ -320,16 +433,6 @@
     const seen = new Set();
     const files = [];
     for (const m of reply?.media || []) files.push(m); // detected files first: they carry size and type
-    const own = currentVideo?.currentSrc || currentVideo?.src || '';
-    if (/^https?:/i.test(own)) {
-      let name = document.title;
-      try {
-        name = decodeURIComponent(new URL(own).pathname.split('/').pop()) || name;
-      } catch {
-        // keep the page title
-      }
-      files.push({ url: own, name, size: -1, mime: '' });
-    }
     const unique = files.filter((f) => !seen.has(f.url) && seen.add(f.url));
     if (unique.length) {
       parts.push(head(s('overlayFiles')));
@@ -338,8 +441,52 @@
       }
     }
     if (!parts.length) parts.push(note(s('overlayNothing')));
+    parts.push(item(s('overlayCopyDebug'), '', () => copyDebug(page, reply), { closeOnly: false, done: s('overlayCopied') }));
     menu.replaceChildren(...parts);
     place();
+  }
+
+  function cleanUrl(url) {
+    try {
+      const u = new URL(url, location.href);
+      if (u.protocol === 'blob:') return 'blob:';
+      return `${u.protocol}//${u.hostname}${u.pathname}`;
+    } catch {
+      return '';
+    }
+  }
+
+  /** Copy what SIDM saw on this page, without query strings (they can hold sign-in tokens). */
+  async function copyDebug(page, reply) {
+    const ext = (await send({ type: 'overlayDebug' })) || {};
+    const v = currentVideo;
+    const brief = (src) => ({ kind: src.kind, url: src.url ? cleanUrl(src.url) : '(manifest text)', size: `${src.width || 0}x${src.height || 0}`, duration: Math.round(src.duration || 0) });
+    const info = {
+      page: cleanUrl(location.href),
+      frame: window !== top ? 'iframe' : 'top',
+      time: new Date().toISOString(),
+      video: v ? { src: cleanUrl(v.currentSrc || v.src || ''), poster: v.poster ? cleanUrl(v.poster) : '', size: `${v.videoWidth}x${v.videoHeight}`, duration: Math.round(v.duration || 0), sources: v.querySelectorAll('source').length } : null,
+      videosOnPage: videos.length,
+      pageDataSources: pageSources.size,
+      matched: (page?.matched || []).slice(0, 15).map(brief),
+      other: (page?.other || []).length,
+      options: (reply?.streams?.options || []).map((o) => `${o.kind} ${o.label || '?'}${o.hasAudio ? '' : ' no-sound'}${o.other ? ' other' : ''}`),
+      refused: reply?.streams?.refused || '',
+      extension: ext,
+    };
+    const text = `SIDM debug info\n${JSON.stringify(info, null, 2)}`;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.cssText = 'position:fixed;top:-1000px;opacity:0;';
+      root.append(area);
+      area.select();
+      document.execCommand('copy');
+      area.remove();
+    }
+    return { ok: true };
   }
 
   function onMove(event) {
@@ -354,6 +501,7 @@
     const video = event.target;
     if (menuOpen || !(video instanceof HTMLVideoElement) || !alive()) return;
     if (!videos.includes(video)) videos.push(video);
+    savePageSources(video);
     if (visibleVideos().includes(video)) show(video);
   }
 

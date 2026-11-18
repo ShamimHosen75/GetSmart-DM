@@ -2,6 +2,7 @@
 rem SIDM companion installer. No admin rights needed.
 rem Downloads embedded Python, yt-dlp and ffmpeg into this folder, then
 rem registers the native-messaging host for Chrome, Edge and Brave (current user only).
+rem "install.bat /quiet" is how the setup program (SIDM-Setup.exe) runs it: no pauses, no progress bars.
 setlocal EnableExtensions
 rem UTF-8 so the manifest stays valid JSON when the folder path has non-English letters.
 chcp 65001 >nul
@@ -14,6 +15,10 @@ set "PY_URL=https://www.python.org/ftp/python/%PY_VER%/python-%PY_VER%-embed-amd
 set "YTDLP_URL=https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
 set "FFMPEG_URL=https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
 
+set "QUIET="
+if /i "%~1"=="/quiet" set "QUIET=1"
+set "CURL_PROGRESS=--progress-bar"
+if defined QUIET set "CURL_PROGRESS=-sS"
 set "HERE=%~dp0"
 set "WORK=%TEMP%\gsdm-install-%RANDOM%"
 set "MANIFEST=%HERE%%HOST_NAME%.json"
@@ -144,14 +149,14 @@ echo.
 echo Done. Restart Chrome, Edge or Brave, then open SIDM: the companion should show as connected.
 echo Keep this folder where it is. If you move it, run install.bat again.
 echo.
-pause
+if not defined QUIET pause
 exit /b 0
 
 rem ---------------------------------------------------------------- helpers
 
 :download
 rem %1 = URL, %2 = target file
-curl -fL --retry 3 --retry-delay 2 --connect-timeout 30 --progress-bar -o "%~2" "%~1"
+curl -fL --retry 3 --retry-delay 2 --connect-timeout 30 %CURL_PROGRESS% -o "%~2" "%~1"
 if errorlevel 1 (
   echo ERROR: Download failed: %~1
   echo Check your internet connection and try again, or follow "Manual setup" in README.md.
@@ -177,5 +182,5 @@ if defined WORK rmdir /s /q "%WORK%" >nul 2>&1
 echo.
 echo Install did NOT finish. See the message above.
 echo.
-pause
+if not defined QUIET pause
 exit /b 1

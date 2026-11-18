@@ -29,6 +29,7 @@ Copy this list into the release PR or issue and tick it off.
 
 ### 3. Build
 
+- [ ] NSIS 3 is installed (`makensis`; Linux: `sudo apt-get install nsis`): release.py builds the Windows setup program `SIDM-Setup.exe` with it, puts it inside the extension ZIP and next to it as `sidm-v<version>-companion-setup.exe`. Without NSIS, pass `--no-setup` (then the ZIP has no setup program).
 - [ ] `python scripts/release.py`. It refuses to run if the extension and companion versions differ. It prints the ZIP's size and SHA-256, writes `site/version.json`, updates the size, SHA-256 and download link on `site/index.html`, and removes older ZIPs from `site/downloads/` (pass `--keep` to keep them).
 - [ ] `python scripts/test_site.py --strict` passes (the download link points at a ZIP that exists).
 - [ ] Check the ZIP listings: one top folder `sidm/` with `START-HERE.txt` and `extension/` (extension ZIP) or `companion/` (companion ZIPs), and no `.pem`, `host.log`, `python/` or `.exe` files.

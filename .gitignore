@@ -47,3 +47,6 @@ companion/ffprobe
 
 # Release ZIPs built by scripts/release.py are committed so the static site can serve them
 !site/downloads/sidm-v*.zip
+
+# Built by scripts/release.py into the extension ZIP only
+extension/setup/

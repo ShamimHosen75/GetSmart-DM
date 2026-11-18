@@ -46,20 +46,20 @@
               data-release="version"         text -> <version> (may appear several times)
               data-release="extension-size"    text -> e.g. "1.2 MB"
               data-release="extension-sha256"  text -> hex SHA-256 of the ZIP
-              The optional companion ZIPs use companion-windows-* and companion-macos-linux-*.
+              The optional companion downloads use companion-setup-*, companion-windows-* and companion-macos-linux-*.
             The Mac/Linux ZIP uses the same keys with "macos-linux-" (in the FAQ).
             Keep these attributes (and plain-text contents) when editing this block.
           -->
-          <a class="btn btn-primary btn-big" id="download-link" data-release="extension-zip" href="downloads/sidm-v0.3.0-extension.zip" download>
+          <a class="btn btn-primary btn-big" id="download-link" data-release="extension-zip" href="downloads/sidm-v0.4.0-extension.zip" download>
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
             Download SIDM
           </a>
           <p class="release-meta">
-            <span>Version <span id="release-version" data-release="version">0.3.0</span></span>
-            <span>ZIP, <span id="release-size" data-release="extension-size">129 KB</span></span>
+            <span>Version <span id="release-version" data-release="version">0.4.0</span></span>
+            <span>ZIP, <span id="release-size" data-release="extension-size">260 KB</span></span>
             <span>Windows 10 and 11</span>
           </p>
-          <p class="release-hash">SHA-256: <code data-release="extension-sha256">a41631fe008758e83bd1b760ecf4b32b1e35bb358bacc739b1916bc370352b2e</code></p>
+          <p class="release-hash">SHA-256: <code data-release="extension-sha256">87ca27dcf4df653df10d76026832b8db09c46d7e3c8a88a31e451e89df441941</code></p>
           <p class="hero-note">Then follow the <a href="#install">2 install steps</a>. Takes about a minute, and there is nothing else to install.</p>
         </div>
       </section>
@@ -185,9 +185,10 @@
           <aside class="callout" aria-labelledby="companion-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
             <div>
-              <h3 id="companion-title">Optional: the companion app, for YouTube</h3>
-              <p>You do not need it for most sites. YouTube scrambles its video streams, so saving YouTube videos, and downloading big files over several connections at once, needs the small companion app.</p>
-              <p>Get the <a data-release="companion-windows-zip" href="downloads/sidm-v0.3.0-companion-windows.zip" download>companion for Windows</a> (<span data-release="companion-windows-size">22 KB</span>, SHA-256 <code data-release="companion-windows-sha256">eb0aafa65ff3faa03767be39ca152602787f18352053993e28e8c7a36e033660</code>). Extract it into the same folder as the extension, so you get a <code>companion</code> folder next to <code>extension</code>. Then double-click <code>install.bat</code> and restart the browser. Windows SmartScreen may say “Windows protected your PC” because the script is new: click <b>More info</b>, then <b>Run anyway</b>. <code>install.bat</code> is plain text you can read in Notepad first.</p>
+              <h3 id="companion-title">Optional: SIDM for Windows, for YouTube</h3>
+              <p>You do not need it for most sites. YouTube scrambles its video streams, so YouTube downloads, and downloading big files over several connections at once, go through the SIDM desktop program, the same way other download managers pair their extension with a PC program.</p>
+              <p>Install it once and the extension finds it by itself. In SIDM <b>Settings</b>, click <b>Install SIDM for Windows</b> (the setup program comes inside the extension ZIP), or download <a data-release="companion-setup-zip" href="downloads/sidm-v0.4.0-companion-setup.exe" download>SIDM Setup</a> (<span data-release="companion-setup-size">160 KB</span>, SHA-256 <code data-release="companion-setup-sha256">46d4a475082ee303583b2a04e4397f1556d75587f09b509456b21714b016432a</code>). Run it and click <b>Install</b>: it needs no administrator rights, fetches its tools (about 200 MB) and adds an uninstaller to Windows Settings. Windows SmartScreen may say “Windows protected your PC” because the program is new and not yet signed: click <b>More info</b>, then <b>Run anyway</b>.</p>
+              <p>Prefer a folder you control? The <a data-release="companion-windows-zip" href="downloads/sidm-v0.4.0-companion-windows.zip" download>companion ZIP for Windows</a> (<span data-release="companion-windows-size">23 KB</span>, SHA-256 <code data-release="companion-windows-sha256">a6151715d5b5cd593c0a0622b8b44bf5a3dd23b1a3a25484bcd4965ef7b43d20</code>) does the same with <code>install.bat</code>.</p>
             </div>
           </aside>
         </div>
@@ -210,7 +211,7 @@
             <details>
               <summary>Can it download from YouTube?</summary>
               <div class="answer">
-                <p>Yes, with the optional companion app (see the install section). YouTube scrambles its video streams, so the extension alone cannot save them. YouTube's Terms of Service do not allow downloading except where YouTube offers a download button, so the first YouTube download shows a notice: only save videos you own or have permission to save. You are responsible for following those terms. You can switch YouTube off in Settings.</p>
+                <p>Yes, with the optional SIDM for Windows program (see the install section). YouTube scrambles its video streams, so the extension alone cannot save them. YouTube's Terms of Service do not allow downloading except where YouTube offers a download button, so the first YouTube download shows a notice: only save videos you own or have permission to save. You are responsible for following those terms. You can switch YouTube off in Settings.</p>
               </div>
             </details>
             <details>
@@ -225,7 +226,7 @@
               <summary>A site that used to work stopped working. What do I do?</summary>
               <div class="answer">
                 <p>First play the video for a few seconds and click <b>Download</b> again: SIDM saves what the page plays, so it needs the video to start. Sites also change how they serve video now and then; a new SIDM version fixes that, and the popup shows <b>Update available</b> when there is one.</p>
-                <p>If you use the companion app, also open its <code>companion</code> folder and double-click <code>update.bat</code> to fetch the newest yt-dlp.</p>
+                <p>If you use SIDM for Windows, open the Start menu and run <b>Update SIDM tools</b> to fetch the newest yt-dlp.</p>
               </div>
             </details>
             <details>
@@ -239,7 +240,7 @@
               <summary>Does it work on Mac or Linux? Is there an Android version?</summary>
               <div class="answer">
                 <p>Yes for Mac and Linux: the same extension ZIP works in Chrome, Chromium, Edge or Brave. Load it the same way as above.</p>
-                <p>For YouTube, the optional companion has a <a data-release="companion-macos-linux-zip" href="downloads/sidm-v0.3.0-companion-macos-linux.zip" download>Mac and Linux ZIP</a> (<span data-release="companion-macos-linux-size">24 KB</span>, SHA-256 <code data-release="companion-macos-linux-sha256">4adecc2832040cd8fd5d9e666eb00cdabe834b28506ae709fd03f968255b78e9</code>). Extract it next to the extension, open Terminal in the <code>companion</code> folder and run <code>bash install.sh</code>. No <code>sudo</code> needed. It uses the Python 3 that comes with your system (on a Mac, if you are asked to install the Command Line Tools, say yes), downloads yt-dlp and ffmpeg into that folder (on a Mac it uses Homebrew's ffmpeg if you have Homebrew), and connects them to your browsers. To update yt-dlp later, run <code>./yt-dlp -U</code> in the same folder.</p>
+                <p>For YouTube, the optional companion has a <a data-release="companion-macos-linux-zip" href="downloads/sidm-v0.4.0-companion-macos-linux.zip" download>Mac and Linux ZIP</a> (<span data-release="companion-macos-linux-size">24 KB</span>, SHA-256 <code data-release="companion-macos-linux-sha256">bc941f397593e95ff651bce15d10beb022930837bd9adbf6231462fec4f9dc93</code>). Extract it next to the extension, open Terminal in the <code>companion</code> folder and run <code>bash install.sh</code>. No <code>sudo</code> needed. It uses the Python 3 that comes with your system (on a Mac, if you are asked to install the Command Line Tools, say yes), downloads yt-dlp and ffmpeg into that folder (on a Mac it uses Homebrew's ffmpeg if you have Homebrew), and connects them to your browsers. To update yt-dlp later, run <code>./yt-dlp -U</code> in the same folder.</p>
                 <p>Browsers installed as Snap or Flatpak packages on Linux cannot start the companion; use the browser's regular package instead. There is no Android app yet. It is planned, with no date.</p>
               </div>
             </details>
