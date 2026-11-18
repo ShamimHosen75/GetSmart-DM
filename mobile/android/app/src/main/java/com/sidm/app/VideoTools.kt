@@ -40,7 +40,7 @@ class VideoTools(private val context: Context) {
         try {
             YoutubeDL.getInstance().init(context)
             FFmpeg.getInstance().init(context)
-            _version.value = runCatching { YoutubeDL.getInstance().version(context) }.getOrNull()
+            _version.value = readVersion()
             _state.value = State.Ready
             ready.complete(true)
         } catch (e: Throwable) {
@@ -76,6 +76,7 @@ class VideoTools(private val context: Context) {
                 YoutubeDL.getInstance().execute(request, null, null)
             } catch (e: Exception) {
                 val msg = e.message.orEmpty()
+                Log.w(TAG, "info failed (${com.sidm.core.Links.hostOf(url)}): ${YtdlpArgs.lastError(msg).take(300)}")
                 throw VideoError(YtdlpArgs.errorKey(msg) ?: "errOther:${YtdlpArgs.lastError(msg).take(300)}")
             }
             val json = response.out.lineSequence().firstOrNull { it.trimStart().startsWith("{") }
@@ -123,9 +124,21 @@ class VideoTools(private val context: Context) {
     /** Updates yt-dlp to its latest stable release. Returns the new version, or null if it was up to date. */
     fun update(): String? {
         val status = YoutubeDL.getInstance().updateYoutubeDL(context, YoutubeDL.UpdateChannel.STABLE)
-        val v = runCatching { YoutubeDL.getInstance().version(context) }.getOrNull()
+        val v = readVersion()
         _version.value = v
         return if (status == YoutubeDL.UpdateStatus.DONE) v else null
+    }
+
+    /**
+     * The library only remembers the version after an update, so on a fresh
+     * install ask yt-dlp itself.
+     */
+    private fun readVersion(): String? {
+        runCatching { YoutubeDL.getInstance().version(context) }.getOrNull()?.takeIf { it.isNotBlank() }?.let { return it }
+        return runCatching {
+            val request = YoutubeDLRequest(emptyList<String>()).addOption("--version")
+            YoutubeDL.getInstance().execute(request, null, null).out.trim().lineSequence().lastOrNull()?.trim()
+        }.onFailure { Log.w(TAG, "yt-dlp --version failed", it) }.getOrNull()?.takeIf { it.isNotBlank() }
     }
 
     companion object {
