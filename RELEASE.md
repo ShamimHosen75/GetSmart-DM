@@ -2,7 +2,7 @@
 
 A release is one version number shared by the extension and the companion, one ZIP per platform on the website, and one git tag `v<version>`.
 
-Currently built: **Windows** (`sidm-v<version>-windows.zip`) and **macOS/Linux** (`sidm-v<version>-macos-linux.zip`).
+Currently built: the main download, **the extension alone** (`sidm-v<version>-extension.zip`, all systems), and the optional companion for **Windows** (`sidm-v<version>-companion-windows.zip`) and **macOS/Linux** (`sidm-v<version>-companion-macos-linux.zip`).
 
 ## Checklist
 
@@ -31,27 +31,28 @@ Copy this list into the release PR or issue and tick it off.
 
 - [ ] `python scripts/release.py`. It refuses to run if the extension and companion versions differ. It prints the ZIP's size and SHA-256, writes `site/version.json`, updates the size, SHA-256 and download link on `site/index.html`, and removes older ZIPs from `site/downloads/` (pass `--keep` to keep them).
 - [ ] `python scripts/test_site.py --strict` passes (the download link points at a ZIP that exists).
-- [ ] Check the ZIP listing: one top folder `sidm/` with `extension/`, `companion/` and `START-HERE.txt`, and no `.pem`, `host.log`, `python/` or `.exe` files.
+- [ ] Check the ZIP listings: one top folder `sidm/` with `START-HERE.txt` and `extension/` (extension ZIP) or `companion/` (companion ZIPs), and no `.pem`, `host.log`, `python/` or `.exe` files.
 
 ### 4. Test the ZIP on a clean Windows account
 
 Use a Windows user account that has never had SIDM (a new local account, or Windows Sandbox).
 
-- [ ] Download the ZIP from the local site (or copy it over) and check its SHA-256 matches: `certutil -hashfile sidm-v<version>-windows.zip SHA256`.
+- [ ] Download the extension ZIP from the local site (or copy it over) and check its SHA-256 matches: `certutil -hashfile sidm-v<version>-extension.zip SHA256`.
 - [ ] Extract it and follow only `START-HERE.txt`.
 - [ ] Fresh Chrome profile: load `sidm\extension` unpacked; the extension ID shown on `chrome://extensions` is `ejkhmcfjnohjikdgfgkhjficmiaoghma`.
-- [ ] Run `companion\install.bat` from scratch. It ends with `Done`.
-- [ ] Restart Chrome. The popup shows the companion as connected, a normal file download works, and a video download from a supported site works.
+- [ ] Without the companion: a normal file download works, and a video download from Facebook, X or LinkedIn works (`extension/QA.md` M15).
+- [ ] Optional companion: extract `sidm-v<version>-companion-windows.zip` next to it and run `companion\install.bat` from scratch. It ends with `Done`.
+- [ ] Restart Chrome. The popup shows the companion as connected and a YouTube download works.
 - [ ] Repeat the extension check in Edge and Brave if they are installed.
 - [ ] `uninstall.bat` removes the registration; downloaded files are left alone.
 
-### 4b. Test the macOS/Linux ZIP
+### 4b. Test the macOS/Linux companion ZIP
 
 On a Mac and on a Linux desktop (a fresh user account if possible):
 
-- [ ] Check the SHA-256: `shasum -a 256 sidm-v<version>-macos-linux.zip` (macOS) or `sha256sum ...` (Linux).
-- [ ] Extract it and follow only `START-HERE.txt`. `ls -l sidm/companion` shows `install.sh` as executable.
-- [ ] Load `sidm/extension` unpacked; the ID is `ejkhmcfjnohjikdgfgkhjficmiaoghma`.
+- [ ] Check the SHA-256: `shasum -a 256 sidm-v<version>-companion-macos-linux.zip` (macOS) or `sha256sum ...` (Linux).
+- [ ] Load `sidm/extension` from the extension ZIP unpacked; the ID is `ejkhmcfjnohjikdgfgkhjficmiaoghma`.
+- [ ] Extract the companion ZIP next to it and follow its `START-HERE.txt`. `ls -l sidm/companion` shows `install.sh` as executable.
 - [ ] `bash install.sh` as your normal user ends with `Done`. Restart the browser: companion connected, a video download works.
 - [ ] `bash uninstall.sh` removes the manifests; downloaded files are left alone.
 

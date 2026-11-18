@@ -4,6 +4,28 @@ All notable changes to SIDM. Newest version first. Each version has three parts:
 
 Add a new section with `python scripts/bump.py patch|minor|major`, then fill in the bullets before running `scripts/release.py`. See `RELEASE.md`.
 
+## [0.3.0] - 2026-11-18
+
+No install needed: the extension ZIP is all most people need. The companion app is now optional.
+
+### Extension
+
+- Videos are downloaded by the extension itself, without the companion. It uses the streams the page plays: HLS playlists, DASH manifests and the MP4 pieces that players such as Facebook's fetch bit by bit. The video button and the popup offer the qualities found (for example 720p, 360p, audio only). Pieces are fetched 6 at a time, and separate video and audio are joined into one MP4 in the browser. The file is saved in `Downloads/SIDM/Video`.
+- In-browser video downloads show in the popup, the manager and the progress window, with pause, resume, cancel and retry.
+- Encrypted (DRM) and live streams are refused. MPEG-TS streams are saved as `.ts`.
+- YouTube still needs the companion: its streams are signed and scrambled. The menu says so instead of asking every site for an install.
+- Companion wording is "optional" everywhere; nothing in the normal flow asks for it.
+- New permission: `offscreen` (a hidden page that joins the video pieces).
+
+### Companion
+
+- No changes to the program. It ships as a separate optional ZIP (`sidm-v<version>-companion-windows.zip`, `...-companion-macos-linux.zip`).
+
+### Website
+
+- The main download is `sidm-v<version>-extension.zip` (the extension alone, every system). Install is 2 steps; the companion is an optional extra for YouTube.
+- FAQ and privacy page updated: the extension alone installs nothing else.
+
 ## [0.2.0] - 2026-11-17
 
 Renamed from GetSmart DM to **SIDM - Smart Internet Download Manager**. The extension ID is unchanged.

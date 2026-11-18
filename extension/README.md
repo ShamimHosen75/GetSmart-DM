@@ -2,7 +2,24 @@
 
 SIDM browser extension for Chrome 116+, Edge and Brave. Manifest V3, plain JavaScript ES modules, no build step and no external libraries. See the root `CLAUDE.md` for the rules.
 
-Status: version 0.1.0. Step 1 milestones M1 to M9 are done (download list, queue and folder sorting, add links and menus, link grabber, media detection, companion bridge, settings, automated test).
+Status: version 0.2.0 plus M15. Step 1 milestones M1 to M15 are done. M15: videos are downloaded by the extension itself, no companion app needed (see "Videos without the companion" below).
+
+## Videos without the companion (M15)
+
+The extension saves most site videos on its own:
+
+1. `media.js` sees each response a tab gets. `stream-jobs.js` keeps the streams: HLS playlists (`.m3u8`), DASH manifests (`.mpd`), and pieces of MP4 files that players fetch bit by bit (Facebook-style `bytestart=`/`byteend=` addresses, or `206` partial responses to `fetch`).
+2. When the video button or the popup asks, the offscreen page (`offscreen.html`, `offscreen.js`) reads them and offers choices such as 720p, 480p or audio only.
+3. On a click it fetches every piece, 6 at a time. It joins separate video and audio into one MP4 (`mp4.js`, fragmented or plain MP4) and hands the worker a `blob:` URL. The worker saves it with `chrome.downloads` into `SIDM/Video`.
+
+Limits:
+
+- Encrypted streams (HLS `EXT-X-KEY`, DASH `ContentProtection`, `encv`/`enca`/`pssh` in MP4) and live streams are refused.
+- MPEG-TS HLS is saved as `.ts`, which plays in VLC and most players, because joining TS into MP4 is not done.
+- YouTube's streams are signed and scrambled, so YouTube needs the optional companion.
+- The whole video is held in memory until it is saved, so very long videos need free RAM.
+
+The companion app (`companion/`) is optional. It adds YouTube, multi-connection file downloads and a speed limit for those files.
 
 ## Install (Load unpacked)
 
@@ -48,7 +65,8 @@ python scripts/extension_id.py --pem extension-key.pem --print-key
 | `scripting` | Collect the links, images and media on a page for the link grabber, only when you ask for it. |
 | `notifications` | Tell you when a download finishes or fails, and why a `blob:`/`data:` link cannot be saved. |
 | `alarms` | Scheduler: start and stop the queue at the times you set. |
-| `nativeMessaging` | Talk to the SIDM companion app (`com.sidm.host`) that downloads videos from supported sites. |
+| `offscreen` | A hidden page that downloads video pieces and joins them into one file (M15). |
+| `nativeMessaging` | Talk to the optional SIDM companion app (`com.sidm.host`), used for YouTube and multi-connection downloads when it is installed. |
 | `host_permissions: <all_urls>` | Needed by `webRequest` and `scripting` to work on any site you visit. SIDM never sends page data anywhere. |
 
 ## Files
@@ -75,6 +93,10 @@ python scripts/extension_id.py --pem extension-key.pem --print-key
 | `manager.html` / `manager.js` | Download manager page: category tree, sortable table, toolbar |
 | `file-jobs.js` | Multi-connection file downloads through the companion (`add_file`), jobs in `storage.local` `fileJobs` |
 | `scheduler.js` | Scheduler alarms and "when the queue is done" |
+| `stream-jobs.js` | Videos downloaded in the browser (M15): streams per tab, jobs in `storage.local` `streamJobs`, saving |
+| `offscreen.html` / `offscreen.js` | Hidden page: reads playlists and manifests, downloads pieces, joins them |
+| `mp4.js` | Reads MP4 headers and joins a video and an audio MP4 into one |
+| `stream-parse.js` | HLS and DASH parsers |
 | `download-info.js` | State, name, size and error text of a download, shared by the lists |
 | `speed.js` | Transfer rate from byte samples, and time left |
 | `update-check.js` | "Update available" footer link |
@@ -93,6 +115,9 @@ Extension pages talk to the service worker with `chrome.runtime.sendMessage({ ty
 | `pauseFile` / `resumeFile` / `cancelFile` / `eraseFile` | `id` | `{ ok }` or `{ error }` (companion file downloads) |
 | `openFile` | `id, reveal` | `{ ok }` or `{ error }` (open a finished companion file, or show it in its folder) |
 | `setFileSpeedLimit` | `id, limit` (bytes/s, 0 = none) | `{ ok }` |
+| `streamOptions` | `tabId` | `{ options: [{ id, label, hasAudio, size, kind, audioOnly }], refused }` (`refused`: `encrypted`, `live` or empty) |
+| `addStream` | `optionId, tabId, title, pageUrl?` | `{ id }` or `{ error }` |
+| `pauseStream` / `resumeStream` / `retryStream` / `cancelStream` / `eraseStream` | `id` | `{ ok }` or `{ error }` |
 | `getVideoState` | `url` | `{ site, drm, companion, jobs, defaultQuality }` |
 | `addVideo` | `url, quality, title?` | `{ id }` or `{ error }` |
 | `cancelVideo` / `retryVideo` / `removeVideo` / `openVideoFolder` | `id` | `{ ok }` or `{ error }` |

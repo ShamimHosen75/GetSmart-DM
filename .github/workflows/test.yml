@@ -38,6 +38,8 @@ jobs:
           # Playwright's own Chromium build: branded Google Chrome 137+ no
           # longer accepts --load-extension, which the extension tests need.
           python -m playwright install --with-deps chromium
+          # ffmpeg makes the HLS/DASH test videos for the in-browser video check.
+          command -v ffmpeg || sudo apt-get install -y ffmpeg
 
       # macOS/Linux installer scripts (shellcheck ships with ubuntu-latest).
       - name: Shell scripts (shellcheck companion/*.sh)

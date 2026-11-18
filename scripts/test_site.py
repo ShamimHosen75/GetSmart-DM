@@ -13,8 +13,8 @@ What it does, in order:
   3. Links: serves site/ on a local port and requests every internal href/src
      on every page. Fails on any non-200 or a #fragment with no matching id.
      External links are listed, not fetched.
-  4. Download links: every data-release="<platform>-zip" link (Windows in the
-     hero, macOS/Linux in the FAQ) must point at
+  4. Download links: every data-release="<platform>-zip" link (the extension
+     ZIP in the hero, the optional companion ZIPs below) must point at
      downloads/sidm-v<version>-<platform>.zip, matching #release-version.
      A missing ZIP is reported as EXPECTED-MISSING (the Step 4 release script
      creates it) and does not fail the run, unless --strict is given.
@@ -261,8 +261,8 @@ def check_download(strict):
     version_match = re.search(r'id="release-version"[^>]*>([^<]+)<', html_text)
     version = version_match.group(1).strip() if version_match else ""
     link = index.by_id.get("download-link", {})
-    if link.get("data-release") != "windows-zip":
-        report("FAIL", "download link", '#download-link has no data-release="windows-zip"')
+    if link.get("data-release") != "extension-zip":
+        report("FAIL", "download link", '#download-link has no data-release="extension-zip" (the main download is the extension alone)')
     hrefs = set()
     for platform, href in re.findall(
             r'<a\b[^>]*\bdata-release="([\w-]+)-zip"[^>]*\bhref="([^"]*)"', html_text):

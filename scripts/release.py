@@ -3,14 +3,15 @@
 
     python scripts/release.py              # build every platform, remove older ZIPs
     python scripts/release.py --keep       # keep older ZIPs in site/downloads/
-    python scripts/release.py --platform windows
+    python scripts/release.py --platform extension
 
 What it does:
 1. Reads the version from extension/manifest.json and checks that
    companion/host.py VERSION is the same (use scripts/bump.py to change both).
 2. Builds site/downloads/sidm-v<version>-<platform>.zip for each
-   platform in PLATFORMS. Each ZIP has one top folder, sidm/, holding
-   extension/, companion/ and START-HERE.txt.
+   entry in PLATFORMS. Each ZIP has one top folder, sidm/, holding
+   START-HERE.txt and extension/ (the main "extension" ZIP) or companion/
+   (the optional "companion-windows" and "companion-macos-linux" ZIPs).
 3. Prints each ZIP's size and SHA-256.
 4. Writes site/version.json ({"version": "x.y.z"}), which the extension checks
    once a day to show "Update available".
@@ -48,29 +49,50 @@ EXTENSION_EXCLUDE_FILES = re.compile(
     r"(\.pem$|\.zip$|\.log$|\.test\.js$|\.spec\.js$|^\.|^Thumbs\.db$|^desktop\.ini$)", re.I
 )
 
-# One entry per download. To add a platform, add an entry here: the companion
-# files it ships, its START-HERE.txt lines, the line ending those text files
-# need, and "unix": True if it needs executable bits. Then mark its size/SHA/link on
+# One entry per download. "extension": True ships extension/; "companion_files"
+# lists the companion files it ships. Each has its START-HERE.txt lines, the line
+# ending those text files need, and "unix": True if it needs executable bits.
+# To add a download, add an entry here, then mark its size/SHA/link on
 # site/index.html with data-release="<key>-size" and so on.
+#
+# The main download is "extension": the extension alone, which is all most
+# people need (videos are saved by the extension itself since M15). The
+# companion ZIPs are optional extras for YouTube and multi-connection downloads.
 PLATFORMS = {
-    "windows": {
+    "extension": {
+        "extension": True,
+        "companion_files": [],
+        "newline": "\r\n",
+        "start_here": [
+            "SIDM - Smart Internet Download Manager. Nothing else to install.",
+            "1. Extract this ZIP to a folder you will keep, for example Documents\\sidm (Windows) or ~/sidm (Mac, Linux).",
+            "2. In Chrome, Edge or Brave open chrome://extensions, turn on Developer mode, "
+            "click Load unpacked and choose the sidm/extension folder.",
+            "3. Pin SIDM from the puzzle-piece menu. Play a video on Facebook, X, LinkedIn and other sites, "
+            "then click Download on the video.",
+            "Optional: YouTube and multi-connection downloads need the companion app (separate ZIP on the website).",
+        ],
+    },
+    "companion-windows": {
+        "extension": False,
         "companion_files": ["host.py", "install.bat", "update.bat", "uninstall.bat", "README.md"],
         "newline": "\r\n",
         "start_here": [
-            "1. Extract this ZIP to a folder you will keep, for example Documents\\sidm.",
-            "2. In Chrome, Edge or Brave open chrome://extensions, turn on Developer mode, "
-            "click Load unpacked and choose the sidm\\extension folder.",
+            "SIDM companion app (optional): adds YouTube and multi-connection downloads.",
+            "1. Install the SIDM extension first (the main ZIP).",
+            "2. Extract this ZIP next to it, for example Documents\\sidm, so you get sidm\\companion.",
             "3. Double-click sidm\\companion\\install.bat, wait for Done, then restart the browser.",
         ],
     },
-    "macos-linux": {
+    "companion-macos-linux": {
+        "extension": False,
         "companion_files": ["host.py", "install.sh", "uninstall.sh", "README.md"],
         "newline": "\n",
         "unix": True,  # Unix ZIP entries, so unzip / Archive Utility keep the executable bit
         "start_here": [
-            "1. Extract this ZIP to a folder you will keep, for example ~/sidm.",
-            "2. In Chrome, Chromium, Edge or Brave open chrome://extensions, turn on Developer mode, "
-            "click Load unpacked and choose the sidm/extension folder.",
+            "SIDM companion app (optional): adds YouTube and multi-connection downloads.",
+            "1. Install the SIDM extension first (the main ZIP).",
+            "2. Extract this ZIP next to it, for example ~/sidm, so you get sidm/companion.",
             "3. Open Terminal in sidm/companion, run: bash install.sh, wait for Done, "
             "then restart the browser.",
         ],
@@ -129,9 +151,10 @@ def zip_entries(root, platform):
     spec = PLATFORMS[platform]
     entries = []
 
-    for path, rel in extension_files(root):
-        with open(path, "rb") as f:
-            entries.append((f"{TOP_FOLDER}/extension/{rel}", f.read()))
+    if spec["extension"]:
+        for path, rel in extension_files(root):
+            with open(path, "rb") as f:
+                entries.append((f"{TOP_FOLDER}/extension/{rel}", f.read()))
 
     for name in spec["companion_files"]:
         path = os.path.join(root, "companion", name)
@@ -150,13 +173,13 @@ def zip_entries(root, platform):
     entries.append((f"{TOP_FOLDER}/START-HERE.txt", start_here.encode("utf-8")))
 
     entries.sort(key=lambda item: item[0])
-    check_entries(entries)
+    check_entries(entries, spec["extension"])
     return entries
 
 
-def check_entries(entries):
+def check_entries(entries, has_extension=True):
     names = [name for name, _ in entries]
-    if not any(n == f"{TOP_FOLDER}/extension/manifest.json" for n in names):
+    if has_extension and not any(n == f"{TOP_FOLDER}/extension/manifest.json" for n in names):
         raise ReleaseError("extension/manifest.json is not in the ZIP")
     bad = [n for n in names if n.lower().endswith(".pem") or n.lower().endswith(".log")]
     if bad:  # belt and braces: the private key must never ship

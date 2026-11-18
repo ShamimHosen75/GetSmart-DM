@@ -1,6 +1,8 @@
 # SIDM companion (Windows, macOS, Linux)
 
-The companion is a small helper program that the SIDM extension starts when you download a video from a social site. It runs [yt-dlp](https://github.com/yt-dlp/yt-dlp) to fetch the video and [ffmpeg](https://ffmpeg.org/) to join the video and sound into one MP4.
+The companion is **optional**. The SIDM extension saves videos from Facebook, X, LinkedIn, Reddit and most other sites by itself. Install the companion only for **YouTube**, whose streams the browser cannot save, and for multi-connection downloads of big files with a speed limit.
+
+The companion is a small helper program that the SIDM extension starts when needed. It runs [yt-dlp](https://github.com/yt-dlp/yt-dlp) to fetch the video and [ffmpeg](https://ffmpeg.org/) to join the video and sound into one MP4.
 
 Videos are saved to **`Downloads\SIDM\Video`** (on Linux, your desktop's Downloads folder, even if it has another name such as `Téléchargements`).
 

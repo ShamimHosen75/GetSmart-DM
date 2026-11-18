@@ -10,7 +10,8 @@
 - [ ] Open `site/index.html` in Chrome, Edge and Brave. No console errors, no requests to other domains (DevTools Network tab).
 - [ ] Nav stays at the top when scrolling; Features / Install / FAQ jump to their sections; the Download button jumps to the hero.
 - [ ] Tab key: "Skip to content" appears first; every link and FAQ question shows a visible focus ring.
-- [ ] **Download for Windows** points at `downloads/sidm-v<version>-windows.zip`; version, size and SHA-256 under it match the real file.
+- [ ] **Download SIDM** points at `downloads/sidm-v<version>-extension.zip`; version, size and SHA-256 under it match the real file.
+- [ ] The install section has 2 steps and no install.bat step; the optional companion links point at `sidm-v<version>-companion-windows.zip` and (FAQ) `sidm-v<version>-companion-macos-linux.zip`.
 - [ ] Both screenshots load and match the current popup.
 - [ ] Switch Windows to dark mode (or DevTools > Rendering > prefers-color-scheme): every page switches, text stays readable.
 - [ ] Narrow the window to 390 px: single column, nav links hidden, Download button still visible, no sideways scroll.

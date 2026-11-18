@@ -7,8 +7,9 @@ Permanent rules for anyone (human or AI) working in this repo. Read this first, 
 **SIDM - Smart Internet Download Manager** ("Download Smarter. Faster. Better."; short name **SIDM**, renamed from "GetSmart DM" on 2026-11-17) is a free download manager for **Chrome, Edge and Brave on Windows**, with a companion installer for **macOS and Linux** too (Step 5).
 
 - Distributed from our own website as a ZIP. It is **not** published on the Chrome Web Store, because it downloads videos from social sites.
+- Users download **only the extension ZIP** and load it; nothing else to install (owner's decision, 2026-11-18). The companion app is an optional extra for YouTube and multi-connection downloads; the normal flow must never require it.
 - It is an original product. The name SIDM is the owner's choice (2026-11-17), made knowing it is close to Internet Download Manager's name. **Never copy the logo, UI, icons, text or code of Internet Download Manager or any other product**: match features, not the look.
-- Internal names: save folder `Downloads/SIDM/`, native host `com.sidm.host`, release ZIP `sidm-v<version>-<platform>.zip`. The GitHub repo keeps its name (`GetSmart-DM`) and the extension ID never changes.
+- Internal names: save folder `Downloads/SIDM/`, native host `com.sidm.host`, release ZIPs `sidm-v<version>-extension.zip` (main download, extension only) and the optional `sidm-v<version>-companion-windows.zip` / `-companion-macos-linux.zip`. The GitHub repo keeps its name (`GetSmart-DM`) and the extension ID never changes.
 
 ## Folder map
 
@@ -47,7 +48,7 @@ Step 4 (`scripts/`) builds the release tooling: `scripts/release.py` (Windows ZI
 Step 4 status: **release tooling done**, waiting for the owner's "continue". Open: the website domain for `SITE_URL` in `extension/update-check.js`.
 
 Earlier steps are not finished yet:
-- Step 1 (`extension/`): M1 to M14 done, version 0.2.0 (`scripts/test_extension.py` passes). M10 video button on any site, M11 progress window, M12 multi-connection downloads through the companion (`extension/file-jobs.js`, `add_file` in the protocol), M13 manager page, M14 speed limiter, scheduler and "when the queue is done". Not verified on real sites or on Windows yet (the sandbox blocks real video hosts).
+- Step 1 (`extension/`): M1 to M15 done, version 0.3.0 (`scripts/test_extension.py` passes). M10 video button on any site, M11 progress window, M12 multi-connection downloads through the companion (`extension/file-jobs.js`, `add_file` in the protocol), M13 manager page, M14 speed limiter, scheduler and "when the queue is done". M15 (owner's decision 2026-11-18: users download only the extension ZIP, no install): videos are downloaded in the browser from the HLS/DASH/MP4-piece streams the page plays (`stream-jobs.js`, `offscreen.js`, `mp4.js`, `stream-parse.js`); the companion is optional (YouTube, multi-connection files). Not verified on real sites or on Windows yet (the sandbox blocks real video hosts).
 - Step 2 (`companion/`): M1 (`host.py` + `scripts/test_host.py`), M2 (bat files + README), M3 (`scripts/test_companion.py`, end to end with the extension's M7 bridge) and M4 (`companion/QA.md`, version 0.1.0, CHANGELOG) done. Open: the owner's real `install.bat` run on Windows and the `companion/QA.md` real-site pass. Companion milestones: M1 host.py, M2 install/update/uninstall.bat + README, M3 end-to-end test, M4 QA.md + 0.1.0 + CHANGELOG.
 - Step 3 (`site/`): built (index, privacy, terms, `scripts/test_site.py`, `scripts/deploy_site.md`), waiting for "continue". Popup screenshots show the M1 popup and are placeholders.
 

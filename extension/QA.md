@@ -207,3 +207,19 @@ Real sites cannot be reached from the build machine, so these need a real Chrome
 - [ ] Right-click on any video: "Download video from this page" sends it to the companion.
 - [ ] Netflix, Prime Video, Disney+, Spotify: no button.
 
+
+## M15 Videos without the companion
+
+Use a profile **without** the companion installed (or run `uninstall.bat` first).
+
+- [ ] Facebook: play a feed video or Reel for a few seconds, point at it, click **Download**. The menu lists qualities such as 720p and 360p. Pick one: a row appears in the popup Downloads tab with progress, then `Downloads\SIDM\Video\<title> (720p).mp4` plays **with sound**.
+- [ ] X / Twitter: the same with a post video.
+- [ ] LinkedIn: the same with a feed video (often a plain MP4 under "Files this page played").
+- [ ] Reddit: the same (separate video and audio, joined into one MP4).
+- [ ] Vimeo, Dailymotion, TED or any news site player: the same.
+- [ ] A video that has not played yet: the menu says to play it first; there is no install prompt.
+- [ ] YouTube: the menu says YouTube needs the optional companion app and offers "How to install it".
+- [ ] Netflix, Disney+ or Spotify: no button, nothing offered.
+- [ ] Popup "This page" on a video page: the video card shows the same quality buttons; clicking one says "added".
+- [ ] While a video downloads: pause and resume from the popup row; cancel removes it; Retry starts again.
+- [ ] Settings: the companion section says "optional".
