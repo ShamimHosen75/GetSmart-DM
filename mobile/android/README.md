@@ -30,7 +30,7 @@ SIDM_CORE_ONLY=1 gradle :core:test                # core tests without the Andro
 
 One APK is built per processor type: `app-arm64-v8a-*.apk` (nearly every phone since 2017; the website's main download), `app-armeabi-v7a-*.apk` (older 32-bit phones) and `app-x86_64-*.apk` (emulators only). Each is about 50 MB, mostly Python and ffmpeg.
 
-`SIDM_SITE_URL` (environment variable, or the `SIDM_SITE_URL` repository variable in GitHub Actions) is the website address the app checks for new versions (`<site>/version.json`) and downloads updates from (`<site>/downloads/sidm-v<version>-android.apk`). While it is empty, the app makes no update check.
+The app checks `https://sidm.online/version.json` for new versions and downloads updates from `https://sidm.online/downloads/sidm-v<version>-android.apk`. To build for another address, set `SIDM_SITE_URL` (environment variable, or the `SIDM_SITE_URL` repository variable in GitHub Actions).
 
 ## Signing
 
