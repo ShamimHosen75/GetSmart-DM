@@ -92,6 +92,8 @@ Section "SIDM" SecMain
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "${APP_LONG}"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "${UNINST_KEY}" "Publisher" "${APP}"
+  WriteRegStr HKCU "${UNINST_KEY}" "URLInfoAbout" "https://sidm.online"
+  WriteRegStr HKCU "${UNINST_KEY}" "HelpLink" "https://sidm.online"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\sidm.ico"
   WriteRegStr HKCU "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "${UNINST_KEY}" "UninstallString" '"$INSTDIR\uninstall.exe"'

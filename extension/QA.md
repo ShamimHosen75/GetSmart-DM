@@ -17,7 +17,7 @@ Manual checks, grouped by milestone. Tick each before calling a milestone done.
 
 ## Update available (release tooling, Step 4)
 
-Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachable there.
+`SITE_URL` in `extension/update-check.js` is `https://sidm.online`; `https://sidm.online/version.json` must be reachable.
 
 - [ ] With `version.json` showing a **higher** version than the manifest, the popup footer shows "Update available" (Bangla: "আপডেট পাওয়া যাচ্ছে"); clicking it opens the website in a new tab.
 - [ ] With the **same or lower** version, or the site offline, no footer link and no console error.

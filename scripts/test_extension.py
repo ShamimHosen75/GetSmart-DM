@@ -328,6 +328,9 @@ class Browser:
                 time.sleep(0.2)
         self.browser = playwright.chromium.connect_over_cdp("http://127.0.0.1:%d" % port)
         self.context = self.browser.contexts[0]
+        # The popup's update check asks the real website; answer it here (no network in tests).
+        self.context.route("https://sidm.online/**", lambda route: route.fulfill(
+            status=200, content_type="application/json", body='{"version": "0.0.0"}'))
         cdp = self.browser.new_browser_cdp_session()
         cdp.send("Browser.setDownloadBehavior", {"behavior": "default"})
         self.console_errors = []
