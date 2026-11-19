@@ -114,7 +114,11 @@ class CompanionEndToEnd(unittest.TestCase):
             self.addEventListener('unhandledrejection', (e) => self.__gsdmErrors.push(String(e.reason)));
         }""")
         cls.page = cls.ctx.new_page()
-        cls.page.on("console", lambda m: m.type == "error" and cls.console_errors.append(m.text))
+        # The popup's daily update check fetches the real website (sidm.online),
+        # which CI may not reach; a failed check is silent for users.
+        cls.page.on("console", lambda m: m.type == "error"
+                    and "sidm.online" not in (m.location or {}).get("url", "")
+                    and cls.console_errors.append(m.text))
         cls.page.on("pageerror", lambda e: cls.console_errors.append(str(e)))
         cls.page.goto(f"chrome-extension://{EXTENSION_ID}/popup.html")
 
