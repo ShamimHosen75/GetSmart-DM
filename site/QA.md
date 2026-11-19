@@ -8,7 +8,9 @@
 ## Manual
 
 - [ ] Open `site/index.html` in Chrome, Edge and Brave. No console errors, no requests to other domains (DevTools Network tab).
-- [ ] Nav stays at the top when scrolling; Features / Install / FAQ jump to their sections; the Download button jumps to the hero.
+- [ ] The floating nav bar stays at the top when scrolling; Extension / Windows / Android / FAQ jump to their sections; the Download button jumps to the hero.
+- [ ] Below 900 px the links move into the menu button (no JavaScript): it opens and closes with tap, Enter and Space, and each link jumps to its section.
+- [ ] Footer: the two buttons, all columns and "Back to top" work on every page.
 - [ ] Tab key: "Skip to content" appears first; every link and FAQ question shows a visible focus ring.
 - [ ] **Download SIDM** points at `downloads/sidm-v<version>-extension.zip`; version, size and SHA-256 under it match the real file.
 - [ ] The install section has 2 steps and no install.bat step; the optional companion links point at `sidm-v<version>-companion-windows.zip` and (FAQ) `sidm-v<version>-companion-macos-linux.zip`.
