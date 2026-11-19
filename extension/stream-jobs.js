@@ -193,6 +193,8 @@ function blocked(url, settings) {
   return isDrmSite(url) || isYouTube(url) || hostMatches(hostOf(url), settings.disabledSites || []);
 }
 
+const MAX_KEPT_OPTIONS = 60; // stream choices remembered per tab
+
 /**
  * Choices for the video in a tab: { options: [{ id, label, hasAudio, size, kind, best, other }], refused }.
  * `msg.page` (from the video button) holds the page's own sources for that video.
@@ -209,7 +211,11 @@ export async function streamOptions(msg, sender) {
   if (!streams.length && !page.matched.length && !page.other.length) return { options: [], refused: '' };
   const reply = await toOffscreen({ type: 'streamResolve', streams, page });
   const options = (reply?.options || []).map((o) => ({ ...o, id: randomId() }));
-  await chrome.storage.session.set({ [optionsKey(tabId)]: options, [diagKey(tabId)]: { at: Date.now(), diag: reply?.diag || [], error: reply?.error || '' } });
+  // Keep the choices handed out earlier too: the menu and the popup may ask at the same time,
+  // and a click on an older list must still find its choice (it was 'gone' before).
+  const previous = (await chrome.storage.session.get(optionsKey(tabId)))[optionsKey(tabId)] || [];
+  const kept = options.concat(previous).slice(0, MAX_KEPT_OPTIONS);
+  await chrome.storage.session.set({ [optionsKey(tabId)]: kept, [diagKey(tabId)]: { at: Date.now(), diag: reply?.diag || [], error: reply?.error || '' } });
   return {
     refused: reply?.refused || '',
     options: options.map((o) => ({
