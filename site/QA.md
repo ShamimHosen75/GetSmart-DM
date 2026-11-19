@@ -22,7 +22,7 @@
 - [ ] Privacy and Terms pages: nav links go back to the right sections of the home page.
 - [ ] Guides: every guide page opens from the home Guides section, the nav and the footer; breadcrumbs, "More guides" cards and the Download buttons work.
 - [ ] Each guide keeps the "Download only what you have the right to" note and makes no DRM claims.
-- [ ] Before launch: `python scripts/build_sitemap.py https://<real-domain>`, then `/sitemap.xml` and `/robots.txt` load on the live site; submit the sitemap in Google Search Console.
+- [ ] Before launch: after deploying, `/sitemap.xml` and `/robots.txt` load on the live site; submit the sitemap in Google Search Console.
 - [ ] Lighthouse (DevTools) on each page: Accessibility 95 or more.
 - [ ] Contact email placeholder replaced before launch.
 - [ ] After deploying to Vercel: `/privacy` and `/terms` work without `.html`.
