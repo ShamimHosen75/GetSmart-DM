@@ -39,10 +39,36 @@ Start a download.
 | `id` | yes | Unique download id chosen by the extension; echoed in every `progress` |
 | `url` | yes | Page or media URL |
 | `quality` | yes | One of `best`, `1080`, `720`, `480`, `360`, `audio` |
-| `dir` | no | Target folder. If absent, the companion uses its default folder (reported in `hello`) |
+| `dir` | no | Target folder: an absolute path to a folder that exists (usually one the user just chose with `pick_folder`). If absent, the companion uses its default folder (reported in `hello`). A `dir` that is not an existing absolute folder is refused with `state: "error"` |
 | `youtube` | no | `true` only when the user has turned on the off-by-default YouTube setting. If absent or `false`, the companion refuses YouTube URLs with a `progress` of `state: "error"` |
 
 The companion also refuses known DRM services (Netflix, Prime Video, Disney+, Hulu, Max, Spotify and similar) with `state: "error"`, and never tries to work around DRM.
+
+### `video_info`
+Ask what a video page offers, so the extension can show the size of each quality before the user picks one. Needs the `"video_info"` feature.
+```json
+{ "type": "video_info", "v": 1, "id": "q1w2e3", "url": "https://www.youtube.com/watch?v=abc", "youtube": true }
+```
+| Field | Required | Meaning |
+|---|---|---|
+| `id` | yes | Request id chosen by the extension; echoed in the reply |
+| `url` | yes | Page URL, as for `add_video` |
+| `youtube` | no | Same rule as `add_video`: YouTube URLs are refused without it |
+
+The companion answers with one `video_info` message (below). It may take a few seconds (it asks the site).
+
+### `pick_folder`
+Show the system's choose-a-folder dialog on the user's screen. Needs the `"pick_folder"` feature.
+```json
+{ "type": "pick_folder", "v": 1, "id": "p9o8i7", "title": "Choose where to save the video", "start": "C:\\Users\\me\\Videos" }
+```
+| Field | Required | Meaning |
+|---|---|---|
+| `id` | yes | Request id chosen by the extension; echoed in the reply |
+| `title` | no | Text shown in the dialog |
+| `start` | no | Folder the dialog opens in, if it exists |
+
+The companion answers with one `folder` message when the user closes the dialog. Folders chosen this way are remembered by the companion (at most 20), so `open_file` may open files in them.
 
 ### `cancel`
 Cancel a running download.
@@ -96,7 +122,7 @@ Open a finished file, or show it in its folder.
 ```json
 { "type": "open_file", "v": 1, "path": "C:\\Users\\me\\Downloads\\SIDM\\Archives\\big.zip", "reveal": true }
 ```
-Only paths inside the user's Downloads folder that exist are opened. `reveal: true` opens the folder with the file selected where the system allows it.
+Only paths that exist inside the user's Downloads folder, or inside a folder the user chose with `pick_folder`, are opened. `reveal: true` opens the folder with the file selected where the system allows it.
 
 ### `ping`
 Liveness check.
@@ -118,7 +144,9 @@ Reply to `hello`.
 | `ffmpeg` | ffmpeg version, or `null` if not found |
 | `dir` | Default download folder: `<user Downloads folder>\SIDM\Video` |
 | `downloads` | The user's Downloads folder (the root that `add_file` `folder` is relative to) |
-| `features` | List of optional features this companion supports. `"files"` = `add_file`, `pause_file`, `set_speed_limit` and `open_file`. An older companion sends no `features`; the extension then uses the browser for files |
+| `features` | List of optional features this companion supports. `"files"` = `add_file`, `pause_file`, `set_speed_limit` and `open_file`; `"video_info"` = `video_info`; `"pick_folder"` = `pick_folder`. An older companion sends no `features` (or fewer); the extension then does without them |
+
+The companion answers `hello` within a second: it keeps the yt-dlp and ffmpeg versions it found in its own `versions.json` and only asks the tools again when their files change.
 
 ### `progress`
 Sent repeatedly while a download runs, and once with a final state.
@@ -149,6 +177,28 @@ File downloads (`add_file`) use the same message with these differences and extr
 | `error_code` | With `state: "error"`: `no_range` (server cannot send parts), `auth` (`401`/`403`), `http` (other HTTP error), `network`, `disk`, `bad_request`. The extension falls back to the browser for `no_range` and `auth` |
 
 `done`, `error` and `canceled` are final: no more `progress` follows for that `id`.
+
+### `video_info` (reply)
+```json
+{ "type": "video_info", "v": 1, "id": "q1w2e3", "title": "My video", "duration": 212, "max_height": 1080,
+  "sizes": { "best": 98500000, "1080": 98500000, "720": 41200000, "480": 22000000, "360": 14100000, "audio": 3400000 } }
+```
+| Field | Meaning |
+|---|---|
+| `id` | Request id |
+| `sizes` | Estimated bytes for each quality of `add_video` (what that quality would download: best video up to that height plus the best audio). A quality with no estimate is left out. Estimates come from the site and can be off by a few percent |
+| `max_height` | Height of the best video stream, or absent if unknown. Qualities above it download the same file as `best` |
+| `title`, `duration` | From the site, if known |
+| `error` | Present instead of `sizes` when the companion could not read the page (human-readable) |
+
+### `folder`
+Reply to `pick_folder`.
+```json
+{ "type": "folder", "v": 1, "id": "p9o8i7", "path": "D:\\Videos" }
+{ "type": "folder", "v": 1, "id": "p9o8i7", "path": null }
+{ "type": "folder", "v": 1, "id": "p9o8i7", "path": null, "error": "no_dialog" }
+```
+`path` is the chosen folder, or `null` when the user canceled. `error: "no_dialog"` means this system has no folder dialog the companion can show (for example Linux without zenity or kdialog); the extension then saves to the default folder.
 
 ### `pong`
 Reply to `ping`.

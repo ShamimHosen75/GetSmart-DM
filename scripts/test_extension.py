@@ -843,7 +843,7 @@ def check_stream_videos(b, base):
     dash = stream_download(b, base, "/s-dash.html", with_audio("360p"), "SIDM/Video/DASH Test (360p).mp4", ["audio", "video"])
     assert "audio" in dash, dash
     stream_download(b, base, "/s-pieces.html", with_audio("360p"), "SIDM/Video/Pieces Test (360p).mp4", ["audio", "video"])
-    stream_download(b, base, "/s-ts.html", lambda opts: opts[0], "SIDM/Video/TS Test.ts", ["audio", "video"])
+    stream_download(b, base, "/s-ts.html", lambda opts: opts[0] if opts else None, "SIDM/Video/TS Test.ts", ["audio", "video"])
 
     # Encrypted HLS is refused, never downloaded.
     page = b.page()
@@ -889,9 +889,17 @@ def register_companion(b):
     os.makedirs(config, exist_ok=True)
     with open(os.path.join(config, "user-dirs.dirs"), "w", encoding="utf-8") as f:
         f.write('XDG_DOWNLOAD_DIR="%s"\n' % b.downloads)
+    # A stand-in for the system folder dialog (zenity): "chooses" the folder written in b.tmp/choice.
+    bindir = os.path.join(b.tmp, "bin")
+    os.makedirs(bindir, exist_ok=True)
+    with open(os.path.join(bindir, "zenity"), "w", encoding="utf-8") as f:
+        f.write('#!/bin/sh\ncat "%s"\n' % os.path.join(b.tmp, "choice"))
+    os.chmod(os.path.join(bindir, "zenity"), 0o755)
+    with open(os.path.join(b.tmp, "choice"), "w", encoding="utf-8") as f:
+        f.write("")
     wrapper = os.path.join(b.tmp, "host.sh")
     with open(wrapper, "w", encoding="utf-8") as f:
-        f.write('#!/bin/sh\nXDG_CONFIG_HOME="%s" exec "%s" "%s" "$@"\n' % (config, sys.executable, HOST_PY))
+        f.write('#!/bin/sh\nPATH="%s:$PATH" XDG_CONFIG_HOME="%s" exec "%s" "%s" "$@"\n' % (bindir, config, sys.executable, HOST_PY))
     os.chmod(wrapper, 0o755)
     folder = os.path.join(b.tmp, "profile", "NativeMessagingHosts")
     os.makedirs(folder, exist_ok=True)
@@ -945,12 +953,39 @@ def check_companion_files(b, base):
     assert took > 4, "3 MB at 500 KB/s took only %.1f s" % took
     b.call("() => chrome.storage.sync.set({speedLimitKBps: 0})")
     b.call("() => chrome.storage.local.set({fileJobs: {}})")
+
+    # Installed once: remembered, so the install offer is never shown again.
+    assert b.call("async () => (await chrome.storage.local.get('companionSeen')).companionSeen") is True
+    # Video download through the desktop program: the folder dialog chooses where it goes.
+    chosen = os.path.join(b.downloads, "Picked folder")
+    os.makedirs(chosen, exist_ok=True)
+    with open(os.path.join(b.tmp, "choice"), "w", encoding="utf-8") as f:
+        f.write(chosen + "\n")
+    video_url = base + "/f/clip.mp4?size=300000&mime=video/mp4"
+    added = b.message({"type": "addVideo", "url": video_url, "quality": "best", "title": "Clip"})
+    assert added.get("id"), added
+    video = wait_for(lambda: next((j for j in b.call("async () => Object.values((await chrome.storage.session.get('videoJobs')).videoJobs || {})")
+                                   if j["id"] == added["id"] and j["state"] in ("done", "error")), None),
+                     timeout=60, what="video job finished")
+    assert video["state"] == "done", video
+    assert os.path.dirname(os.path.realpath(video["filename"])) == os.path.realpath(chosen), video["filename"]
+    assert b.call("async () => (await chrome.storage.local.get('lastVideoFolder')).lastVideoFolder") == chosen
+    # Closing the dialog without a folder cancels the download.
+    with open(os.path.join(b.tmp, "choice"), "w", encoding="utf-8") as f:
+        f.write("")
+    assert b.message({"type": "addVideo", "url": video_url, "quality": "best"}).get("canceled") is True
+    # Sizes for the quality menu.
+    info = b.message({"type": "videoInfo", "url": video_url})
+    assert isinstance(info.get("sizes"), dict) and not info.get("error"), info
     # A server without ranges goes to the browser.
     enqueue(b, [{"url": base + "/f/plain.zip?size=3000000&norange=1"}])
     wait_for(lambda: b.call("() => chrome.downloads.search({})"), what="browser took the no-range file")
     assert not file_jobs(b), file_jobs(b)
     b.call("() => chrome.storage.local.set({fileJobs: {}})")
     # Video button with the companion: qualities; the first (Best) uses the post's own address.
+    with open(os.path.join(b.tmp, "choice"), "w", encoding="utf-8") as f:
+        f.write(chosen + "\n")
+    b.call("() => chrome.storage.session.set({videoJobs: {}})")
     page = b.page()
     page.set_viewport_size({"width": 900, "height": 600})
     page.goto(base + "/feed.html")
@@ -961,7 +996,7 @@ def check_companion_files(b, base):
     assert jobs[0]["url"] == base + "/u/status/12345" and jobs[0]["quality"] == "best", jobs[0]
     page.close()
     reset(b)
-    return "video button: Best quality for the post address; 8 MB over several connections into SIDM/Archives, parts shown, pause/resume, popup row; 500 KB/s limit; no-range file went to the browser"
+    return "video button: Best quality for the post address; 8 MB over several connections into SIDM/Archives, parts shown, pause/resume, popup row; 500 KB/s limit; no-range file went to the browser; video saved into the folder picked in the dialog, cancel, sizes"
 
 
 CHECKS = [

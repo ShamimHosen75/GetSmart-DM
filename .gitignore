@@ -40,6 +40,9 @@ ehthumbs.db
 companion/run_host.bat
 companion/run_host.sh
 companion/com.sidm.host.json
+# Written by host.py next to itself
+companion/versions.json
+companion/folders.json
 # Downloaded by companion/install.sh (macOS / Linux)
 companion/yt-dlp
 companion/ffmpeg

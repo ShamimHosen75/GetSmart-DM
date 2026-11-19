@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   progressWindow: 'ours', // open a progress window: off | ours (downloads SIDM starts) | all (M11)
   disabledSites: [], // hosts where media detection is off
   defaultQuality: 'best', // best | 1080 | 720 | 480 | 360 | audio
+  askVideoFolder: true, // desktop-program video downloads: ask for a folder each time (folder dialog from the desktop program)
   allowYouTube: true, // on by default (owner's decision); the first YouTube download shows a one-time notice
 });
 

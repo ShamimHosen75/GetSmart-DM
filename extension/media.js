@@ -10,7 +10,7 @@ import { cachedSettings, categoryOf, fileExtension, nameFromUrl, sanitizeFilenam
 import { detectionBlockReason, hostMatches, hostOf, isDrmSite, isYouTube, videoPageStatus } from './sites.js';
 
 export { detectionBlockReason };
-import { bridge } from './native-bridge.js';
+import { bridge, companionSeen, waitForCompanion, warmUpCompanion } from './native-bridge.js';
 import { classifyStream, clearTabStreams, hasRangeParams, recordStream, streamDebug, streamOptions } from './stream-jobs.js';
 import { setLanguage, t } from './i18n.js';
 
@@ -267,6 +267,11 @@ const OVERLAY_STRINGS = [
   'overlayYouTubeCompanion',
   'overlayDefault',
   'overlayBest',
+  'overlayChooseFolder',
+  'overlayCanceled',
+  'overlayCompanionStarting',
+  'overlayTryAgain',
+  'overlaySizeLoading',
   'overlayOther',
   'overlayCopyDebug',
   'overlayCopied',
@@ -296,6 +301,8 @@ export const overlayHandlers = {
     const pageUrl = sender.tab?.url || '';
     if (!overlayAllowed(pageUrl, sender.url, settings)) return { enabled: false };
     setLanguage(settings.language);
+    // A video page opened: get the desktop program ready, if it is installed.
+    if (videoPageStatus(pageUrl, settings.allowYouTube, true) === 'video') warmUpCompanion();
     return {
       enabled: true,
       quality: settings.defaultQuality,
@@ -311,15 +318,17 @@ export const overlayHandlers = {
     // In the browser, no install needed (M15).
     const streams = await streamOptions({ page: msg.page }, sender).catch(() => ({ options: [], refused: '' }));
     let companion = bridge.status;
-    if (!streams.options.length && settings.useCompanion && (site === 'video' || site === 'generic')) {
-      // Nothing the browser can save by itself: see whether the optional companion is there.
-      await Promise.race([bridge.ensureConnected(), new Promise((resolve) => setTimeout(resolve, 1500))]);
-      companion = bridge.status;
+    if (!streams.options.length && (settings.useCompanion || isYouTube(pageUrl)) && (site === 'video' || site === 'generic')) {
+      // Nothing the browser can save by itself: use the desktop program. When it was
+      // installed before, wait for it a little longer (it may just be starting).
+      companion = await waitForCompanion(1500, 8000);
     }
     return {
       site,
       youtube: isYouTube(pageUrl),
       companion,
+      companionSeen: await companionSeen(),
+      askFolder: Boolean(settings.askVideoFolder) && bridge.supports('pick_folder'),
       streams,
       media: media.slice().reverse().map(({ url, name, size, mime }) => ({ url, name, size, mime })),
     };
