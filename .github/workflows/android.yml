@@ -142,6 +142,7 @@ jobs:
           git add -f site/downloads/*.apk
           git add -A site/downloads site/index.html site/version.json
           git commit -m "chore: signed Android APKs for the website"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
   # On an Android emulator: the app starts, the video engine unpacks and runs,
