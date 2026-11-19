@@ -295,6 +295,9 @@ def free_port():
         return s.getsockname()[1]
 
 
+SITE_HOST = "sidm.online"  # extension/update-check.js SITE_URL
+
+
 class Browser:
     def __init__(self, playwright, headed):
         self.tmp = tempfile.mkdtemp(prefix="gsdm-test-")
@@ -338,6 +341,10 @@ class Browser:
         label = path or "page"
 
         def on_console(msg):
+            # The popup's daily update check fetches the real website, which
+            # this sandbox may not reach; a failed check is silent for users.
+            if SITE_HOST in (msg.location or {}).get("url", ""):
+                return
             if msg.type in ("error", "warning") and path:
                 self.console_errors.append("%s: %s" % (label, msg.text))
 
