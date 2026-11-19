@@ -1,4 +1,4 @@
-// GetSmart DM service worker (Manifest V3, ES module).
+// SIDM service worker (Manifest V3, ES module).
 //
 // Every listener is registered synchronously at the top level, so Chrome can
 // wake the worker for any of these events after it has been asleep.
@@ -8,31 +8,59 @@
 //   menus.js          context menus (M4)
 //   media.js          media detection for the "This page" tab (M6)
 //   native-bridge.js  companion app connection and video jobs (M7)
+//   file-jobs.js      multi-connection file downloads through the companion (M13)
+//   scheduler.js      start/stop the queue at set times, "when the queue is done" (M14)
+//   stream-jobs.js    video downloads made in the browser, no install needed (M15)
 //   progress.html     per-download progress window, opened here on start (M11)
 
 import { autoOpenProgress, seedDefaultSettings } from './common.js';
-import { enqueue, pump, registerQueueListeners, removeQueued } from './queue.js';
+import { enqueue, pump, registerQueueListeners, removeQueued, setQueuePaused } from './queue.js';
 import { buildMenus, registerMenuListeners } from './menus.js';
 import { registerMediaListeners, overlayHandlers } from './media.js';
-import { videoHandlers } from './native-bridge.js';
+import { videoHandlers, warmUpCompanion } from './native-bridge.js';
+import { fileHandlers, registerFileJobListeners, runningFileJobs } from './file-jobs.js';
+import { planAlarms, registerSchedulerListeners } from './scheduler.js';
+import { markInterruptedStreams, registerStreamListeners, runningStreamJobs, streamHandlers } from './stream-jobs.js';
 
 const BADGE_COLOR = '#6c3ff0';
 
 chrome.runtime.onInstalled.addListener(() => {
-  seedDefaultSettings().catch((err) => console.error('GetSmart DM: could not save default settings', err));
+  injectIntoOpenTabs();
+  seedDefaultSettings().catch((err) => console.error('SIDM: could not save default settings', err));
   updateBadge();
   pump();
   buildMenus();
+  planAlarms();
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  markInterruptedStreams();
+  warmUpCompanion(); // installed once: start the desktop program with the browser, like any download manager
   updateBadge();
   pump();
+  planAlarms();
 });
 
 registerQueueListeners();
 registerMenuListeners();
 registerMediaListeners();
+registerSchedulerListeners();
+registerFileJobListeners();
+registerStreamListeners();
+
+/**
+ * Content scripts only reach pages loaded after install. Add the video button
+ * to the pages already open, so it works without reloading them.
+ */
+async function injectIntoOpenTabs() {
+  try {
+    const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+    await Promise.all(tabs.map((tab) =>
+      chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['overlay.js'] }).catch(() => {})));
+  } catch (err) {
+    console.warn('SIDM: could not add the video button to open tabs', err);
+  }
+}
 
 // ---------- Badge: number of active (running, not paused) downloads ----------
 
@@ -44,13 +72,14 @@ function updateBadge() {
   badgeTimer = setTimeout(async () => {
     try {
       const active = await chrome.downloads.search({ state: 'in_progress', paused: false });
+      const count = active.length + (await runningFileJobs()) + (await runningStreamJobs());
       await chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR });
       if (chrome.action.setBadgeTextColor) {
         await chrome.action.setBadgeTextColor({ color: '#ffffff' });
       }
-      await chrome.action.setBadgeText({ text: active.length ? String(active.length) : '' });
+      await chrome.action.setBadgeText({ text: count ? String(count) : '' });
     } catch (err) {
-      console.error('GetSmart DM: badge update failed', err);
+      console.error('SIDM: badge update failed', err);
     }
   }, 150);
 }
@@ -59,6 +88,9 @@ chrome.downloads.onCreated.addListener(updateBadge);
 chrome.downloads.onErased.addListener(updateBadge);
 chrome.downloads.onChanged.addListener((delta) => {
   if (delta.state || delta.paused) updateBadge();
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && (changes.fileJobs || changes.streamJobs)) updateBadge();
 });
 
 // ---------- Progress window on download start (M11) ----------
@@ -69,13 +101,16 @@ chrome.downloads.onCreated.addListener((item) => autoOpenProgress(item.id, 'all'
 
 // ---------- Messages from extension pages ----------
 
-const CONTENT_SCRIPT_CALLS = new Set(['overlayInfo', 'overlayMedia', 'enqueue', 'addVideo']);
+const CONTENT_SCRIPT_CALLS = new Set(['overlayInfo', 'overlayMedia', 'overlaySawVideo', 'overlayCompanionHelp', 'enqueue', 'addVideo', 'addStream', 'streamDebug', 'savePageSources', 'overlayDebug', 'videoInfo', 'videoJob']);
 
 const handlers = {
   enqueue: (msg) => enqueue(msg.items || []),
   removeQueued: (msg) => removeQueued(msg.qid),
-  ...overlayHandlers, // overlayInfo, overlayMedia (content script video button)
+  setQueuePaused: (msg) => setQueuePaused(msg.paused),
+  ...overlayHandlers, // overlayInfo, overlayMedia, overlaySawVideo, overlayCompanionHelp (content script video button)
   ...videoHandlers, // getVideoState, addVideo, cancelVideo, retryVideo, removeVideo, openVideoFolder
+  ...fileHandlers, // pauseFile, resumeFile, cancelFile, eraseFile, openFile, setFileSpeedLimit
+  ...streamHandlers, // streamOptions, addStream, pause/resume/retry/cancel/eraseStream; streamProgress/Ready/Failed from offscreen.html
 };
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {

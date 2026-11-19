@@ -1,11 +1,18 @@
-// GetSmart DM video button (M10). Content script, classic script (not a module).
+// SIDM video button (M10). Content script, classic script (not a module).
 //
 // Shows a small "Download" button at the top-right corner of a video while the
-// pointer is over it. Clicking opens a short menu with what can be saved:
-//   - on supported video sites: "Download video" through the companion app,
+// pointer is over it, or for a moment when a video starts playing. Clicking
+// opens a short menu with what can be saved:
+//   - the qualities SIDM can save by itself from the streams the page played
+//     (HLS, DASH, MP4 pieces; joined into one MP4 in the browser, M15),
+//   - when the optional companion app is installed: its qualities too (needed
+//     for YouTube, whose streams the browser cannot save by itself),
 //   - the video/audio files this tab played (from media detection),
-//   - the <video> element's own file address when it is a plain http(s) file.
-// It never runs where the service worker says no: YouTube (unless allowed),
+//   - the qualities listed in the page's own data for that video (M16: the
+//     site's API replies, <video data-sources>, og:video...), highest first,
+//   - "Copy debug info", for reporting a site that does not work.
+// In feeds (Facebook, X, Instagram...) the video's own post link is used.
+// It never runs where the service worker says no: YouTube (when turned off),
 // DRM services, sites the user disabled, or when the setting is off.
 // Everything lives in a closed shadow root so page CSS cannot touch it.
 
@@ -16,6 +23,15 @@
   const MIN_WIDTH = 200;
   const MIN_HEIGHT = 112;
   const HIDE_AFTER_MS = 2500;
+  const SCAN_MS = 2000;
+  const QUALITIES = [
+    ['best', 'qualityBest'],
+    ['1080', 'quality1080'],
+    ['720', 'quality720'],
+    ['480', 'quality480'],
+    ['360', 'quality360'],
+    ['audio', 'qualityAudio'],
+  ];
 
   let info = null; // { enabled, site, strings, quality }
   let host;
@@ -25,6 +41,109 @@
   let currentVideo = null;
   let hideTimer = 0;
   let menuOpen = false;
+  let videos = []; // every <video> on the page, including open shadow roots
+  let reportedVideo = false;
+  let scanQueued = false;
+
+  // Video addresses from the page's own data (page-hook.js / page-sources.js, M16).
+  const S = globalThis.__sidmSources;
+  const MAX_PAGE_SOURCES = 300;
+  const pageSources = new Map(); // key -> source, newest last
+  document.addEventListener('sidm-sources', (event) => {
+    let list;
+    try {
+      list = JSON.parse(event.detail);
+    } catch {
+      return;
+    }
+    if (!Array.isArray(list)) return;
+    for (const src of list) {
+      if (!src || (src.kind !== 'file' && src.kind !== 'hls' && src.kind !== 'dash')) continue;
+      if (src.url ? !S?.isHttp(src.url) : typeof src.text !== 'string') continue;
+      const key = src.url || `text:${src.text.length}:${src.text.slice(0, 200)}`;
+      pageSources.delete(key);
+      pageSources.set(key, { ...src, at: Date.now() });
+    }
+    while (pageSources.size > MAX_PAGE_SOURCES) pageSources.delete(pageSources.keys().next().value);
+  });
+
+  /** Sources written on the <video> itself or the elements around it (src, <source>, data-sources...). */
+  function domSources(video) {
+    if (!S || !video) return [];
+    const out = [];
+    const seen = new Set();
+    const own = video.currentSrc || video.src || '';
+    if (/^https?:/i.test(own)) {
+      const kind = S.kindOf(own, 'src', '') || 'file';
+      out.push({ url: own, kind, width: video.videoWidth, height: video.videoHeight, duration: video.duration || 0, images: [], mime: '' });
+      seen.add(own);
+    }
+    for (const source of video.querySelectorAll('source[src]')) {
+      const kind = S.kindOf(source.src, 'src', source.type) || (/^video\//.test(source.type) ? 'file' : '');
+      if (kind && !seen.has(source.src)) {
+        seen.add(source.src);
+        out.push({ url: source.src, kind, width: 0, height: 0, duration: 0, images: [], mime: source.type || '' });
+      }
+    }
+    let el = video;
+    for (let depth = 0; el && depth < 5; depth += 1, el = el.parentElement) {
+      for (const attr of el.attributes || []) {
+        const v = attr.value;
+        if (v.length < 12 || v.length > 200000 || !/https?:/i.test(v) || attr.name === 'src' || attr.name === 'poster') continue;
+        for (const src of S.fromText(v)) {
+          if (src.url && seen.has(src.url)) continue;
+          if (src.url) seen.add(src.url);
+          out.push(src);
+        }
+      }
+    }
+    return out;
+  }
+
+  function metaSources() {
+    if (!S) return [];
+    const out = [];
+    for (const m of document.querySelectorAll('meta[property^="og:video"], meta[name^="twitter:player:stream"], meta[itemprop="contentUrl"]')) {
+      const url = m.content || '';
+      const kind = S.isHttp(url) ? S.kindOf(url, 'contentUrl', '') : '';
+      if (kind) out.push({ url, kind, width: 0, height: 0, duration: 0, images: [], mime: '' });
+    }
+    return out;
+  }
+
+  /**
+   * Page sources for one <video>: { matched, other }. A source matches when it
+   * sits on the element, or its thumbnail is the video's poster, or its length
+   * is the video's length.
+   */
+  function sourcesFor(video) {
+    const own = domSources(video);
+    const poster = video?.poster && S ? S.imageKey(video.poster) : '';
+    const length = Number(video?.duration) || 0;
+    const matched = [...own];
+    const other = [];
+    const ownUrls = new Set(own.map((o) => o.url));
+    const all = [...pageSources.values()].reverse(); // newest first
+    const single = visibleVideos().length <= 1;
+    for (const src of [...metaSources(), ...all]) {
+      if (src.url && ownUrls.has(src.url)) continue;
+      const byPoster = poster && (src.images || []).some((img) => S.imageKey(img) === poster);
+      const byLength = length > 1 && Number.isFinite(length) && src.duration > 0 &&
+        (Math.abs(src.duration - length) < 1.5 || Math.abs(src.duration / 1000 - length) < 1.5); // some sites give milliseconds
+      if (byPoster || byLength) matched.push(src);
+      else other.push(src);
+    }
+    // One video on the page (a post or watch page) and nothing tied to it: its page data is about it.
+    if (single && !matched.length && other.length) return { matched: other.slice(0, 40), other: [] };
+    return { matched: matched.slice(0, 40), other: other.slice(0, 20) };
+  }
+
+  let pageSaveTimer = 0;
+  /** Tell the extension about the video that is playing, for the popup's video card. */
+  function savePageSources(video) {
+    clearTimeout(pageSaveTimer);
+    pageSaveTimer = setTimeout(() => send({ type: 'savePageSources', page: sourcesFor(video) }), 1500);
+  }
 
   const send = (msg) =>
     new Promise((resolve) => {
@@ -91,8 +210,76 @@
     (document.documentElement || document.body).append(host);
   }
 
+  // Links that point at one video or post, per site, so a video in a feed is
+  // downloaded from its own page instead of the feed's address.
+  const POST_LINKS = [
+    /\/watch\?v=|\/shorts\/|youtu\.be\//, // YouTube
+    /\/videos\/|\/reel\/|\/watch\/?\?v=|\/share\/[vr]\/|fb\.watch\//, // Facebook
+    /\/status\/\d+/, // X / Twitter
+    /\/(p|reel|reels|tv)\/[\w-]+/, // Instagram
+    /\/video\/\d+/, // TikTok
+  ];
+
+  function isPostLink(href) {
+    return POST_LINKS.some((re) => re.test(href));
+  }
+
+  /** The address of the post or video page this <video> belongs to. */
+  function videoPageUrl(video) {
+    if (isPostLink(location.href)) return location.href;
+    let node = video;
+    // Walk up, stepping out of shadow roots into their host element.
+    const up = (el) => el.parentElement || el.getRootNode?.().host || null;
+    for (let depth = 0; node && depth < 14; depth += 1, node = up(node)) {
+      const own = node.closest?.('a[href]');
+      if (own && isPostLink(own.href)) return own.href;
+      for (const a of node.querySelectorAll?.('a[href]') || []) {
+        if (isPostLink(a.href)) return a.href;
+      }
+    }
+    return location.href;
+  }
+
+  /** All <video> elements, also inside open shadow roots (custom players). */
+  function findVideos(root, out) {
+    for (const v of root.querySelectorAll('video')) out.push(v);
+    for (const el of root.querySelectorAll('*')) if (el.shadowRoot) findVideos(el.shadowRoot, out);
+    return out;
+  }
+
+  function scan() {
+    scanQueued = false;
+    if (!alive()) return;
+    videos = findVideos(document, []);
+    if (!reportedVideo && videos.some(bigEnough)) {
+      reportedVideo = true;
+      send({ type: 'overlaySawVideo' });
+    }
+  }
+
+  function queueScan() {
+    if (scanQueued) return;
+    scanQueued = true;
+    setTimeout(scan, 300);
+  }
+
+  function bigEnough(v) {
+    const r = v.getBoundingClientRect();
+    return r.width >= MIN_WIDTH && r.height >= MIN_HEIGHT;
+  }
+
+  /** False once the extension was reloaded or removed: then this copy removes itself. */
+  function alive() {
+    if (globalThis.chrome?.runtime?.id) return true;
+    host?.remove();
+    document.removeEventListener('mousemove', onMove, true);
+    document.removeEventListener('play', onPlay, true);
+    return false;
+  }
+
   function visibleVideos() {
-    return [...document.querySelectorAll('video')].filter((v) => {
+    return videos.filter((v) => {
+      if (!v.isConnected) return false;
       const r = v.getBoundingClientRect();
       return r.width >= MIN_WIDTH && r.height >= MIN_HEIGHT && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
     });
@@ -139,7 +326,7 @@
     currentVideo = null;
   }
 
-  function item(name, meta, onClick) {
+  function item(name, meta, onClick, { closeOnly = false, done = '', pending = '' } = {}) {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = 'item';
@@ -148,19 +335,97 @@
     n.className = 'name';
     n.textContent = name;
     el.append(n);
-    if (meta) {
-      const m = document.createElement('span');
-      m.className = 'meta';
-      m.textContent = meta;
-      el.append(m);
-    }
+    const m = document.createElement('span');
+    m.className = 'meta';
+    m.textContent = meta || '';
+    m.hidden = !meta;
+    el.append(m);
+    el.metaEl = m;
     el.addEventListener('click', async (event) => {
       event.stopPropagation();
+      if (closeOnly) {
+        await onClick();
+        hide();
+        return;
+      }
+      // While the desktop program's folder dialog is open, say so.
+      if (pending) menu.replaceChildren(note(pending, false));
       const result = await onClick();
-      menu.replaceChildren(note(result?.error || s('overlayStarted'), !result?.error));
-      setTimeout(hide, 1600);
+      if (result?.reopen) {
+        menuOpen = false;
+        toggleMenu();
+        return;
+      }
+      if (result?.canceled) {
+        menu.replaceChildren(note(s('overlayCanceled'), false));
+        setTimeout(hide, 1000);
+        return;
+      }
+      menu.replaceChildren(note(result?.error || done || s('overlayStarted'), !result?.error));
+      if (result?.id && !result.error) {
+        followJob(result.id);
+        return;
+      }
+      setTimeout(hide, result?.error ? 6000 : 1600);
     });
     return el;
+  }
+
+  /** After a desktop-program download starts, show its progress for a while, and its error if it fails. */
+  async function followJob(id) {
+    const until = Date.now() + 45000;
+    while (Date.now() < until) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (!menuOpen) return;
+      const job = await send({ type: 'videoJob', id });
+      if (!job || !job.state) continue;
+      if (job.state === 'error') {
+        menu.replaceChildren(note(job.error || s('overlayFailed'), false));
+        setTimeout(hide, 8000);
+        return;
+      }
+      if (job.state === 'done') {
+        menu.replaceChildren(note(s('overlaySaved'), true));
+        setTimeout(hide, 1600);
+        return;
+      }
+      if (job.state === 'canceled') {
+        menu.replaceChildren(note(s('overlayCanceled'), false));
+        setTimeout(hide, 1000);
+        return;
+      }
+      const pct = job.total > 0 ? ` ${Math.floor((100 * job.downloaded) / job.total)}%` : '';
+      menu.replaceChildren(note(s('overlayDownloading') + pct, true));
+      if (job.downloaded > 0 && Date.now() > until - 35000) {
+        setTimeout(hide, 2500); // it is clearly running; the progress window and popup take over
+        return;
+      }
+    }
+    hide();
+  }
+
+  /** Ask the desktop program what each quality weighs, then show it ("98 MB"); hide qualities the video does not have. */
+  async function fillSizes(pageUrl, rows) {
+    const infoReply = await send({ type: 'videoInfo', url: pageUrl });
+    const sizes = infoReply?.sizes || {};
+    const maxHeight = Number(infoReply?.maxHeight) || 0;
+    for (const [quality, row] of rows) {
+      if (!row.isConnected) continue;
+      const height = Number(quality);
+      if (maxHeight && height && height > maxHeight && quality !== 'best') {
+        row.hidden = true; // same file as "Best available"
+        continue;
+      }
+      const size = sizes[quality] > 0 ? `≈ ${formatSize(sizes[quality])}` : '';
+      const text = [row.defaultText, size].filter(Boolean).join(' · ');
+      row.metaEl.textContent = text;
+      row.metaEl.hidden = !text;
+    }
+    if (infoReply?.error && !Object.keys(sizes).length && rows.size) {
+      const last = [...rows.values()].pop();
+      if (last?.isConnected) last.after(note(s('overlaySizeError').replace('{error}', infoReply.error), false));
+    }
+    if (menuOpen) place();
   }
 
   function note(text, ok) {
@@ -201,25 +466,61 @@
     menu.classList.add('show');
     place();
 
-    const reply = await send({ type: 'overlayMedia' });
+    const page = sourcesFor(currentVideo);
+    const reply = await send({ type: 'overlayMedia', page });
     const parts = [];
-    if (reply?.site === 'video') {
-      parts.push(head(s('overlayVideoSite')));
-      parts.push(item(s('downloadVideo'), s('overlayViaCompanion'), () => send({ type: 'addVideo', url: location.href, quality: info.quality, title: document.title })));
+    const options = reply?.streams?.options || [];
+    const addOptions = (list) => {
+      for (const o of list) {
+        const name = o.audioOnly ? s('qualityAudio') : o.label || s('overlayVideoSite');
+        const meta = [o.best ? s('overlayBest') : '', formatSize(o.size), o.hasAudio || o.audioOnly ? '' : s('overlayNoSound')].filter(Boolean).join(' · ');
+        parts.push(item(name, meta, () => send({ type: 'addStream', optionId: o.id, title: document.title })));
+      }
+    };
+    const mine = options.filter((o) => !o.other);
+    const others = options.filter((o) => o.other);
+    if (mine.length) {
+      // Saved by the browser itself, no install needed (M15, M16).
+      parts.push(head(s('overlayQualities')));
+      addOptions(mine);
+    }
+    if (others.length) {
+      parts.push(head(s('overlayOther')));
+      addOptions(others);
+    }
+    if (!options.length && reply?.streams?.refused) {
+      parts.push(note(s(reply.streams.refused === 'live' ? 'overlayLive' : 'overlayEncrypted')));
+    }
+    if (reply?.companion === 'connected' && (reply.site === 'video' || reply.site === 'generic')) {
+      // The optional companion app, when it is installed: YouTube and other sites the browser cannot save.
+      parts.push(head(reply.programVersion ? `${s('overlayViaCompanion')} ${reply.programVersion}` : s('overlayViaCompanion')));
+      if (reply.outdated) {
+        parts.push(note(s('overlayProgramOld').replace('{old}', reply.programVersion || '?').replace('{new}', reply.extensionVersion || '')));
+        parts.push(item(s('overlayInstallUpdate'), '', () => send({ type: 'overlayCompanionHelp' }), { closeOnly: true }));
+      }
+      const pageUrl = videoPageUrl(currentVideo);
+      const rows = new Map();
+      for (const [quality, key] of QUALITIES) {
+        const defaultText = quality === info.quality ? s('overlayDefault') : '';
+        const row = item(s(key), [defaultText, s('overlaySizeLoading')].filter(Boolean).join(' · '),
+          () => send({ type: 'addVideo', url: pageUrl, quality, title: document.title }),
+          { pending: reply.askFolder ? s('overlayChooseFolder') : '' });
+        row.defaultText = defaultText;
+        rows.set(quality, row);
+        parts.push(row);
+      }
+      fillSizes(pageUrl, rows);
+    } else if (!options.length && reply?.youtube && reply.companionSeen && reply.companion !== 'missing') {
+      // Installed before: it is still starting (after a restart, for example). Never ask to install again.
+      parts.push(note(s('overlayCompanionStarting')));
+      parts.push(item(s('overlayTryAgain'), '', async () => ({ reopen: true })));
+    } else if (!options.length && reply?.youtube) {
+      parts.push(note(s('overlayYouTubeCompanion')));
+      parts.push(item(s('overlayInstallHelp'), '', () => send({ type: 'overlayCompanionHelp' }), { closeOnly: true }));
     }
     const seen = new Set();
     const files = [];
     for (const m of reply?.media || []) files.push(m); // detected files first: they carry size and type
-    const own = currentVideo?.currentSrc || currentVideo?.src || '';
-    if (/^https?:/i.test(own)) {
-      let name = document.title;
-      try {
-        name = decodeURIComponent(new URL(own).pathname.split('/').pop()) || name;
-      } catch {
-        // keep the page title
-      }
-      files.push({ url: own, name, size: -1, mime: '' });
-    }
     const unique = files.filter((f) => !seen.has(f.url) && seen.add(f.url));
     if (unique.length) {
       parts.push(head(s('overlayFiles')));
@@ -228,20 +529,77 @@
       }
     }
     if (!parts.length) parts.push(note(s('overlayNothing')));
+    parts.push(item(s('overlayCopyDebug'), '', () => copyDebug(page, reply), { closeOnly: false, done: s('overlayCopied') }));
     menu.replaceChildren(...parts);
     place();
   }
 
+  function cleanUrl(url) {
+    try {
+      const u = new URL(url, location.href);
+      if (u.protocol === 'blob:') return 'blob:';
+      return `${u.protocol}//${u.hostname}${u.pathname}`;
+    } catch {
+      return '';
+    }
+  }
+
+  /** Copy what SIDM saw on this page, without query strings (they can hold sign-in tokens). */
+  async function copyDebug(page, reply) {
+    const ext = (await send({ type: 'overlayDebug' })) || {};
+    const v = currentVideo;
+    const brief = (src) => ({ kind: src.kind, url: src.url ? cleanUrl(src.url) : '(manifest text)', size: `${src.width || 0}x${src.height || 0}`, duration: Math.round(src.duration || 0) });
+    const info = {
+      page: cleanUrl(location.href),
+      frame: window !== top ? 'iframe' : 'top',
+      time: new Date().toISOString(),
+      video: v ? { src: cleanUrl(v.currentSrc || v.src || ''), poster: v.poster ? cleanUrl(v.poster) : '', size: `${v.videoWidth}x${v.videoHeight}`, duration: Math.round(v.duration || 0), sources: v.querySelectorAll('source').length } : null,
+      videosOnPage: videos.length,
+      pageDataSources: pageSources.size,
+      matched: (page?.matched || []).slice(0, 15).map(brief),
+      other: (page?.other || []).length,
+      options: (reply?.streams?.options || []).map((o) => `${o.kind} ${o.label || '?'}${o.hasAudio ? '' : ' no-sound'}${o.other ? ' other' : ''}`),
+      refused: reply?.streams?.refused || '',
+      extension: ext,
+    };
+    const text = `SIDM debug info\n${JSON.stringify(info, null, 2)}`;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.cssText = 'position:fixed;top:-1000px;opacity:0;';
+      root.append(area);
+      area.select();
+      document.execCommand('copy');
+      area.remove();
+    }
+    return { ok: true };
+  }
+
   function onMove(event) {
-    if (menuOpen) return;
+    if (menuOpen || !alive()) return;
     if (host && event.composedPath().includes(host)) return;
     const video = videoAt(event.clientX, event.clientY);
     if (video) show(video);
   }
 
+  /** A video started playing: show the button on it for a moment. */
+  function onPlay(event) {
+    const video = event.target;
+    if (menuOpen || !(video instanceof HTMLVideoElement) || !alive()) return;
+    if (!videos.includes(video)) videos.push(video);
+    savePageSources(video);
+    if (visibleVideos().includes(video)) show(video);
+  }
+
   async function start() {
     info = await send({ type: 'overlayInfo' });
     if (!info?.enabled) return;
+    scan();
+    setInterval(scan, SCAN_MS); // feeds add videos all the time
+    new MutationObserver(queueScan).observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener('play', onPlay, true);
     document.addEventListener('mousemove', onMove, { passive: true, capture: true });
     addEventListener('scroll', () => place(), { passive: true, capture: true });
     addEventListener('resize', () => place(), { passive: true });

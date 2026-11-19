@@ -1,4 +1,4 @@
-# GetSmart DM
+# SIDM
 
 **Download Smarter. Faster. Better.**
 
@@ -7,7 +7,7 @@ A free download manager for Chrome, Edge and Brave on Windows (macOS and Linux t
 | Folder | What it is |
 |---|---|
 | `extension/` | Browser extension (Manifest V3, plain JS modules) |
-| `companion/` | Companion app (Python native-messaging host running yt-dlp + ffmpeg); `install.bat` for Windows, `install.sh` for macOS and Linux |
+| `companion/` | Optional companion app (Python native-messaging host running yt-dlp + ffmpeg), for YouTube and multi-connection downloads; `install.bat` for Windows, `install.sh` for macOS and Linux |
 | `site/` | Static download website |
 | `scripts/` | Packaging and release scripts |
 | `shared/` | Extension and companion contract (`protocol.md`) |

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Automated QA for the GetSmart DM extension (extension/).
+"""Automated QA for the SIDM extension (extension/).
 
 Starts a local test HTTP server, launches real Chromium headless with the
 extension loaded (--load-extension), drives the extension pages with
@@ -7,7 +7,7 @@ Playwright and checks:
 
    1. media detection + green badge (HLS/DASH, small files and XHR 206 skipped)
    2. YouTube is never detected (and video downloads there are refused)
-   3. folder sorting (GetSmart DM/<Category>/<name>)
+   3. folder sorting (SIDM/<Category>/<name>)
    4. custom and Bangla file names, Windows-safe names
    5. queue limit with max simultaneous = 2
    6. pause / resume from the popup UI
@@ -53,6 +53,7 @@ import urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXTENSION = os.path.join(ROOT, "extension")
 EXT_ID = "ejkhmcfjnohjikdgfgkhjficmiaoghma"
+HOST_PY = os.path.join(ROOT, "companion", "host.py")
 
 
 # --------------------------------------------------------------------------- test server
@@ -79,8 +80,88 @@ fetch("/f/part.mp4?size=300000&mime=video/mp4", {headers: {Range: "bytes=0-99"}}
 <iframe src="/frame.html"></iframe>
 </body></html>""",
     "/frame.html": """<!doctype html><html><body><a href="/f/setup.exe?size=2000&mime=application/octet-stream">Setup</a></body></html>""",
+    # A social-media-like feed: the video sits in an open shadow root, appears after load,
+    # has no plain file address, and its post link is next to it.
+    "/feed.html": """<!doctype html><html><head><title>Feed</title></head><body style="margin:0">
+<article style="margin:30px"><a href="/u/status/12345">A post</a><div id="player"></div></article>
+<script>setTimeout(() => {
+  const root = document.getElementById('player').attachShadow({mode: 'open'});
+  const v = document.createElement('video');
+  v.style.cssText = 'width:480px;height:270px;display:block;background:#123';
+  root.append(v);
+}, 1200);</script></body></html>""",
     "/empty.html": """<!doctype html><html><head><title>Nothing</title></head><body>No links.</body></html>""",
 }
+
+# Video pages for the in-browser engine (M15): each plays like a real player
+# would (fetches a playlist, a manifest or pieces of MP4 files) next to a
+# <video> in a shadow root. Files come from /sv/, made with ffmpeg at start.
+STREAM_PAGE = """<!doctype html><html><head><title>%s</title></head><body style="margin:0">
+<article style="margin:30px"><div id="player"></div></article>
+<script>
+const root = document.getElementById('player').attachShadow({mode: 'open'});
+const v = document.createElement('video');
+v.style.cssText = 'width:480px;height:270px;display:block;background:#123';
+root.append(v);
+%s
+</script></body></html>"""
+PAGES.update({
+    "/s-hls.html": STREAM_PAGE % ("HLS Test", "fetch('/sv/master.m3u8'); fetch('/sv/v360.m3u8');"),
+    "/s-ts.html": STREAM_PAGE % ("TS Test", "fetch('/sv/ts.m3u8');"),
+    "/s-dash.html": STREAM_PAGE % ("DASH Test", "fetch('/sv/dash.mpd');"),
+    "/s-pieces.html": STREAM_PAGE % ("Pieces Test",
+        "fetch('/sv/v.mp4?bytestart=0&byteend=9999'); fetch('/sv/a.mp4?bytestart=0&byteend=9999');"),
+    "/s-enc.html": STREAM_PAGE % ("Encrypted Test", "fetch('/sv/enc.m3u8');"),
+    # LinkedIn-style (M16): the player shows a blob: URL; every quality is in the page's API reply.
+    "/s-linkedin.html": STREAM_PAGE % ("LinkedIn Test",
+        "v.poster = '/sv/thumb-li-abcdef123.jpg'; v.muted = true;"
+        "fetch('/sv/m360.mp4').then((r) => r.blob()).then((b) => { v.src = URL.createObjectURL(b); });"
+        "setTimeout(() => fetch('/api/li-feed.json').then((r) => r.json()), 300);"),
+    # A plain MP4 (sound inside, header at the end) that the player fetches in parts with Range.
+    "/s-progressive.html": STREAM_PAGE % ("Progressive Test",
+        "const x = new XMLHttpRequest(); x.open('GET', '/sv/mend.mp4'); x.setRequestHeader('Range', 'bytes=0-99999'); x.send();"),
+})
+STREAM_DIR = None  # set by make_stream_fixtures()
+STREAM_MIME = {".jpg": "image/jpeg", ".m3u8": "application/vnd.apple.mpegurl", ".mpd": "application/dash+xml", ".m4s": "video/iso.segment",
+               ".mp4": "video/mp4", ".ts": "video/mp2t"}
+
+
+def make_stream_fixtures():
+    """HLS (fMP4 with a separate audio playlist, and MPEG-TS), DASH and plain MP4 pieces, made with ffmpeg."""
+    global STREAM_DIR
+    if not shutil.which("ffmpeg"):
+        return False
+    d = tempfile.mkdtemp(prefix="gsdm-sv-")
+    def ff(*args):
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *args], cwd=d, check=True)
+    frag = ["-movflags", "frag_keyframe+empty_moov+default_base_moof"]
+    for size, name in (("640x360", "v.mp4"), ("426x240", "v240.mp4")):
+        ff("-f", "lavfi", "-i", "testsrc=duration=6:size=%s:rate=25" % size, "-c:v", "libx264", "-g", "25",
+           "-pix_fmt", "yuv420p", *frag, name)
+    ff("-f", "lavfi", "-i", "sine=frequency=440:duration=6", "-c:a", "aac", *frag, "a.mp4")
+    hls = ["-c", "copy", "-f", "hls", "-hls_time", "2", "-hls_playlist_type", "vod"]
+    for src, name in (("v.mp4", "v360"), ("v240.mp4", "v240"), ("a.mp4", "aud")):
+        ff("-i", src, *hls, "-hls_segment_type", "fmp4", "-hls_fmp4_init_filename", name + "-init.mp4",
+           "-hls_segment_filename", name + "-%d.m4s", name + ".m3u8")
+    ff("-i", "v.mp4", "-i", "a.mp4", "-map", "0", "-map", "1", *hls, "-hls_segment_filename", "ts-%d.ts", "ts.m3u8")
+    ff("-i", "v.mp4", "-i", "a.mp4", "-map", "0", "-map", "1", "-c", "copy", "-f", "dash", "-seg_duration", "2",
+       "-use_template", "1", "-use_timeline", "1", "dash.mpd")
+    # Plain MP4 files with sound (M16): fast start (header first), and one with the header at the end.
+    for size, name in (("640x360", "m360.mp4"), ("1280x720", "m720.mp4")):
+        ff("-f", "lavfi", "-i", "testsrc=duration=6:size=%s:rate=25" % size, "-f", "lavfi", "-i", "sine=duration=6",
+           "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "-movflags", "+faststart", name)
+    ff("-f", "lavfi", "-i", "testsrc=duration=8:size=640x360:rate=25", "-f", "lavfi", "-i", "sine=duration=8",
+       "-vf", "noise=alls=60:allf=t", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-b:v", "3M", "-c:a", "aac", "-shortest", "mend.mp4")
+    with open(os.path.join(d, "thumb-li-abcdef123.jpg"), "wb") as f:
+        f.write(b"\xff\xd8\xff\xd9")
+    with open(os.path.join(d, "master.m3u8"), "w") as f:
+        f.write('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="English",DEFAULT=YES,URI="aud.m3u8"\n'
+                '#EXT-X-STREAM-INF:BANDWIDTH=900000,RESOLUTION=640x360,AUDIO="aud"\nv360.m3u8\n'
+                '#EXT-X-STREAM-INF:BANDWIDTH=400000,RESOLUTION=426x240,AUDIO="aud"\nv240.m3u8\n')
+    with open(os.path.join(d, "enc.m3u8"), "w") as f:
+        f.write('#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"\n#EXTINF:2,\nts-0.ts\n#EXT-X-ENDLIST\n')
+    STREAM_DIR = d
+    return True
 
 BANGLA_CD = "attachment; filename=\"fallback.mp4\"; filename*=UTF-8''%E0%A6%AD%E0%A6%BF%E0%A6%A1%E0%A6%BF%E0%A6%93.mp4"
 
@@ -106,6 +187,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send_simple(200, PAGES[url.path].encode("utf-8"), "text/html; charset=utf-8")
         if url.path == "/404" or url.path.startswith("/missing"):
             return self._send_simple(404, b"not found")
+        if url.path == "/api/li-feed.json":  # like LinkedIn's API reply: every quality of each video in the feed
+            root = "http://%s/sv/" % self.headers.get("Host")
+            other = {"progressiveStreams": [{"width": 1920, "height": 1080, "streamingLocations": [{"url": root + "other-1080p.mp4"}]}],
+                     "duration": 99000, "thumbnail": {"rootUrl": root + "thumb-other-999999.jpg"}}
+            mine = {"progressiveStreams": [
+                        {"width": 640, "height": 360, "bitRate": 400000, "streamingLocations": [{"url": root + "m360.mp4?e=1&t=token"}]},
+                        {"width": 1280, "height": 720, "bitRate": 1500000, "streamingLocations": [{"url": root + "m720.mp4?e=1&t=token"}]}],
+                    "duration": 6000, "thumbnail": {"rootUrl": root + "thumb-li-abcdef123.jpg"}}
+            body = json.dumps({"elements": [{"content": {"video": other}}, {"content": {"video": mine}}]}).encode()
+            return self._send_simple(200, body, "application/json")
+        if url.path.startswith("/sv/") and STREAM_DIR:
+            return self.serve_stream_file(url.path[4:], query)
         if url.path.endswith(".m3u8"):
             return self._send_simple(200, b"#EXTM3U\n#EXTINF:4,\nseg1.ts\n" + b"#" * 300000, "application/vnd.apple.mpegurl")
         if url.path.endswith(".ts"):
@@ -116,19 +209,42 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.serve_file(query)
         return self._send_simple(404, b"not found")
 
+    def serve_stream_file(self, name, query):
+        path = os.path.join(STREAM_DIR, os.path.basename(name))
+        if not os.path.isfile(path):
+            return self._send_simple(404, b"not found")
+        with open(path, "rb") as f:
+            data = f.read()
+        mime = STREAM_MIME.get(os.path.splitext(path)[1], "application/octet-stream")
+        if "bytestart" in query:  # Facebook-style pieces: the range is in the address
+            data = data[int(query["bytestart"]):int(query.get("byteend", len(data) - 1)) + 1]
+            return self._send_simple(200, data, mime)
+        match = re.match(r"bytes=(\d+)-(\d*)", self.headers.get("Range") or "")
+        if not match:
+            return self._send_simple(200, data, mime)
+        start = int(match.group(1))
+        end = min(int(match.group(2)), len(data) - 1) if match.group(2) else len(data) - 1
+        self.send_response(206)
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Range", "bytes %d-%d/%d" % (start, end, len(data)))
+        self.send_header("Content-Length", str(end - start + 1))
+        self.end_headers()
+        self.wfile.write(data[start:end + 1])
+
     def serve_file(self, query):
         size = int(query.get("size", "100000"))
         mime = query.get("mime", "application/octet-stream")
         slow = query.get("slow") == "1"
         start, end = 0, size - 1
-        match = re.match(r"bytes=(\d+)-(\d*)", self.headers.get("Range") or "")
+        match = None if query.get("norange") else re.match(r"bytes=(\d+)-(\d*)", self.headers.get("Range") or "")
         if match:
             start = int(match.group(1))
             if match.group(2):
                 end = min(int(match.group(2)), size - 1)
         self.send_response(206 if match else 200)
         self.send_header("Content-Type", mime)
-        self.send_header("Accept-Ranges", "bytes")
+        if not query.get("norange"):
+            self.send_header("Accept-Ranges", "bytes")
         self.send_header("ETag", '"gsdm-test"')
         if query.get("cd") == "bangla":
             self.send_header("Content-Disposition", BANGLA_CD)
@@ -152,6 +268,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 def start_server():
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     server.daemon_threads = True
+    server.handle_error = lambda request, address: None  # clients that hang up mid-transfer are expected
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server, "http://127.0.0.1:%d" % server.server_address[1]
 
@@ -190,7 +307,7 @@ class Browser:
             json.dump({"download": {"default_directory": self.downloads, "prompt_for_download": False,
                                     "directory_upgrade": True},
                        "safebrowsing": {"enabled": False}}, f)
-        port = free_port()
+        port = self.port = free_port()
         args = [find_chrome(playwright), "--no-first-run", "--no-default-browser-check", "--no-sandbox",
                 "--remote-debugging-port=%d" % port, "--user-data-dir=" + profile,
                 "--disable-extensions-except=" + EXTENSION, "--load-extension=" + EXTENSION,
@@ -211,6 +328,9 @@ class Browser:
                 time.sleep(0.2)
         self.browser = playwright.chromium.connect_over_cdp("http://127.0.0.1:%d" % port)
         self.context = self.browser.contexts[0]
+        # The popup's update check asks the real website; answer it here (no network in tests).
+        self.context.route("https://sidm.online/**", lambda route: route.fulfill(
+            status=200, content_type="application/json", body='{"version": "0.0.0"}'))
         cdp = self.browser.new_browser_cdp_session()
         cdp.send("Browser.setDownloadBehavior", {"behavior": "default"})
         self.console_errors = []
@@ -283,7 +403,7 @@ def files_on_disk(root):
 def reset(b):
     """Cancel and erase every download, clear the queue and the settings."""
     b.call("""async () => {
-        await chrome.storage.local.set({queue: []});
+        await chrome.storage.local.set({queue: [], queuePaused: false});
         for (const d of await chrome.downloads.search({state: 'in_progress'})) { try { await chrome.downloads.cancel(d.id); } catch {} }
         await chrome.downloads.erase({});
         await chrome.storage.sync.clear();
@@ -327,7 +447,14 @@ def check_media_detection(b, base):
     return "4 found (HLS, DASH, small file and XHR 206 skipped); badge 4; cleared on navigation"
 
 
-def check_youtube_blocked(b, base):
+def check_youtube(b, base):
+    reset(b)
+    # On by default: YouTube counts as a video site for the companion.
+    state = b.message({"type": "getVideoState", "url": "https://www.youtube.com/watch?v=abc"})
+    assert state["site"] == "video", state
+    # Turned off: refused.
+    b.call("() => chrome.storage.sync.set({allowYouTube: false})")
+    time.sleep(0.3)
     page = b.page()
     loaded = False
     try:
@@ -347,8 +474,9 @@ def check_youtube_blocked(b, base):
     assert "error" in refused, refused
     drm = b.message({"type": "addVideo", "url": "https://www.netflix.com/watch/1", "quality": "best"})
     assert "error" in drm, drm
+    reset(b)
     how = "real page served as www.youtube.com" if loaded else "host mapping refused here; checked the worker's decisions"
-    return "nothing detected, video download refused, DRM refused (%s)" % how
+    return "on by default; when off: nothing detected, video download refused; DRM refused (%s)" % how
 
 
 def enqueue(b, items):
@@ -361,7 +489,7 @@ def check_folder_sorting(b, base):
                         {"url": base + "/f/tool.zip?size=50000&mime=application/zip"},
                         {"url": base + "/f/track?size=50000&mime=audio/mpeg"}])
     assert reply["added"] == 3, reply
-    want = ["GetSmart DM/Archives/tool.zip", "GetSmart DM/Documents/report.pdf", "GetSmart DM/Music/track.mp3"]
+    want = ["SIDM/Archives/tool.zip", "SIDM/Documents/report.pdf", "SIDM/Music/track.mp3"]
     wait_for(lambda: all(w in files_on_disk(b.downloads) for w in want),
              what="sorted files %r (on disk: %r, downloads %r, queue %r)" % (want, files_on_disk(b.downloads),
                  [(d["filename"][-30:], d["state"], d.get("danger"), d.get("bytesReceived"), d.get("paused")) for d in b.call("() => chrome.downloads.search({})")], queued(b)))
@@ -374,7 +502,7 @@ def check_names(b, base):
                         {"url": base + "/f/x3?size=1000&mime=text/plain", "filename": "CON.txt"},
                         {"url": "ftp://example.com/nope"}])
     assert reply == {"added": 3, "rejected": 1}, reply
-    want = ["GetSmart DM/Documents/a_b_.pdf", "GetSmart DM/Music/বাংলা গান.mp3", "GetSmart DM/Documents/_CON.txt"]
+    want = ["SIDM/Documents/a_b_.pdf", "SIDM/Music/বাংলা গান.mp3", "SIDM/Documents/_CON.txt"]
     wait_for(lambda: all(w in files_on_disk(b.downloads) for w in want), what="named files")
     return ", ".join(want) + "; ftp:// rejected"
 
@@ -458,6 +586,46 @@ def check_progress_window(b, base):
     return "opened on start, one window per download; size, rate, resume probe; pause, resume, hide details, cancel"
 
 
+def check_manager(b, base):
+    reset(b)
+    b.call("() => chrome.storage.sync.set({maxSimultaneous: 1, progressWindow: 'off'})")
+    time.sleep(0.3)
+    enqueue(b, [{"url": base + "/f/m%d.zip?size=4000000&slow=1" % i} for i in range(3)])
+    wait_for(lambda: running(b) == 1 and queued(b) == 2, what="1 running + 2 queued")
+    m = b.page("manager.html")
+    m.wait_for_selector("#m-rows tr[data-state=downloading]")
+    assert m.locator("#m-rows tr").count() == 3
+    m.click('.m-node[data-view="queue"]')
+    wait_for(lambda: m.locator("#m-rows tr").count() == 2, what="queue view")
+    m.click('.m-node[data-view="all"]')
+    m.click('[data-tool="queue"]')
+    wait_for(lambda: b.call("async () => (await chrome.storage.local.get('queuePaused')).queuePaused") is True, what="queue stopped")
+    m.click("#m-rows tr[data-state=downloading]")
+    m.click('[data-tool="stop"]')
+    wait_for(lambda: m.locator("#m-rows tr[data-state=paused]").count() == 1, what="stopped from toolbar")
+    time.sleep(1)
+    assert running(b) == 0 and queued(b) == 2, "stopped queue must not start the next item"
+    m.click('[data-tool="resume"]')
+    wait_for(lambda: running(b) == 1, what="resumed from toolbar")
+    m.click('[data-tool="stopAll"]')
+    wait_for(lambda: running(b) == 0, what="stop all")
+    m.click('th[data-sort="name"]')
+    names = m.eval_on_selector_all("#m-rows .m-name", "els => els.map(e => e.textContent)")
+    assert names == sorted(names), names
+    m.click("#m-rows tr >> nth=0")
+    m.keyboard.press("Control+a")
+    assert m.locator('#m-rows tr[aria-selected="true"]').count() == 3
+    m.keyboard.press("Delete")
+    m.click('#delete-dialog button[value="delete"]')
+    wait_for(lambda: m.locator("#m-rows tr").count() == 0, what="all deleted")
+    assert queued(b) == 0 and not b.call("() => chrome.downloads.search({})")
+    m.click('[data-tool="queue"]')
+    wait_for(lambda: b.call("async () => (await chrome.storage.local.get('queuePaused')).queuePaused") is False, what="queue started")
+    m.close()
+    reset(b)
+    return "category tree, stop/start queue, stop and resume, stop all, sort, Ctrl+A, delete dialog"
+
+
 def check_grabber(b, base):
     reset(b)
     page = b.page()
@@ -475,7 +643,7 @@ def check_grabber(b, base):
     grabber.fill("#g-filter", "pack")
     grabber.check("#g-all")
     grabber.click("#g-download")
-    wait_for(lambda: "GetSmart DM/Archives/pack.zip" in files_on_disk(b.downloads), what="grabbed file")
+    wait_for(lambda: "SIDM/Archives/pack.zip" in files_on_disk(b.downloads), what="grabbed file")
 
     closed = b.page("grabber.html?tab=999999999")
     closed.wait_for_selector("#g-status:not([hidden])")
@@ -501,7 +669,9 @@ def check_settings(b, base):
     options.fill("#disabledSites", "https://www.Example.com/x\nfoo.org\nfoo.org\nnot a host")
     options.press("#disabledSites", "Tab")
     options.select_option("#defaultQuality", "720")
-    options.click("#allowYouTube")
+    options.click("#allowYouTube")  # on by default: this turns it off, no dialog
+    wait_for(lambda: b.call("() => chrome.storage.sync.get('allowYouTube')").get("allowYouTube") is False, what="YouTube off")
+    options.click("#allowYouTube")  # turning it on again shows the warning
     options.click("#yt-dialog button[value=cancel]")
     time.sleep(0.5)
     saved = b.call("() => chrome.storage.sync.get(null)")
@@ -561,17 +731,296 @@ def check_filter_and_clear(b, base):
     return "music/documents chips, search, failed row; Clear finished kept the running download"
 
 
+def check_scheduler(b, base):
+    reset(b)
+    b.call("() => chrome.storage.sync.set({maxSimultaneous: 1, progressWindow: 'off', whenQueueDone: 'notify'})")
+    time.sleep(0.3)
+    # Settings page: turning the schedule on plans the alarms.
+    opts = b.page("options.html#scheduler")
+    opts.check("#scheduleEnabled")
+    opts.fill("#scheduleStart", "03:30")
+    opts.locator("#scheduleStart").dispatch_event("change")
+    opts.fill("#scheduleStop", "07:00")
+    opts.locator("#scheduleStop").dispatch_event("change")
+    opts.click('#scheduleDays label:has(input[value="0"])')  # Sunday off
+    days = wait_for(lambda: b.call("async () => (await chrome.storage.sync.get('scheduleDays')).scheduleDays") == [1, 2, 3, 4, 5, 6] and [1, 2, 3, 4, 5, 6],
+                    what="days saved")
+    opts.close()
+    alarms = wait_for(lambda: (lambda a: len(a) == 2 and a)(b.call("() => chrome.alarms.getAll()")), what="two alarms")
+    for alarm in alarms:
+        hhmm = b.call("(w) => { const d = new Date(w); return [d.getHours(), d.getMinutes(), d.getDay()]; }", alarm["scheduledTime"])
+        want = (3, 30) if alarm["name"].endswith("start") else (7, 0)
+        assert tuple(hhmm[:2]) == want and hhmm[2] in days, (alarm, hhmm)
+    # Stop the queue, then let the start alarm fire now.
+    b.message({"type": "setQueuePaused", "paused": True})
+    enqueue(b, [{"url": base + "/f/s%d.bin?size=200000&slow=1" % i} for i in range(2)])
+    time.sleep(1)
+    assert running(b) == 0 and queued(b) == 2, "stopped queue started something"
+    b.call("() => chrome.alarms.create('gsdm-schedule-start', {when: Date.now() + 300})")
+    wait_for(lambda: running(b) == 1, what="schedule started the queue")
+    wait_for(lambda: queued(b) == 0 and running(b) == 0, timeout=30, what="queue ran through")
+    note = wait_for(lambda: [n for n in b.call("() => new Promise((r) => chrome.notifications.getAll(r))") if n.startswith("gsdm-queue-done")],
+                    what="queue done notification")
+    b.call("() => chrome.storage.sync.set({scheduleEnabled: false})")
+    wait_for(lambda: not b.call("() => chrome.alarms.getAll()"), what="alarms cleared when off")
+    reset(b)
+    return "alarms at 03:30/07:00 Mon-Sat; start alarm ran the stopped queue; queue-done notification; off clears alarms"
+
+
+def open_video_menu(page):
+    """Hover the feed video, click the Download button, focus the first menu entry."""
+    page.wait_for_function("() => document.getElementById('player').shadowRoot?.querySelector('video')")
+    time.sleep(2.5)  # the button's scan runs every 2 s
+    box = page.evaluate("() => { const r = document.getElementById('player').shadowRoot.querySelector('video').getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; }")
+    page.mouse.move((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
+    time.sleep(0.4)
+    page.mouse.move(box[2] - 30, box[1] + 24)
+    page.mouse.click(box[2] - 30, box[1] + 24)
+    time.sleep(3)  # the menu asks the worker, which waits up to 2.5 s for the companion
+    page.keyboard.press("Tab")
+
+
+def check_video_button(b, base):
+    reset(b)
+    page = b.page()
+    page.set_viewport_size({"width": 900, "height": 600})
+    page.goto(base + "/feed.html")
+    tab = tab_id_for(b, base + "/feed.html")
+    open_video_menu(page)
+    wait_for(lambda: b.call("(k) => chrome.storage.session.get(k)", "video:%d" % tab).get("video:%d" % tab),
+             what="page reported a video")
+    # Nothing played yet and no companion: the menu says to play the video; it does not push an install.
+    text = page.evaluate("() => document.querySelector('gsdm-video-button') ? 'present' : ''")
+    assert text == "present", "video button not added"
+    popup = b.page("popup.html?tab=%d" % tab)
+    popup.click("#tab-page")
+    popup.wait_for_selector("#video-card:not([hidden]) .v-help")
+    help_text = popup.inner_text("#video-card .v-help")
+    assert "install" not in help_text.lower(), help_text
+    popup.close()
+    page.close()
+    return "found in a shadow root after load; with nothing played it asks to play the video (no install prompt)"
+
+
+def ffprobe_streams(path):
+    if not shutil.which("ffprobe"):
+        return None
+    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", path],
+                         capture_output=True, text=True, check=True).stdout.split()
+    return sorted(out)
+
+
+def stream_download(b, base, page_path, pick, expect_name, expect_streams):
+    """Open a stream page, ask for the choices, download one, check the saved file."""
+    page = b.page()
+    page.goto(base + page_path)
+    tab = tab_id_for(b, base + page_path)
+    seen = {}
+
+    def wanted():
+        seen["reply"] = b.message({"type": "streamOptions", "tabId": tab})
+        return pick(seen["reply"].get("options") or [])
+
+    option = wait_for(wanted, what="wanted stream choice on %s (have %r)" % (page_path, seen))
+    labels = [o["label"] or "video" for o in seen["reply"]["options"]]
+    added = b.message({"type": "addStream", "optionId": option["id"], "tabId": tab, "title": page.title()})
+    assert added.get("id"), added
+    rel = wait_for(lambda: next((f for f in files_on_disk(b.downloads) if f == expect_name), None), timeout=60,
+                   what=expect_name + " on disk (have %r)" % files_on_disk(b.downloads))
+    streams = ffprobe_streams(os.path.join(b.downloads, rel))
+    if streams is not None:
+        # Joined MPEG-TS pieces repeat their program table, so ffprobe may list each stream twice.
+        got = sorted(set(streams)) if rel.endswith(".ts") else streams
+        assert got == expect_streams, "%s has %r" % (rel, streams)
+    page.close()
+    return labels
+
+
+def check_stream_videos(b, base):
+    if not STREAM_DIR:
+        return "skipped: ffmpeg not installed"
+    reset(b)
+    with_audio = lambda height: (lambda opts: next((o for o in opts if o["label"] == height and o["hasAudio"]), None))
+    hls = stream_download(b, base, "/s-hls.html", with_audio("360p"), "SIDM/Video/HLS Test (360p).mp4", ["audio", "video"])
+    assert hls[:2] == ["360p", "240p"] and len(hls) == 2, "HLS choices %r (variant playlist must not repeat)" % hls
+    dash = stream_download(b, base, "/s-dash.html", with_audio("360p"), "SIDM/Video/DASH Test (360p).mp4", ["audio", "video"])
+    assert "audio" in dash, dash
+    stream_download(b, base, "/s-pieces.html", with_audio("360p"), "SIDM/Video/Pieces Test (360p).mp4", ["audio", "video"])
+    stream_download(b, base, "/s-ts.html", lambda opts: opts[0] if opts else None, "SIDM/Video/TS Test.ts", ["audio", "video"])
+
+    # Encrypted HLS is refused, never downloaded.
+    page = b.page()
+    page.goto(base + "/s-enc.html")
+    tab = tab_id_for(b, base + "/s-enc.html")
+    reply = wait_for(lambda: (lambda r: r if r.get("refused") else None)(b.message({"type": "streamOptions", "tabId": tab})),
+                     what="encrypted stream refused")
+    assert reply["refused"] == "encrypted" and not reply["options"], reply
+    page.close()
+
+    # The video button offers the same choices and downloads from the menu.
+    page = b.page()
+    page.set_viewport_size({"width": 900, "height": 600})
+    page.goto(base + "/s-pieces.html")
+    time.sleep(1)
+    open_video_menu(page)
+    page.keyboard.press("Enter")
+    wait_for(lambda: len([f for f in files_on_disk(b.downloads) if f.startswith("SIDM/Video/Pieces Test (360p)")]) >= 2,
+             timeout=60, what="second download from the video button")
+    page.close()
+    # A plain MP4 with sound fetched in parts (header at the end): offered as one whole file.
+    stream_download(b, base, "/s-progressive.html", with_audio("360p"), "SIDM/Video/Progressive Test (360p).mp4", ["audio", "video"])
+
+    # LinkedIn-style page data: the menu's first choice is the highest quality of the video under the pointer.
+    page = b.page()
+    page.set_viewport_size({"width": 900, "height": 600})
+    page.goto(base + "/s-linkedin.html")
+    page.wait_for_function("() => document.getElementById('player').shadowRoot?.querySelector('video')?.duration > 0")
+    open_video_menu(page)
+    page.keyboard.press("Enter")
+    rel = wait_for(lambda: next((f for f in files_on_disk(b.downloads) if f.startswith("SIDM/Video/LinkedIn Test")), None),
+                   timeout=60, what="LinkedIn-style download (have %r)" % files_on_disk(b.downloads))
+    assert rel == "SIDM/Video/LinkedIn Test (720p).mp4", rel
+    wait_for(lambda: not any(f.endswith(".crdownload") for f in files_on_disk(b.downloads)), what="download finished")
+    assert ffprobe_streams(os.path.join(b.downloads, rel)) in (None, ["audio", "video"]), rel
+    page.close()
+    return "page data (LinkedIn-style) gives the highest quality first; plain MP4 with sound saved whole; HLS fMP4 + separate audio, DASH, Facebook-style MP4 pieces joined into one MP4 (video+audio); TS saved as .ts; encrypted refused; video button menu works"
+
+
+def register_companion(b):
+    """Register companion/host.py for this profile, saving into the test Downloads folder."""
+    config = os.path.join(b.tmp, "xdg")
+    os.makedirs(config, exist_ok=True)
+    with open(os.path.join(config, "user-dirs.dirs"), "w", encoding="utf-8") as f:
+        f.write('XDG_DOWNLOAD_DIR="%s"\n' % b.downloads)
+    # A stand-in for the system folder dialog (zenity): "chooses" the folder written in b.tmp/choice.
+    bindir = os.path.join(b.tmp, "bin")
+    os.makedirs(bindir, exist_ok=True)
+    with open(os.path.join(bindir, "zenity"), "w", encoding="utf-8") as f:
+        f.write('#!/bin/sh\ncat "%s"\n' % os.path.join(b.tmp, "choice"))
+    os.chmod(os.path.join(bindir, "zenity"), 0o755)
+    with open(os.path.join(b.tmp, "choice"), "w", encoding="utf-8") as f:
+        f.write("")
+    wrapper = os.path.join(b.tmp, "host.sh")
+    with open(wrapper, "w", encoding="utf-8") as f:
+        f.write('#!/bin/sh\nPATH="%s:$PATH" XDG_CONFIG_HOME="%s" exec "%s" "%s" "$@"\n' % (bindir, config, sys.executable, HOST_PY))
+    os.chmod(wrapper, 0o755)
+    folder = os.path.join(b.tmp, "profile", "NativeMessagingHosts")
+    os.makedirs(folder, exist_ok=True)
+    with open(os.path.join(folder, "com.sidm.host.json"), "w", encoding="utf-8") as f:
+        json.dump({"name": "com.sidm.host", "description": "test", "path": wrapper, "type": "stdio",
+                   "allowed_origins": ["chrome-extension://%s/" % EXT_ID]}, f)
+
+
+def file_jobs(b):
+    return b.call("async () => Object.values((await chrome.storage.local.get('fileJobs')).fileJobs || {})")
+
+
+def check_companion_files(b, base):
+    if sys.platform == "win32":
+        return "skipped on Windows (the test registers the host for Linux/macOS)"
+    reset(b)
+    register_companion(b)
+    b.message({"type": "getVideoState", "url": ""})
+    wait_for(lambda: (b.call("async () => (await chrome.storage.session.get('companion')).companion") or {}).get("status") == "connected",
+             what="companion connected")
+    enqueue(b, [{"url": base + "/f/bigfile.zip?size=8000000&slow=1"}])
+    job = wait_for(lambda: next((j for j in file_jobs(b) if j.get("connections", 0) >= 2), None),
+                   what="companion job with several connections (jobs: %r)" % file_jobs(b))
+    assert not b.call("() => chrome.downloads.search({})"), "the browser downloaded it too"
+    close_progress_windows(b)  # it may have opened on its own (at most 3 per 10 s)
+    page = b.page("progress.html?id=f:%s" % job["id"])
+    wait_for(lambda: page.locator("#p-segbar > div").count() >= 2, what="segment bar")
+    assert page.locator("#p-conn-rows tr").count() >= 2
+    page.click("#b-pause")
+    wait_for(lambda: page.locator("body").get_attribute("data-state") == "paused", what="companion paused")
+    page.click("#b-resume")
+    done = wait_for(lambda: next((j for j in file_jobs(b) if j["id"] == job["id"] and j["state"] == "done"), None),
+                    timeout=60, what="companion job done")
+    path = os.path.join(b.downloads, "SIDM", "Archives", "bigfile.zip")
+    assert os.path.getsize(path) == 8000000, os.path.getsize(path)
+    assert os.path.realpath(done["filename"]) == os.path.realpath(path), done["filename"]
+    page.close()
+    popup = b.page("popup.html")
+    popup.click("#tab-downloads")
+    popup.wait_for_selector('.dl-row[data-id="f:%s"][data-state=complete]' % job["id"])
+    popup.close()
+    # The global speed limit reaches the companion.
+    b.call("() => chrome.storage.sync.set({speedLimitKBps: 500, progressWindow: 'off'})")
+    time.sleep(0.5)
+    enqueue(b, [{"url": base + "/f/limited.bin?size=3000000"}])
+    limited = wait_for(lambda: next((j for j in file_jobs(b) if j.get("name") == "limited.bin"), None), what="limited job")
+    started = time.time()
+    wait_for(lambda: next((j for j in file_jobs(b) if j["id"] == limited["id"] and j["state"] == "done"), None),
+             timeout=30, what="limited job done")
+    took = time.time() - started
+    assert took > 4, "3 MB at 500 KB/s took only %.1f s" % took
+    b.call("() => chrome.storage.sync.set({speedLimitKBps: 0})")
+    b.call("() => chrome.storage.local.set({fileJobs: {}})")
+
+    # Installed once: remembered, so the install offer is never shown again.
+    assert b.call("async () => (await chrome.storage.local.get('companionSeen')).companionSeen") is True
+    # Video download through the desktop program: the folder dialog chooses where it goes.
+    chosen = os.path.join(b.downloads, "Picked folder")
+    os.makedirs(chosen, exist_ok=True)
+    with open(os.path.join(b.tmp, "choice"), "w", encoding="utf-8") as f:
+        f.write(chosen + "\n")
+    video_url = base + "/f/clip.mp4?size=300000&mime=video/mp4"
+    added = b.message({"type": "addVideo", "url": video_url, "quality": "best", "title": "Clip"})
+    assert added.get("id"), added
+    video = wait_for(lambda: next((j for j in b.call("async () => Object.values((await chrome.storage.session.get('videoJobs')).videoJobs || {})")
+                                   if j["id"] == added["id"] and j["state"] in ("done", "error")), None),
+                     timeout=60, what="video job finished")
+    assert video["state"] == "done", video
+    assert os.path.dirname(os.path.realpath(video["filename"])) == os.path.realpath(chosen), video["filename"]
+    assert b.call("async () => (await chrome.storage.local.get('lastVideoFolder')).lastVideoFolder") == chosen
+    # The video menu follows the job after the click (shows "Saved" or the error instead of going silent).
+    state = b.message({"type": "videoJob", "id": added["id"]})
+    assert state.get("state") == "done", state
+    # Closing the dialog without a folder cancels the download.
+    with open(os.path.join(b.tmp, "choice"), "w", encoding="utf-8") as f:
+        f.write("")
+    assert b.message({"type": "addVideo", "url": video_url, "quality": "best"}).get("canceled") is True
+    # Sizes for the quality menu.
+    info = b.message({"type": "videoInfo", "url": video_url})
+    assert isinstance(info.get("sizes"), dict) and not info.get("error"), info
+    # A server without ranges goes to the browser.
+    enqueue(b, [{"url": base + "/f/plain.zip?size=3000000&norange=1"}])
+    wait_for(lambda: b.call("() => chrome.downloads.search({})"), what="browser took the no-range file")
+    assert not file_jobs(b), file_jobs(b)
+    b.call("() => chrome.storage.local.set({fileJobs: {}})")
+    # Video button with the companion: qualities; the first (Best) uses the post's own address.
+    with open(os.path.join(b.tmp, "choice"), "w", encoding="utf-8") as f:
+        f.write(chosen + "\n")
+    b.call("() => chrome.storage.session.set({videoJobs: {}})")
+    page = b.page()
+    page.set_viewport_size({"width": 900, "height": 600})
+    page.goto(base + "/feed.html")
+    open_video_menu(page)
+    page.keyboard.press("Enter")
+    jobs = wait_for(lambda: b.call("async () => Object.values((await chrome.storage.session.get('videoJobs')).videoJobs || {})"),
+                    what="video job from the button")
+    assert jobs[0]["url"] == base + "/u/status/12345" and jobs[0]["quality"] == "best", jobs[0]
+    page.close()
+    reset(b)
+    return "video button: Best quality for the post address; 8 MB over several connections into SIDM/Archives, parts shown, pause/resume, popup row; 500 KB/s limit; no-range file went to the browser; video saved into the folder picked in the dialog, job state for the menu, cancel, sizes"
+
+
 CHECKS = [
     ("media detection and badge", check_media_detection),
-    ("YouTube blocked", check_youtube_blocked),
+    ("YouTube on by default, off refuses, DRM", check_youtube),
     ("progress window", check_progress_window),  # before other downloads: auto-open allows 3 per 10 s
     ("folder sorting", check_folder_sorting),
     ("custom and Bangla file names", check_names),
     ("queue limit (max 2)", check_queue_limit),
     ("pause/resume from the UI", check_pause_resume_ui),
+    ("manager page", check_manager),
+    ("video button on any site", check_video_button),
+    ("videos without the companion", check_stream_videos),
     ("link grabber select + download", check_grabber),
     ("settings save", check_settings),
     ("category filter + clear finished", check_filter_and_clear),
+    ("scheduler + queue done", check_scheduler),
+    ("companion multi-connection download", check_companion_files),  # last: the companion stays registered
 ]
 
 
@@ -585,6 +1034,7 @@ def main():
     except ImportError:
         sys.exit("Playwright is missing: pip install playwright && python -m playwright install chromium")
 
+    make_stream_fixtures()
     server, base = start_server()
     os.environ["GSDM_PORT"] = str(server.server_address[1])
     failures = 0
@@ -592,7 +1042,10 @@ def main():
         b = Browser(playwright, args.headed)
         try:
             time.sleep(1)
+            only = os.environ.get("GSDM_ONLY", "")  # run only checks whose name contains this text
             for name, check in CHECKS:
+                if only and only not in name:
+                    continue
                 try:
                     detail = check(b, base)
                     print("PASS  %-36s %s" % (name, detail))
@@ -609,6 +1062,8 @@ def main():
         finally:
             b.close()
             server.shutdown()
+            if STREAM_DIR:
+                shutil.rmtree(STREAM_DIR, ignore_errors=True)
     print("\n%s" % ("ALL PASSED" if not failures else "%d FAILED" % failures))
     return 1 if failures else 0
 

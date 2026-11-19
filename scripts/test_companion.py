@@ -9,7 +9,7 @@ talks to the extension's service worker the way the popup does
 - getVideoState on a Facebook URL reports site "video" and the companion as
   connected (with its yt-dlp version)
 - YouTube is off by default (site "youtube-off", addVideo refused)
-- addVideo progresses to done with a .mp4 on disk in Downloads/GetSmart DM/Video
+- addVideo progresses to done with a .mp4 on disk in Downloads/SIDM/Video
 - a 404 gives the friendly "not found" error
 - cancelVideo cancels a running download and leaves no partial files
 - no console errors in the extension page or the service worker
@@ -43,7 +43,7 @@ import test_host  # noqa: E402  (reuses its local HTTP test server)
 EXTENSION = ROOT / "extension"
 HOST_PY = ROOT / "companion" / "host.py"
 EXTENSION_ID = "ejkhmcfjnohjikdgfgkhjficmiaoghma"
-HOST_NAME = "com.getsmartdm.host"
+HOST_NAME = "com.sidm.host"
 CHROMIUM_FALLBACKS = [os.environ.get("CHROMIUM_PATH", ""), "/opt/pw-browsers/chromium"]
 
 
@@ -75,7 +75,7 @@ class CompanionEndToEnd(unittest.TestCase):
         cls.home = os.path.join(cls.tmp, "home")
         cls.profile = os.path.join(cls.tmp, "profile")
         os.makedirs(cls.home)
-        cls.video_dir = os.path.join(cls.home, "Downloads", "GetSmart DM", "Video")
+        cls.video_dir = os.path.join(cls.home, "Downloads", "SIDM", "Video")
 
         # Launcher + host manifest inside the profile.
         launcher = os.path.join(cls.tmp, "run_host.sh")
@@ -85,7 +85,7 @@ class CompanionEndToEnd(unittest.TestCase):
         hosts = os.path.join(cls.profile, "NativeMessagingHosts")
         os.makedirs(hosts)
         with open(os.path.join(hosts, HOST_NAME + ".json"), "w") as f:
-            json.dump({"name": HOST_NAME, "description": "GetSmart DM companion (test)",
+            json.dump({"name": HOST_NAME, "description": "SIDM companion (test)",
                        "path": launcher, "type": "stdio",
                        "allowed_origins": ["chrome-extension://%s/" % EXTENSION_ID]}, f)
 
@@ -103,6 +103,9 @@ class CompanionEndToEnd(unittest.TestCase):
             locale="en-US",
             **launch_kwargs(cls.pw),
         )
+        # The popup's update check asks the real website; answer it here.
+        cls.ctx.route("https://sidm.online/**", lambda route: route.fulfill(
+            status=200, content_type="application/json", body='{"version": "0.0.0"}'))
         cls.console_errors = []
         cls.sw = cls.ctx.service_workers[0] if cls.ctx.service_workers else \
             cls.ctx.wait_for_event("serviceworker", timeout=15_000)
@@ -165,6 +168,9 @@ class CompanionEndToEnd(unittest.TestCase):
         self.fail("job %s timed out: %r" % (job_id, seen[-1] if seen else None))
 
     def add(self, url, quality="best"):
+        # The folder dialog has its own check in test_extension.py; here videos go to the default folder.
+        self.page.evaluate("() => chrome.storage.sync.set({askVideoFolder: false})")
+        time.sleep(0.2)
         reply = self.send({"type": "addVideo", "url": url, "quality": quality, "title": "test"})
         self.assertIn("id", reply, reply)
         return reply["id"]
@@ -178,7 +184,7 @@ class CompanionEndToEnd(unittest.TestCase):
         comp = st["companion"]
         self.assertTrue(comp.get("version"), comp)
         self.assertTrue(comp.get("ytdlp"), "host.py found no yt-dlp: %r" % comp)
-        self.assertTrue(comp["dir"].replace("\\", "/").endswith("GetSmart DM/Video"), comp)
+        self.assertTrue(comp["dir"].replace("\\", "/").endswith("SIDM/Video"), comp)
 
         # A real Facebook tab, served by the local test server through the mapping.
         tab = self.ctx.new_page()
@@ -193,13 +199,20 @@ class CompanionEndToEnd(unittest.TestCase):
             print("\n  note: could not open www.facebook.com through --host-resolver-rules "
                   "(HSTS or network policy); site detection is checked by URL only", flush=True)
 
-    def test_2_youtube_off_by_default(self):
+    def test_2_youtube_on_by_default_and_off_refuses(self):
         st = self.state("https://www.youtube.com/watch?v=abc")
-        self.assertEqual(st["site"], "youtube-off")
-        reply = self.send({"type": "addVideo", "url": "https://www.youtube.com/watch?v=abc",
-                           "quality": "best", "title": "yt"})
-        self.assertIn("error", reply)
-        self.assertNotIn("id", reply)
+        self.assertEqual(st["site"], "video")  # owner's decision: on by default
+        self.page.evaluate("() => chrome.storage.sync.set({allowYouTube: false})")
+        time.sleep(0.3)
+        try:
+            st = self.state("https://www.youtube.com/watch?v=abc")
+            self.assertEqual(st["site"], "youtube-off")
+            reply = self.send({"type": "addVideo", "url": "https://www.youtube.com/watch?v=abc",
+                               "quality": "best", "title": "yt"})
+            self.assertIn("error", reply)
+            self.assertNotIn("id", reply)
+        finally:
+            self.page.evaluate("() => chrome.storage.sync.remove('allowYouTube')")
 
     def test_3_download_done(self):
         self.wait_connected()

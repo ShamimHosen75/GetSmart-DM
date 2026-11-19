@@ -1,5 +1,5 @@
 @echo off
-rem GetSmart DM companion: download the newest yt-dlp.exe into this folder.
+rem SIDM companion: download the newest yt-dlp.exe into this folder.
 setlocal EnableExtensions
 cd /d "%~dp0"
 set "YTDLP_URL=https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"

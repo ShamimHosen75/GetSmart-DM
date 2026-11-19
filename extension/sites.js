@@ -16,9 +16,34 @@ export const VIDEO_SITES = [
   'ok.ru',
   'bilibili.com',
   'streamable.com',
+  'linkedin.com',
+  'pinterest.com',
+  'pin.it',
+  'tumblr.com',
+  'threads.net',
+  'threads.com',
+  'bsky.app',
+  'snapchat.com',
+  '9gag.com',
+  'imgur.com',
+  'kick.com',
+  'rumble.com',
+  'odysee.com',
+  'soundcloud.com',
+  'mixcloud.com',
+  'bandcamp.com',
+  'ted.com',
+  'likee.video',
+  'weibo.com',
+  'douyin.com',
+  'kuaishou.com',
+  'bilibili.tv',
+  'nicovideo.jp',
+  'loom.com',
+  'vidio.com',
 ];
 
-/** YouTube: only behind the off-by-default allowYouTube setting. */
+/** YouTube: through the companion while the allowYouTube setting is on (default on). */
 export const YOUTUBE_HOSTS = ['youtube.com', 'youtu.be', 'youtube-nocookie.com', 'googlevideo.com'];
 
 /**
@@ -79,6 +104,17 @@ export function videoSiteStatus(url, allowYouTube) {
   return hostMatches(hostOf(url), VIDEO_SITES) ? 'video' : null;
 }
 
+/**
+ * Like videoSiteStatus, but any other http(s) page that plays a video is
+ * "generic": the companion (yt-dlp) is asked to try it. DRM sites give null.
+ */
+export function videoPageStatus(url, allowYouTube, hasVideo) {
+  const known = videoSiteStatus(url, allowYouTube);
+  if (known) return known;
+  if (!hasVideo || isDrmSite(url) || !/^https?:/i.test(url || '')) return null;
+  return 'generic';
+}
+
 /** Normalise one "disabled sites" entry ("https://www.Example.com/x" -> "example.com"). */
 export function normaliseSite(entry) {
   const text = String(entry || '').trim().toLowerCase();
@@ -86,4 +122,13 @@ export function normaliseSite(entry) {
   const host = text.includes('://') ? hostOf(text) : text.split('/')[0].replace(/^www\./, '');
   const clean = host.replace(/^\.+|\.+$/g, '');
   return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(clean) || clean === 'localhost' ? clean : '';
+}
+
+/** Why detection is off for a page URL: "youtube", "drm", "disabled", "off" or null. */
+export function detectionBlockReason(pageUrl, settings) {
+  if (!settings.mediaDetection) return 'off';
+  if (isYouTube(pageUrl)) return 'youtube';
+  if (isDrmSite(pageUrl)) return 'drm';
+  if (hostMatches(hostOf(pageUrl), settings.disabledSites || [])) return 'disabled';
+  return null;
 }

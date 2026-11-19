@@ -17,7 +17,7 @@ Manual checks, grouped by milestone. Tick each before calling a milestone done.
 
 ## Update available (release tooling, Step 4)
 
-Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachable there.
+`SITE_URL` in `extension/update-check.js` is `https://sidm.online`; `https://sidm.online/version.json` must be reachable.
 
 - [ ] With `version.json` showing a **higher** version than the manifest, the popup footer shows "Update available" (Bangla: "আপডেট পাওয়া যাচ্ছে"); clicking it opens the website in a new tab.
 - [ ] With the **same or lower** version, or the site offline, no footer link and no console error.
@@ -42,7 +42,7 @@ Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachab
 
 ## M3 Folder sorting + queue
 
-- [ ] Download a PDF, an MP4, a ZIP and an EXE from any site: they land in `Downloads/GetSmart DM/Documents`, `/Video`, `/Archives`, `/Programs`. A file with an unknown extension goes to `/Other` (or by its MIME type).
+- [ ] Download a PDF, an MP4, a ZIP and an EXE from any site: they land in `Downloads/SIDM/Documents`, `/Video`, `/Archives`, `/Programs`. A file with an unknown extension goes to `/Other` (or by its MIME type).
 - [ ] Settings > folder sorting off (M8, or `chrome.storage.sync.set({sortIntoFolders:false})` in the service worker console): new downloads go straight to `Downloads/` again.
 - [ ] A second download with the same name gets ` (1)` added; nothing is overwritten.
 - [ ] Set max simultaneous to 2 and add 4 large links in the "+" panel (M4): 2 run, 2 show "Waiting in queue". Pausing one starts the next. Cancelling a waiting row removes it.
@@ -54,8 +54,8 @@ Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachab
 
 - [ ] Popup "+" opens the add panel. Paste 3 lines: two https links and `ftp://x`. "Add" queues the two and says "Added 2 to the queue · 1 skipped (not http/https)". Duplicate lines are added once. Ctrl+Enter adds, Esc closes.
 - [ ] Add with an empty box: "Paste at least one http:// or https:// link." and nothing is queued.
-- [ ] Right-click a link > "Download link with GetSmart DM": it goes through the queue and into the sorted folder.
-- [ ] Right-click an image, and a `<video>`/`<audio>` element with a real `src` > "Download this file with GetSmart DM".
+- [ ] Right-click a link > "Download link with SIDM": it goes through the queue and into the sorted folder.
+- [ ] Right-click an image, and a `<video>`/`<audio>` element with a real `src` > "Download this file with SIDM".
 - [ ] Right-click an image whose address is `blob:` or `data:` (for example a canvas export) > a notification explains it cannot be saved, nothing is queued.
 - [ ] Right-click the page background > "Grab all links on this page" opens the link grabber (M5) in a tab next to it.
 - [ ] Switch the language to Bangla: the menu entries switch to Bangla.
@@ -78,7 +78,7 @@ Needs `SITE_URL` set in `extension/update-check.js` and a `version.json` reachab
 - [ ] A response with `Content-Disposition: attachment; filename*=UTF-8''...` is listed under that (decoded) name. Without a usable name, the tab title plus an extension from the MIME type is used.
 - [ ] At most 25 entries per tab; navigating the tab to a new page clears the list and the green badge. Other tabs keep their own lists.
 - [ ] On YouTube nothing is detected and "This page" says detection is always off there.
-- [ ] On Netflix, Prime Video, Disney+, Spotify and similar, nothing is detected and "This page" says GetSmart DM does not download from DRM services.
+- [ ] On Netflix, Prime Video, Disney+, Spotify and similar, nothing is detected and "This page" says SIDM does not download from DRM services.
 - [ ] Add a site to "Disabled sites" in Settings (M8): nothing is detected there and "This page" says so.
 - [ ] With no media, the tab shows "Nothing found on this page", and the global badge (number of running downloads) shows instead of the green one.
 
@@ -91,7 +91,7 @@ Needs the companion installed (`companion/install.bat` on Windows).
 - [ ] "Download video": a row appears under "Video downloads" with bar, size, speed and time left; when done it says "Saved" and the folder button opens the folder in a tab. A note from the companion (for example ffmpeg missing) shows in italics.
 - [ ] Cancel a running video: "Cancelled"; Retry starts it again; Remove clears finished rows.
 - [ ] End the companion process (Task Manager) during a download: the row turns "Failed: The companion app stopped"; the next "Download video" reconnects.
-- [ ] Right-click on a page of those sites > "Download video from this page with GetSmart DM" starts a job at the default quality. Without the companion, a notification explains how to install it.
+- [ ] Right-click on a page of those sites > "Download video from this page with SIDM" starts a job at the default quality. Without the companion, a notification explains how to install it.
 - [ ] YouTube: no card controls, only the note that YouTube downloads are off; no context-menu entry. After turning on "Allow YouTube" in Settings (M8), the card and the menu appear on youtube.com.
 - [ ] Netflix and other DRM sites: no card, no menu; asking the worker for addVideo there returns the DRM refusal.
 - [ ] Leave the browser idle for a minute with no video running: the companion process exits (no zombie host).
@@ -114,9 +114,9 @@ Needs the companion installed (`companion/install.bat` on Windows).
 
 Run `python scripts/test_extension.py` first (all PASS), then by hand:
 
-- [ ] **Service worker asleep:** on `chrome://extensions` > GetSmart DM > "Service worker", wait 5 minutes until it shows "inactive". Then: start a download from a site (it is sorted into a folder), right-click a link > "Download link with GetSmart DM" (it starts), open a page with a video (green badge appears), open the popup (list correct). Each wakes the worker with no error on the card.
+- [ ] **Service worker asleep:** on `chrome://extensions` > SIDM > "Service worker", wait 5 minutes until it shows "inactive". Then: start a download from a site (it is sorted into a folder), right-click a link > "Download link with SIDM" (it starts), open a page with a video (green badge appears), open the popup (list correct). Each wakes the worker with no error on the card.
 - [ ] **Queue after sleep:** with max 1, add 3 links, let the worker sleep, then cancel the running one: the next queued link starts.
-- [ ] **Incognito:** turn on "Allow in Incognito" for GetSmart DM. Downloads from an incognito window appear in the popup opened there, are sorted, and media detection works. The popup in a normal window does not list incognito downloads.
+- [ ] **Incognito:** turn on "Allow in Incognito" for SIDM. Downloads from an incognito window appear in the popup opened there, are sorted, and media detection works. The popup in a normal window does not list incognito downloads.
 - [ ] **Alt-click:** Alt+click on a link (Chrome's own "download link" shortcut) downloads it directly without the queue; it still appears in the list and is sorted into a folder.
 - [ ] **chrome:// pages:** on `chrome://settings`, `edge://settings` and the Web Store: the popup opens without errors, "This page" shows "Nothing found", "Grab all links" says Chrome does not allow the page.
 - [ ] **Dark mode:** set Windows to dark mode with Theme = Automatic: popup, settings and grabber are dark with readable text, badges and type tiles. Theme = Light overrides it.
@@ -127,7 +127,7 @@ Run `python scripts/test_extension.py` first (all PASS), then by hand:
 ## M10 Download button on videos
 
 - [ ] On a page with a plain `<video>` (for example a free stock-video site), move the pointer over the video: a "Download" pill appears at its top-right corner and fades after 2.5 s without movement. Small videos (under 200×112) get no button.
-- [ ] Click it: the menu lists the files the page played (with size and type) and the video's own file. Choosing one adds it to the queue and shows "Added to GetSmart DM".
+- [ ] Click it: the menu lists the files the page played (with size and type) and the video's own file. Choosing one adds it to the queue and shows "Added to SIDM".
 - [ ] On a supported video site (Facebook, X, Vimeo...), the menu also offers "Download video" through the companion at the default quality.
 - [ ] If nothing is known yet: "Nothing to download yet. Play the video for a few seconds, then try again."
 - [ ] No button on YouTube (unless Allow YouTube is on, then only the companion entry), on Netflix/other DRM sites, on disabled sites, or when "Download button on videos" is off in Settings.
@@ -146,4 +146,110 @@ Run `python scripts/test_extension.py` first (all PASS), then by hand:
 - [ ] Add 10 links at once: at most 3 windows open in 10 seconds.
 - [ ] Remove the download from the list while its window is open: "This download is gone".
 - [ ] Dark theme and Bangla look right; the window title shows the percent.
+
+## M12 Download manager page
+
+- [ ] Popup header: the manager button opens the manager in a tab; clicking it again focuses that tab.
+- [ ] The left tree shows All (with the file categories under it), Unfinished, Finished and Queue, each with a live count. Clicking one filters the table.
+- [ ] Table columns: file name, size, status (with percent and a bar while running), time left, transfer rate, last try, address. Clicking a column header sorts, clicking again reverses.
+- [ ] Selection: click, Ctrl/Cmd-click, Shift-click, Ctrl+A, Esc. Double-click or Enter opens a finished file, or the progress window of a running one.
+- [ ] Toolbar: Add URL opens the links box; Resume and Stop act on the selected rows and are greyed out when they cannot; Stop all pauses everything and stops the queue so nothing new starts.
+- [ ] Delete asks first; "Also delete the finished files from the disk" is off by default and only removes files of finished downloads. Delete completed clears finished rows from the list and keeps the files.
+- [ ] Stop queue: waiting items stay waiting even when slots are free; the status bar says "Queue stopped". Start queue starts them.
+- [ ] Grabber opens the grabber for the active web tab, or explains that a web page must be open first. Settings opens the settings page.
+- [ ] The status bar shows items, selected, total speed and waiting items. Dark theme and Bangla look right.
+
+## M13 Multi-connection downloads (companion)
+
+Needs the companion installed (install.bat).
+
+- [ ] Settings > Downloads: "Multi-connection downloads" is on, "Connections per download" is 8 (1 to 16).
+- [ ] Add a big file (50 MB or more) from a normal file server: it downloads through the companion. The progress window shows "Connections 8 of 8", a bar with one block per part, and a table of parts that fill up. Speed is clearly higher than a browser download on a server that limits speed per connection.
+- [ ] The file lands in `Downloads\SIDM\<Category>\` with a `.gsdmpart` file while it runs and only the final file afterwards.
+- [ ] Pause, then Resume: it continues from where it stopped (the downloaded amount does not go back to 0). Close the browser while paused, start it again, Resume: it still continues.
+- [ ] Cancel: the `.gsdmpart` and `.gsdmpart.json` files are removed, nothing else in the folder changes.
+- [ ] Open file and Show in folder work for a finished companion download (popup, manager, progress window).
+- [ ] Speed limit tab: turn the limit on at 300 KB/s: the rate drops to about 300 KB/s within a few seconds; turn it off: it goes back up.
+- [ ] Small files (under 1 MB), servers that do not support ranges, links that need a login, and "Ask where to save" all use the browser download as before.
+- [ ] Without the companion installed, everything uses the browser and nothing shows an error.
+- [ ] The toolbar badge counts companion downloads too; the queue limit counts them as running.
+
+## M14 Speed limit, scheduler, when the queue is done
+
+- [ ] Settings > Downloads > Speed limit 300 KB/s: companion downloads run at about 300 KB/s; 0 removes the limit. The hint says browser downloads cannot be limited.
+- [ ] Settings > Scheduler: turn on, start 2 minutes from now, no stop time, today ticked. Stop the queue in the manager and add 3 links: nothing starts. At the start time the queue starts, and downloads paused with "Stop all" carry on.
+- [ ] With a stop time set: at that time running downloads pause and the queue stops.
+- [ ] Untick today: nothing happens at the start time. Turn the schedule off: nothing happens.
+- [ ] The manager's Scheduler button opens Settings at the Scheduler section.
+- [ ] When the queue is done = "Show a notification": after the last waiting download finishes, a "Queue finished" notification appears (once). "Close the browser" closes every browser window. Paused downloads keep the queue from counting as done.
+- [ ] Bangla day names and labels; dark theme.
+
+## YouTube on by default; videos in feeds
+
+- [ ] Fresh install: Settings > Video sites > "Allow YouTube downloads" is on.
+- [ ] On a YouTube watch page, the popup's video card offers Download video; the first YouTube download shows the one-time notice "About downloading from YouTube"; later ones do not.
+- [ ] The Download button over the YouTube player offers "Download video" through the companion.
+- [ ] Turn YouTube off: no button on YouTube, the card says it is off, the right-click entry is gone. Turning it on again shows the warning dialog.
+- [ ] Facebook and X feeds: the Download button over a video in the feed downloads that post's video (its own /videos/, /reel/ or /status/ address), not the feed page.
+- [ ] Netflix, Prime Video, Disney+, Spotify: no button, and video downloads are refused.
+
+## Video button on any site (fix after real-browser feedback)
+
+Real sites cannot be reached from the build machine, so these need a real Chrome on Windows with the companion installed. For each site, play a video and hover it:
+
+- [ ] **X / Twitter** (home feed and a single post): the Download button appears; the menu lists Best, 1080p, 720p, 480p, 360p, Audio only; Best downloads that post's video.
+- [ ] **LinkedIn** feed video: same.
+- [ ] **Facebook** feed video and a Reel: same; the download is that post's video, not the feed.
+- [ ] **Instagram** post or Reel, **TikTok**, **YouTube** (watch page and Shorts), **Vimeo**, **Reddit**, **Pinterest**: same.
+- [ ] A site not on the list that plays a video: the menu says "Try with the companion app" with the same qualities. Some sites will fail; the job then shows the companion's error.
+- [ ] Without the companion installed: the menu says to install it (install.bat) and "How to install it" opens Settings at the companion status.
+- [ ] Tabs that were already open when the extension was installed or updated get the button without reloading.
+- [ ] Right-click on any video: "Download video from this page" sends it to the companion.
+- [ ] Netflix, Prime Video, Disney+, Spotify: no button.
+
+
+## M15 Videos without the companion
+
+Use a profile **without** the companion installed (or run `uninstall.bat` first).
+
+- [ ] Facebook: play a feed video or Reel for a few seconds, point at it, click **Download**. The menu lists qualities such as 720p and 360p. Pick one: a row appears in the popup Downloads tab with progress, then `Downloads\SIDM\Video\<title> (720p).mp4` plays **with sound**.
+- [ ] X / Twitter: the same with a post video.
+- [ ] LinkedIn: the same with a feed video (often a plain MP4 under "Files this page played").
+- [ ] Reddit: the same (separate video and audio, joined into one MP4).
+- [ ] Vimeo, Dailymotion, TED or any news site player: the same.
+- [ ] A video that has not played yet: the menu says to play it first; there is no install prompt.
+- [ ] YouTube: the menu says YouTube needs the optional companion app and offers "How to install it".
+- [ ] Netflix, Disney+ or Spotify: no button, nothing offered.
+- [ ] Popup "This page" on a video page: the video card shows the same quality buttons; clicking one says "added".
+- [ ] While a video downloads: pause and resume from the popup row; cancel removes it; Retry starts again.
+- [ ] Settings: the companion section says "optional".
+
+## M16 Page data, highest quality, debug info, SIDM for Windows
+
+- [ ] LinkedIn feed: point at a video post, click **Download**: qualities are listed (no "Nothing to download yet"), the highest is first and says "Highest quality"; the saved MP4 has sound.
+- [ ] X, Instagram, Facebook, Reddit, TikTok, Vimeo: the first choice is the highest quality the site offers, even when the player shows a lower one.
+- [ ] A feed with several videos: the menu on each video offers that video (check the saved file is the one you pointed at).
+- [ ] **Copy debug info** in the menu: paste it somewhere; it lists the page, the video and what was found, with no `?query` parts in addresses.
+- [ ] Settings on Windows, desktop program not installed: **Install SIDM for Windows** shows; clicking saves `SIDM-Setup.exe` to Downloads.
+- [ ] Run SIDM Setup: no console window, no admin prompt, it finishes with "SIDM is ready"; Settings turns green within a few seconds without a browser restart.
+- [ ] YouTube: the menu's video choices come from the desktop program; without it the menu says so and **Get the SIDM desktop program** opens Settings.
+- [ ] Uninstall SIDM from the Start menu: Settings says the program is not installed; videos in Downloads\SIDM are still there.
+
+## M17 Install once, sizes, choose folder (0.5.0)
+
+- [ ] With SIDM for Windows installed, restart the PC, open a YouTube video, click **Download**: the qualities appear (maybe after a few seconds), never "Get the SIDM desktop program". Settings shows no install button.
+- [ ] Each quality shows "≈ size"; qualities above the video's own resolution are not listed.
+- [ ] Click a quality: Windows' "Select folder" window opens on top of the browser; pick a folder: the download starts and the file lands in that folder. Next time the same folder is suggested.
+- [ ] Close the folder window without choosing: the menu says Canceled and nothing downloads.
+- [ ] Settings: turn off "Ask where to save each video": downloads go to Downloads\SIDM\Video without a window.
+- [ ] Uninstall SIDM: the install offer comes back.
+
+## M18 Visible versions and errors (0.5.1)
+
+- [ ] With the 0.5.1 program installed, the YouTube video menu heading reads "With the SIDM desktop program 0.5.1".
+- [ ] With an older program (0.4.0) still installed, the menu says the program is older and offers "Install the new SIDM desktop program"; qualities still download.
+- [ ] Click a quality: the menu shows "Choose a folder…", then "Downloading… N%", then closes; a failed download shows the program's error in the menu for 8 seconds.
+- [ ] With no internet, the sizes line says "Sizes not available: Network error…".
+- [ ] "Copy debug info" contains `program.version`, `program.features`, `programOutdated` and `lastVideoJobs`.
+- [ ] After SIDM Setup, `deno.exe` is in `%LOCALAPPDATA%\Programs\SIDM`, and Settings > Apps > Uninstall removes it.
 

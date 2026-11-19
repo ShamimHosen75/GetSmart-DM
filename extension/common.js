@@ -8,17 +8,26 @@ import { setLanguage, applyI18n } from './i18n.js';
 export const DEFAULT_SETTINGS = Object.freeze({
   language: 'auto', // auto | en | bn
   theme: 'auto', // auto | light | dark
-  sortIntoFolders: true, // save into "GetSmart DM/<Category>/<name>"
+  sortIntoFolders: true, // save into "SIDM/<Category>/<name>"
   maxSimultaneous: 3, // 1-10 running downloads before our queue waits
   askWhereToSave: false, // show the Save As dialog for downloads we start
   notifications: true, // notify when a download finishes or fails
   mediaDetection: true, // list video/audio files pages play ("This page" tab)
   minMediaSizeKB: 200, // ignore smaller media responses
   showVideoButton: true, // floating "Download" button over videos (M10)
-  progressWindow: 'ours', // open a progress window: off | ours (downloads GetSmart DM starts) | all (M11)
+  useCompanion: true, // big files through the companion over several connections, when it is installed (M13)
+  connections: 8, // connections per companion file download, 1-16 (M13)
+  speedLimitKBps: 0, // total speed limit for companion file downloads, 0 = none (M14)
+  scheduleEnabled: false, // start (and stop) the queue at set times (M14)
+  scheduleStart: '02:00', // HH:MM, local time
+  scheduleStop: '', // HH:MM or "" for no stop time
+  scheduleDays: [0, 1, 2, 3, 4, 5, 6], // 0 = Sunday
+  whenQueueDone: 'nothing', // nothing | notify | close (close every browser window)
+  progressWindow: 'ours', // open a progress window: off | ours (downloads SIDM starts) | all (M11)
   disabledSites: [], // hosts where media detection is off
   defaultQuality: 'best', // best | 1080 | 720 | 480 | 360 | audio
-  allowYouTube: false, // off by default; enabling shows a Terms of Service warning
+  askVideoFolder: true, // desktop-program video downloads: ask for a folder each time (folder dialog from the desktop program)
+  allowYouTube: true, // on by default (owner's decision); the first YouTube download shows a one-time notice
 });
 
 export const MAX_SIMULTANEOUS_RANGE = [1, 10];
@@ -36,20 +45,24 @@ export async function getSettings() {
  */
 let settingsCache = null;
 export async function cachedSettings() {
-  if (!settingsCache) {
-    settingsCache = getSettings();
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (area !== 'sync') return;
-      settingsCache = settingsCache.then((current) => {
-        const next = { ...current };
-        for (const [key, change] of Object.entries(changes)) {
-          if (key in DEFAULT_SETTINGS) next[key] = change.newValue ?? DEFAULT_SETTINGS[key];
-        }
-        return next;
-      });
-    });
-  }
+  if (!settingsCache) settingsCache = getSettings();
   return settingsCache;
+}
+
+// Registered when this module loads, so it runs before any other module's
+// storage.onChanged listener: a listener that then calls cachedSettings()
+// already sees the new value.
+if (globalThis.chrome?.storage?.onChanged) {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'sync' || !settingsCache) return;
+    settingsCache = settingsCache.then((current) => {
+      const next = { ...current };
+      for (const [key, change] of Object.entries(changes)) {
+        if (key in DEFAULT_SETTINGS) next[key] = change.newValue ?? DEFAULT_SETTINGS[key];
+      }
+      return next;
+    });
+  });
 }
 
 /** Save one or more settings. Unknown keys are ignored. */
@@ -113,7 +126,7 @@ export const CATEGORIES = ['video', 'music', 'documents', 'programs', 'archives'
 
 const EXTENSION_CATEGORY = new Map();
 for (const [category, list] of Object.entries({
-  video: 'mp4 m4v mkv webm avi mov wmv flv f4v mpg mpeg 3gp 3g2 m2ts mts ogv',
+  video: 'mp4 m4v mkv webm avi mov wmv flv f4v mpg mpeg 3gp 3g2 m2ts mts ts ogv',
   music: 'mp3 m4a aac wav flac ogg oga opus wma aiff aif alac mka',
   documents: 'pdf doc docx docm xls xlsx xlsm ppt pptx odt ods odp rtf txt csv tsv epub mobi md json xml',
   programs: 'exe msi msix msixbundle appx appxbundle apk xapk dmg pkg deb rpm appimage bat cmd ps1 jar',
@@ -239,7 +252,7 @@ export const CATEGORY_FOLDERS = {
   images: 'Images',
   other: 'Other',
 };
-export const ROOT_FOLDER = 'GetSmart DM';
+export const ROOT_FOLDER = 'SIDM';
 
 /** True for http: and https: URLs (the only ones we download). */
 export function isHttpUrl(url) {
@@ -249,6 +262,24 @@ export function isHttpUrl(url) {
 /** Short random id. */
 export function randomId() {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+}
+
+// ---------- Manager page (M12) ----------
+
+/** Focus the manager tab if it is open, otherwise open it. */
+export async function openManager() {
+  const url = chrome.runtime.getURL('manager.html');
+  try {
+    const [open] = await chrome.runtime.getContexts({ contextTypes: ['TAB'], documentUrls: [url] });
+    if (open) {
+      await chrome.tabs.update(open.tabId, { active: true });
+      await chrome.windows.update(open.windowId, { focused: true });
+      return;
+    }
+  } catch {
+    // fall through and open a new tab
+  }
+  await chrome.tabs.create({ url });
 }
 
 // ---------- Progress window (M11) ----------
@@ -269,7 +300,8 @@ export async function openProgressWindow(id) {
     await chrome.windows.update(open[0].windowId, { focused: true });
     return open[0];
   }
-  return chrome.windows.create({ url, type: 'popup', focused: true, ...PROGRESS_WINDOW_SIZE });
+  const size = String(id).startsWith('f:') ? { ...PROGRESS_WINDOW_SIZE, height: 640 } : PROGRESS_WINDOW_SIZE; // room for the parts table
+  return chrome.windows.create({ url, type: 'popup', focused: true, ...size });
 }
 
 const AUTO_OPEN_LIMIT = 3; // at most this many windows ...
@@ -285,14 +317,16 @@ export async function autoOpenProgress(id, mode) {
   try {
     const { progressWindow } = await cachedSettings();
     if (progressWindow !== mode) return;
-    const [item] = await chrome.downloads.search({ id });
-    if (!item || item.state !== 'in_progress') return; // tiny files can be done already
+    if (typeof id === 'number') {
+      const [item] = await chrome.downloads.search({ id });
+      if (!item || item.state !== 'in_progress') return; // tiny files can be done already
+    }
     const now = Date.now();
     autoOpened = autoOpened.filter((time) => now - time < AUTO_OPEN_WINDOW_MS);
     if (autoOpened.length >= AUTO_OPEN_LIMIT) return;
     autoOpened.push(now);
     await openProgressWindow(id);
   } catch (err) {
-    console.warn('GetSmart DM: could not open the progress window', err);
+    console.warn('SIDM: could not open the progress window', err);
   }
 }

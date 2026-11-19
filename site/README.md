@@ -1,6 +1,6 @@
 # site/
 
-Static download website for GetSmart DM. Plain HTML and CSS: no framework, no build step, no JavaScript, no tracking, no external requests (fonts are the system font stack).
+Static download website for SIDM. Plain HTML and CSS: no framework, no build step, no JavaScript, no tracking, no external requests (fonts are the system font stack).
 
 | File | What |
 |---|---|
@@ -17,10 +17,11 @@ Static download website for GetSmart DM. Plain HTML and CSS: no framework, no bu
 
 The download block in `index.html` is filled in by the release script through `data-release` attributes. Keep them, and keep their contents plain text:
 
-- `data-release="windows-zip"`: `href` becomes `downloads/getsmart-dm-v<version>-windows.zip`
+- `data-release="extension-zip"`: `href` becomes `downloads/sidm-v<version>-extension.zip` (the main download: the extension alone)
 - `data-release="version"`: text is the version (may appear more than once)
-- `data-release="windows-size"`: text like `1.2 MB`
-- `data-release="windows-sha256"`: hex SHA-256 of the ZIP
+- `data-release="extension-size"`: text like `1.2 MB`
+- `data-release="extension-sha256"`: hex SHA-256 of the ZIP
+- `companion-windows-*` and `companion-macos-linux-*`: the same for the optional companion ZIPs
 
 Until the first release the page shows placeholders (version 0.1.0, "size to be confirmed").
 

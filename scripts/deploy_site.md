@@ -24,7 +24,7 @@ npx vercel login          # first time only
 npx vercel --prod
 ```
 
-The first run asks a few questions: pick your account, create a new project (for example `getsmart-dm`), and accept `./` as the directory. There is no build command and no output directory to set; leave them empty / default. It prints the production URL when done. Later deploys are just `npx vercel --prod` from `site/`.
+The first run asks a few questions: pick your account, create a new project (for example `sidm`), and accept `./` as the directory. There is no build command and no output directory to set; leave them empty / default. It prints the production URL when done. Later deploys are just `npx vercel --prod` from `site/`.
 
 ### Option 2: connect the GitHub repo
 
@@ -61,7 +61,7 @@ Buy the domain from any registrar, then:
 
 ### On Vercel
 
-1. Project **Settings > Domains > Add**, enter `getsmartdm.com` (your domain) and also `www.getsmartdm.com`. Vercel suggests redirecting one to the other; accept.
+1. Project **Settings > Domains > Add**, enter `yourdomain.com` (your domain) and also `www.yourdomain.com`. Vercel suggests redirecting one to the other; accept.
 2. At your registrar's DNS settings, add what Vercel shows. Normally:
    - apex `@`: **A** record to `76.76.21.21`
    - `www`: **CNAME** to `cname.vercel-dns.com`
@@ -70,7 +70,7 @@ Buy the domain from any registrar, then:
 
 ### On GitHub Pages
 
-1. **Settings > Pages > Custom domain**: enter `www.getsmartdm.com` and save. This commits a `CNAME` file to `gh-pages`; if you redeploy with the force-push command above, add a `site/CNAME` file containing the domain so it survives.
+1. **Settings > Pages > Custom domain**: enter `www.yourdomain.com` and save. This commits a `CNAME` file to `gh-pages`; if you redeploy with the force-push command above, add a `site/CNAME` file containing the domain so it survives.
 2. At your registrar:
    - `www`: **CNAME** to `<user>.github.io`
    - apex `@`: **A** records to `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153` (and AAAA `2606:50c0:8000::153` to `2606:50c0:8003::153` for IPv6)

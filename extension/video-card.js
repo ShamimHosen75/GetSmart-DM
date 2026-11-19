@@ -1,5 +1,7 @@
-// Popup "This page": the companion card on video sites and the list of
-// video downloads (M7). State comes from the service worker (getVideoState);
+// Popup "This page": the video card and the list of companion video
+// downloads (M7). The card offers what SIDM can save by itself from the
+// streams the tab played (M15), and the optional companion's qualities when
+// it is installed. State comes from the service worker (getVideoState);
 // it refreshes whenever the jobs or the companion status change.
 
 import { t } from './i18n.js';
@@ -43,6 +45,8 @@ let toast = () => {};
 let state = null;
 let chosenQuality = null;
 let busy = false;
+let streams = { options: [], refused: '' };
+let info = { url: '', sizes: {}, maxHeight: 0, asked: false }; // desktop program's video_info for this tab
 
 export async function initVideoCard({ currentTab, showToast }) {
   card = document.getElementById('video-card');
@@ -61,10 +65,24 @@ export async function initVideoCard({ currentTab, showToast }) {
 }
 
 async function refresh() {
-  state = await chrome.runtime.sendMessage({ type: 'getVideoState', url: tab?.url || '' });
+  [state, streams] = await Promise.all([
+    chrome.runtime.sendMessage({ type: 'getVideoState', url: tab?.url || '', tabId: tab?.id }),
+    tab?.id != null ? chrome.runtime.sendMessage({ type: 'streamOptions', tabId: tab.id }).catch(() => null) : null,
+  ]);
+  if (!streams || streams.error) streams = { options: [], refused: '' };
   if (!state || state.error) return;
   if (!chosenQuality) chosenQuality = state.defaultQuality;
   render();
+  if (state.companion?.status === 'connected' && tab?.url && info.url !== tab.url) {
+    // Sizes of each quality: the desktop program asks the site (a few seconds).
+    info = { url: tab.url, sizes: {}, maxHeight: 0, asked: true };
+    chrome.runtime.sendMessage({ type: 'videoInfo', url: tab.url }).then((reply) => {
+      if (info.url !== tab.url || !reply) return;
+      info.sizes = reply.sizes || {};
+      info.maxHeight = Number(reply.maxHeight) || 0;
+      render();
+    }).catch(() => {});
+  }
 }
 
 function el(tag, className, text) {
@@ -125,10 +143,13 @@ function controls() {
   const select = el('select', 'select');
   select.id = 'v-quality';
   for (const q of VIDEO_QUALITIES) {
-    const option = el('option', '', t(QUALITY_LABEL[q]));
+    if (info.maxHeight && Number(q) > info.maxHeight) continue; // the video has no such quality
+    const size = info.sizes[q] > 0 ? ` (≈ ${formatBytes(info.sizes[q])})` : '';
+    const option = el('option', '', t(QUALITY_LABEL[q]) + size);
     option.value = q;
     select.append(option);
   }
+  if (![...select.options].some((o) => o.value === chosenQuality)) chosenQuality = 'best';
   select.value = chosenQuality || 'best';
   const button = el('button', 'primary-button', t('downloadVideo'));
   button.type = 'button';
@@ -184,11 +205,43 @@ function jobRow(job) {
   return li;
 }
 
+function streamButtons() {
+  const list = el('div', 'v-streams');
+  for (const o of streams.options) {
+    const button = el('button', 'v-stream');
+    button.type = 'button';
+    button.dataset.option = o.id;
+    const name = o.audioOnly ? t('qualityAudio') : o.label || t('videoThis');
+    const meta = [o.best ? t('overlayBest') : '', o.other ? t('overlayOther') : '', o.size > 0 ? formatBytes(o.size) : '', o.hasAudio || o.audioOnly ? '' : t('overlayNoSound')].filter(Boolean).join(' · ');
+    button.append(el('span', 'v-stream-name', name));
+    if (meta) button.append(el('span', 'v-stream-meta', meta));
+    button.disabled = busy;
+    list.append(button);
+  }
+  return list;
+}
+
 function render() {
   const parts = [];
-  if (state.site === 'video') {
+  const videoPage = state.site === 'video' || state.site === 'generic';
+  const companionOn = state.companion.status === 'connected';
+  if (videoPage || streams.options.length) {
     const box = el('div', 'v-box');
-    box.append(el('div', 'v-title', t('videoCardTitle')), companionLine(state.companion), controls());
+    box.append(el('div', 'v-title', t('videoCardTitle')));
+    if (streams.options.length) {
+      box.append(streamButtons());
+    } else if (streams.refused) {
+      box.append(el('p', 'v-help', t(streams.refused === 'live' ? 'overlayLive' : 'overlayEncrypted')));
+    } else if (state.youtube && !companionOn) {
+      box.append(el('p', 'v-help', t('overlayYouTubeCompanion')));
+    } else {
+      box.append(el('p', 'v-help', t('videoPlayFirst')));
+    }
+    if (companionOn && videoPage) {
+      box.append(el('div', 'v-section', t('overlayViaCompanion')), companionLine(state.companion), controls());
+    } else if (state.youtube && !streams.options.length) {
+      box.append(companionLine(state.companion));
+    }
     parts.push(box);
   } else if (state.site === 'youtube-off') {
     const box = el('div', 'v-box');
@@ -206,6 +259,16 @@ function render() {
 }
 
 async function onClick(event) {
+  const option = event.target.closest('button[data-option]');
+  if (option) {
+    busy = true;
+    render();
+    const reply = await chrome.runtime.sendMessage({ type: 'addStream', optionId: option.dataset.option, tabId: tab.id, title: tab.title, pageUrl: tab.url });
+    busy = false;
+    if (reply?.error) toast(reply.error === 'gone' ? t('overlayFailed') : reply.error, true);
+    else toast(t('videoAdded'));
+    return refresh();
+  }
   const download = event.target.closest('#v-download');
   if (download) {
     busy = true;
@@ -213,6 +276,7 @@ async function onClick(event) {
     const reply = await chrome.runtime.sendMessage({ type: 'addVideo', url: tab.url, quality: chosenQuality, title: tab.title });
     busy = false;
     if (reply?.error) toast(reply.error, true);
+    else if (reply?.canceled) toast(t('overlayCanceled'));
     else toast(t('videoAdded'));
     return refresh();
   }

@@ -38,6 +38,10 @@ jobs:
           # Playwright's own Chromium build: branded Google Chrome 137+ no
           # longer accepts --load-extension, which the extension tests need.
           python -m playwright install --with-deps chromium
+          # ffmpeg makes the HLS/DASH test videos for the in-browser video check.
+          command -v ffmpeg || sudo apt-get install -y ffmpeg
+          # NSIS builds the Windows setup program (scripts/build_setup.py) on Linux.
+          command -v makensis || sudo apt-get install -y nsis
 
       # macOS/Linux installer scripts (shellcheck ships with ubuntu-latest).
       - name: Shell scripts (shellcheck companion/*.sh)
@@ -50,6 +54,9 @@ jobs:
       - name: Companion host (scripts/test_host.py)
         if: hashFiles('scripts/test_host.py') != ''
         run: python scripts/test_host.py
+
+      - name: Companion file downloads (scripts/test_host_files.py)
+        run: python scripts/test_host_files.py
 
       # Playwright tests. xvfb-run gives them a display in case they run headed.
       - name: Extension (scripts/test_extension.py)

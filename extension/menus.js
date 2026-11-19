@@ -69,7 +69,7 @@ export function openGrabber(tab) {
 
 export function registerMenuListeners() {
   chrome.contextMenus.onClicked.addListener((info, tab) => {
-    onClicked(info, tab).catch((err) => console.error('GetSmart DM: menu action failed', err));
+    onClicked(info, tab).catch((err) => console.error('SIDM: menu action failed', err));
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'sync' && (changes.language || changes.allowYouTube)) buildMenus();

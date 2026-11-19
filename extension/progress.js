@@ -7,10 +7,13 @@
 // folder and close this window. Chrome only opens a file after a click, so
 // "Open file" stays a button.
 //
-// URL: progress.html?id=<chrome download id>
+// Companion file downloads (M13) also show their parts as a segment bar and a
+// connection table, and take a speed limit.
+//
+// URL: progress.html?id=<chrome download id>, ?id=f:<companion job id> or ?id=s:<in-browser video job id>
 
 import { categoryOf, fileExtension, formatBytes, formatDuration, initPage } from './common.js';
-import { STATE_LABEL, displayName, errorLabel, stateOf, totalBytes } from './download-info.js';
+import { STATE_LABEL, displayName, failureText, fileJobItem, itemAction, streamJobItem, stateOf, totalBytes } from './download-info.js';
 import { SpeedTracker, secondsLeft } from './speed.js';
 import { t } from './i18n.js';
 
@@ -19,7 +22,10 @@ const PROBE_TIMEOUT_MS = 8000;
 const COMPACT_HEIGHT = 190;
 const FINISH_DEFAULTS_KEY = 'finishDefaults'; // storage.local: last choice, used for new windows
 
-const id = Number(new URLSearchParams(location.search).get('id'));
+const rawId = new URLSearchParams(location.search).get('id') || '';
+const companion = rawId.startsWith('f:');
+const stream = rawId.startsWith('s:'); // video downloaded in the browser (M15)
+const id = companion || stream ? rawId : Number(rawId);
 const speeds = new SpeedTracker();
 const $ = (sel) => document.getElementById(sel);
 
@@ -34,8 +40,20 @@ let sawRunning = false; // the "When finished" choices only apply to a download 
 
 // ---------- Data ----------
 
+async function find() {
+  if (stream) {
+    const { streamJobs = {} } = await chrome.storage.local.get('streamJobs');
+    const job = streamJobs[id.slice(2)];
+    return job ? streamJobItem(job) : null;
+  }
+  if (!companion) return (await chrome.downloads.search({ id }))[0];
+  const { fileJobs = {} } = await chrome.storage.local.get('fileJobs');
+  const job = fileJobs[id.slice(2)];
+  return job ? fileJobItem(job) : null;
+}
+
 async function refresh() {
-  const [found] = await chrome.downloads.search({ id });
+  const found = await find();
   if (!found) {
     showGone();
     return;
@@ -66,6 +84,7 @@ async function probeResume(url) {
 function maybeProbeResume() {
   // Chrome knows for paused and interrupted downloads; ask the server only while running.
   const url = item.finalUrl || item.url;
+  if (companion || stream) return; // the companion only takes servers that can resume; streams keep their pieces
   if (stateOf(item) !== 'downloading' || !/^https?:/i.test(url) || resumeProbe.url === url) return;
   resumeProbe = { url, result: undefined };
   probeResume(url).then((result) => {
@@ -77,6 +96,7 @@ function maybeProbeResume() {
 // ---------- Rendering ----------
 
 function resumeText(state) {
+  if (companion || stream) return t('progResumeYes');
   if (state === 'paused' || state === 'failed' || state === 'cancelled') {
     return item.canResume ? t('progResumeYes') : t('progResumeNo');
   }
@@ -108,7 +128,7 @@ function render() {
   $('p-name').title = name;
 
   let stateText = t(STATE_LABEL[state]);
-  if (state === 'failed' && errorLabel(item.error)) stateText = `${stateText}: ${errorLabel(item.error)}`;
+  if (state === 'failed' && failureText(item)) stateText = `${stateText}: ${failureText(item)}`;
   setText($('p-state'), stateText);
   setText($('f-status'), stateText);
 
@@ -129,10 +149,12 @@ function render() {
   setText($('f-path'), item.filename || '—');
   $('f-path').title = item.filename || '';
 
+  if (companion) renderParts(state, total);
+
   const show = {
     'b-pause': state === 'downloading',
     'b-resume': state === 'paused',
-    'b-retry': (state === 'failed' || state === 'cancelled') && item.canResume,
+    'b-retry': (state === 'failed' || state === 'cancelled') && Boolean(item.canResume),
     'b-cancel': state === 'downloading' || state === 'paused',
     'b-open': state === 'complete',
     'b-show': state === 'complete',
@@ -157,6 +179,68 @@ function showGone() {
   setText($('p-state'), '');
   for (const button of document.querySelectorAll('.p-buttons button')) button.hidden = button.id !== 'b-close';
   $('b-details').hidden = true;
+}
+
+// ---------- Companion parts (M13) ----------
+
+/** One bar per part of the file, and a row per part: range, downloaded, state. */
+function renderParts(state, total) {
+  const box = $('p-parts');
+  box.hidden = false;
+  const segs = item.segments || [];
+  const running = state === 'downloading';
+  setText($('f-conns'), running ? t('progConnectionsOf', { active: item.connections, max: item.maxConnections || item.connections }) : '—');
+
+  const bar = $('p-segbar');
+  while (bar.children.length < segs.length) bar.append(document.createElement('div'));
+  while (bar.children.length > segs.length) bar.lastChild.remove();
+  segs.forEach(([start, end, done], i) => {
+    const el = bar.children[i];
+    el.style.left = `${(start / total) * 100}%`;
+    el.style.width = `${(Math.min(done, end - start + 1) / total) * 100}%`;
+  });
+
+  const body = $('p-conn-rows');
+  const rowsWanted = segs.length;
+  while (body.children.length < rowsWanted) {
+    const tr = document.createElement('tr');
+    for (let c = 0; c < 4; c += 1) tr.append(document.createElement('td'));
+    body.append(tr);
+  }
+  while (body.children.length > rowsWanted) body.lastChild.remove();
+  segs.forEach(([start, end, done], i) => {
+    const cells = body.children[i].children;
+    const size = end - start + 1;
+    setText(cells[0], String(i + 1));
+    setText(cells[1], `${formatBytes(start)} – ${formatBytes(end + 1)}`);
+    setText(cells[2], `${formatBytes(Math.min(done, size))} (${Math.floor((Math.min(done, size) / size) * 100)}%)`);
+    setText(cells[3], done >= size ? t('progPartDone') : running ? t('progPartReceiving') : t('statePaused'));
+  });
+}
+
+function initSpeedLimit() {
+  if (!companion) return;
+  $('p-speed-browser').hidden = true;
+  $('p-speed-companion').hidden = false;
+  const input = $('sp-limit');
+  const toggle = $('sp-on');
+  const sync = () => {
+    input.disabled = !toggle.checked;
+  };
+  find().then((found) => {
+    const limit = found?.speedLimit || 0;
+    toggle.checked = limit > 0;
+    input.value = limit > 0 ? Math.round(limit / 1024) : 500;
+    sync();
+  });
+  const save = async () => {
+    sync();
+    const kb = Math.max(1, Math.round(Number(input.value) || 0));
+    input.value = kb;
+    await chrome.runtime.sendMessage({ type: 'setFileSpeedLimit', id: id.slice(2), limit: toggle.checked ? kb * 1024 : 0 });
+  };
+  toggle.addEventListener('change', save);
+  input.addEventListener('change', save);
 }
 
 // ---------- When finished ----------
@@ -185,7 +269,7 @@ function onFinished() {
   }
   if (item.state !== 'complete' || !sawRunning || finishHandled) return;
   finishHandled = true;
-  if (finish.show && item.exists !== false) chrome.downloads.show(id);
+  if (finish.show && item.exists !== false) itemAction('show', item);
   if (finish.close) window.close();
 }
 
@@ -231,12 +315,13 @@ async function main() {
   initTabs();
   await loadFinish();
 
-  act('b-pause', () => chrome.downloads.pause(id));
-  act('b-resume', () => chrome.downloads.resume(id));
-  act('b-retry', () => chrome.downloads.resume(id));
-  act('b-cancel', () => chrome.downloads.cancel(id));
-  act('b-open', () => chrome.downloads.open(id));
-  act('b-show', () => chrome.downloads.show(id));
+  act('b-pause', () => itemAction('pause', item));
+  act('b-resume', () => itemAction('resume', item));
+  act('b-retry', () => itemAction('resume', item));
+  act('b-cancel', () => itemAction('cancel', item));
+  act('b-open', () => itemAction('open', item));
+  act('b-show', () => itemAction('show', item));
+  initSpeedLimit();
   $('b-close').addEventListener('click', () => window.close());
   $('b-details').addEventListener('click', () => setDetails(!detailsShown));
   $('b-details').textContent = t('progHideDetails');
@@ -246,6 +331,10 @@ async function main() {
 
   chrome.downloads.onChanged.addListener((delta) => {
     if (delta.id === id) refresh();
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (companion && area === 'local' && changes.fileJobs) refresh();
+    if (stream && area === 'local' && changes.streamJobs) refresh();
   });
   chrome.downloads.onErased.addListener((erased) => {
     if (erased === id) showGone();
@@ -257,7 +346,7 @@ async function main() {
     }
   });
 
-  if (!Number.isInteger(id) || id < 0) {
+  if (!companion && !stream && (!Number.isInteger(id) || id < 0)) {
     showGone();
     return;
   }

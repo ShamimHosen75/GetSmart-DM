@@ -7,7 +7,11 @@
 // are skipped. The count shows as a green badge on that tab.
 
 import { cachedSettings, categoryOf, fileExtension, nameFromUrl, sanitizeFilename } from './common.js';
-import { hostMatches, hostOf, isDrmSite, isYouTube, videoSiteStatus } from './sites.js';
+import { detectionBlockReason, hostMatches, hostOf, isDrmSite, isYouTube, videoPageStatus } from './sites.js';
+
+export { detectionBlockReason };
+import { bridge, companionOutdated, companionSeen, getJobs, waitForCompanion, warmUpCompanion } from './native-bridge.js';
+import { classifyStream, clearTabStreams, hasRangeParams, recordStream, streamDebug, streamOptions } from './stream-jobs.js';
 import { setLanguage, t } from './i18n.js';
 
 export const MAX_PER_TAB = 25;
@@ -90,6 +94,7 @@ export function sizeFromHeaders(headers, statusCode) {
 export function classifyResponse({ url, type, statusCode, headers }) {
   if (statusCode < 200 || statusCode >= 300) return null;
   if (type === 'xmlhttprequest' && statusCode === 206) return null;
+  if (hasRangeParams(url)) return null; // a piece of a file a player fetches bit by bit (stream-jobs.js)
 
   const mime = (headers['content-type'] || '').split(';')[0].trim().toLowerCase();
   if (SEGMENT_MIME.has(mime)) return null;
@@ -157,25 +162,29 @@ function addMedia(tabId, entry) {
 }
 
 /** Clear a tab's list, keeping only entries for `keepUrl` (a media file opened directly). */
-export function clearTab(tabId, keepUrl) {
+export function clearTab(tabId, keepUrl, since) {
   return locked(async () => {
     const list = keepUrl ? (await getTabMedia(tabId)).filter((m) => m.url === keepUrl) : [];
     if (list.length) await chrome.storage.session.set({ [storageKey(tabId)]: list });
     else await chrome.storage.session.remove(storageKey(tabId));
+    await chrome.storage.session.remove(videoKey(tabId));
+    await clearTabStreams(tabId, since);
     await setBadge(tabId, list.length);
   });
 }
 
-// ---------- Blocking rules ----------
-
-/** Why detection is off for a page URL: "youtube", "drm", "disabled", "off" or null. */
-export function detectionBlockReason(pageUrl, settings) {
-  if (!settings.mediaDetection) return 'off';
-  if (isYouTube(pageUrl)) return 'youtube';
-  if (isDrmSite(pageUrl)) return 'drm';
-  if (hostMatches(hostOf(pageUrl), settings.disabledSites || [])) return 'disabled';
-  return null;
+/** storage.session key set when the video button saw a playable <video> in the tab. */
+export function videoKey(tabId) {
+  return `video:${tabId}`;
 }
+
+export async function tabHasVideo(tabId) {
+  if (tabId == null) return false;
+  const key = videoKey(tabId);
+  return Boolean((await chrome.storage.session.get(key))[key]);
+}
+
+// ---------- Blocking rules ----------
 
 // ---------- Listener ----------
 
@@ -184,7 +193,14 @@ async function onHeadersReceived(details) {
   const headers = {};
   for (const h of details.responseHeaders || []) headers[h.name.toLowerCase()] = h.value || '';
 
-  const found = classifyResponse({ url: details.url, type: details.type, statusCode: details.statusCode, headers });
+  const response = { url: details.url, type: details.type, statusCode: details.statusCode, headers };
+  const stream = classifyStream(response);
+  if (stream) {
+    const tab = await chrome.tabs.get(details.tabId).catch(() => null);
+    if (tab) await recordStream(details.tabId, stream, tab.url || tab.pendingUrl || '');
+    return;
+  }
+  const found = classifyResponse(response);
   if (!found) return;
 
   const settings = await cachedSettings();
@@ -212,7 +228,7 @@ async function onHeadersReceived(details) {
 export function registerMediaListeners() {
   chrome.webRequest.onHeadersReceived.addListener(
     (details) => {
-      onHeadersReceived(details).catch((err) => console.error('GetSmart DM: media detection failed', err));
+      onHeadersReceived(details).catch((err) => console.error('SIDM: media detection failed', err));
     },
     { urls: ['<all_urls>'], types: RESOURCE_TYPES },
     ['responseHeaders']
@@ -221,7 +237,7 @@ export function registerMediaListeners() {
   // New page in the tab: start a fresh list. Chrome resets tab badges on
   // navigation, so the badge is set again for whatever is kept.
   chrome.webNavigation.onCommitted.addListener((details) => {
-    if (details.frameId === 0) clearTab(details.tabId, details.url);
+    if (details.frameId === 0) clearTab(details.tabId, details.url, details.timeStamp);
   });
   chrome.tabs.onRemoved.addListener((tabId) => {
     chrome.storage.session.remove(storageKey(tabId));
@@ -235,11 +251,41 @@ const OVERLAY_STRINGS = [
   'overlayLoading',
   'overlayVideoSite',
   'overlayViaCompanion',
+  'overlayProgramOld',
+  'overlayInstallUpdate',
+  'overlayDownloading',
+  'overlaySaved',
+  'overlaySizeError',
   'overlayFiles',
   'overlayNothing',
   'overlayStarted',
   'overlayFailed',
   'downloadVideo',
+  'overlayQualities',
+  'overlayTryCompanion',
+  'overlayNeedCompanion',
+  'overlayInstallHelp',
+  'overlayCompanionError',
+  'overlayNoSound',
+  'overlayEncrypted',
+  'overlayLive',
+  'overlayYouTubeCompanion',
+  'overlayDefault',
+  'overlayBest',
+  'overlayChooseFolder',
+  'overlayCanceled',
+  'overlayCompanionStarting',
+  'overlayTryAgain',
+  'overlaySizeLoading',
+  'overlayOther',
+  'overlayCopyDebug',
+  'overlayCopied',
+  'qualityBest',
+  'quality1080',
+  'quality720',
+  'quality480',
+  'quality360',
+  'qualityAudio',
 ];
 
 /** Should the video button run on this page? Never on DRM, disabled sites, or YouTube unless allowed. */
@@ -260,6 +306,8 @@ export const overlayHandlers = {
     const pageUrl = sender.tab?.url || '';
     if (!overlayAllowed(pageUrl, sender.url, settings)) return { enabled: false };
     setLanguage(settings.language);
+    // A video page opened: get the desktop program ready, if it is installed.
+    if (videoPageStatus(pageUrl, settings.allowYouTube, true) === 'video') warmUpCompanion();
     return {
       enabled: true,
       quality: settings.defaultQuality,
@@ -269,11 +317,68 @@ export const overlayHandlers = {
   overlayMedia: async (msg, sender) => {
     const settings = await cachedSettings();
     const pageUrl = sender.tab?.url || '';
-    if (!overlayAllowed(pageUrl, sender.url, settings)) return { site: null, media: [] };
+    if (!overlayAllowed(pageUrl, sender.url, settings)) return { site: null, media: [], streams: { options: [] } };
     const media = sender.tab ? await getTabMedia(sender.tab.id) : [];
+    const site = videoPageStatus(pageUrl, settings.allowYouTube, true);
+    // In the browser, no install needed (M15).
+    const streams = await streamOptions({ page: msg.page }, sender).catch(() => ({ options: [], refused: '' }));
+    let companion = bridge.status;
+    if (!streams.options.length && (settings.useCompanion || isYouTube(pageUrl)) && (site === 'video' || site === 'generic')) {
+      // Nothing the browser can save by itself: use the desktop program. When it was
+      // installed before, wait for it a little longer (it may just be starting).
+      companion = await waitForCompanion(1500, 8000);
+    }
     return {
-      site: videoSiteStatus(pageUrl, settings.allowYouTube),
+      site,
+      youtube: isYouTube(pageUrl),
+      companion,
+      companionSeen: await companionSeen(),
+      askFolder: Boolean(settings.askVideoFolder) && bridge.supports('pick_folder'),
+      // Which desktop program answered, so the menu can show it and ask for the new one when it is old.
+      programVersion: bridge.status === 'connected' ? bridge.info?.version || '' : '',
+      extensionVersion: chrome.runtime.getManifest().version,
+      outdated: companionOutdated(),
+      streams,
       media: media.slice().reverse().map(({ url, name, size, mime }) => ({ url, name, size, mime })),
     };
+  },
+  /** "Copy debug info" in the video menu: what the extension side saw (no query strings). */
+  overlayDebug: async (msg, sender) => {
+    const settings = await cachedSettings();
+    const media = sender.tab ? await getTabMedia(sender.tab.id) : [];
+    const strip = (url) => {
+      try {
+        const u = new URL(url);
+        return `${u.protocol}//${u.hostname}${u.pathname}`;
+      } catch {
+        return '';
+      }
+    };
+    return {
+      version: chrome.runtime.getManifest().version,
+      browser: navigator.userAgent,
+      companion: bridge.status,
+      companionError: bridge.error || '',
+      program: bridge.info
+        ? { version: bridge.info.version, ytdlp: bridge.info.ytdlp, ffmpeg: bridge.info.ffmpeg, features: bridge.info.features }
+        : null,
+      programOutdated: companionOutdated(),
+      lastVideoJobs: (await getJobs()).slice(0, 3).map((j) => ({ state: j.state, quality: j.quality, error: j.error || '', dir: Boolean(j.dir) })),
+      useCompanion: Boolean(settings.useCompanion),
+      site: videoPageStatus(sender.tab?.url || '', settings.allowYouTube, true),
+      files: media.map((m) => ({ url: strip(m.url), mime: m.mime, size: m.size })),
+      ...(await streamDebug({}, sender)),
+    };
+  },
+  /** The video button saw a real video on this page (for the popup's video card). */
+  overlaySawVideo: async (msg, sender) => {
+    if (sender.tab?.id == null) return { ok: false };
+    await chrome.storage.session.set({ [videoKey(sender.tab.id)]: true });
+    return { ok: true };
+  },
+  /** "How to install" in the video button menu: Settings at the companion section. */
+  overlayCompanionHelp: async () => {
+    await chrome.tabs.create({ url: chrome.runtime.getURL('options.html#companion') });
+    return { ok: true };
   },
 };

@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "GetSmart DM",
-  "short_name": "GetSmart DM",
+  "name": "SIDM - Smart Internet Download Manager",
+  "short_name": "SIDM",
   "description": "Download Smarter. Faster. Better. A free download manager with queue, folder sorting and media detection.",
-  "version": "0.1.0",
+  "version": "0.5.1",
   "minimum_chrome_version": "116",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwNgdEvwKE+BJI59R/ytVCacVXxFdxPraQPwbeMT9t2Tf89lM61HiasvbdokM5H1FMTj2fTch8KkPLAk6lP5xKOmavPEspnWX/u8rztPQqu9LSUsizylRVDpNEGQP7C3eU0mVxUE92gR1xXvL+PJPcTMAhNT5m31FotLfneL7Uy80YAxd8fSvDKhPf4YJmZQEO4NiCu4p02igJ9cs7YqLoI6yBgFU2u0YNMH7e2AT6E47U9BKH4EOySZZdUId1goMNCqpOxswjSBPY2fSrN0l94SmaUho66gnWVZZhSnnCwNj/QW1ZZs0jrdQI5zYc6nF2p874a02Ne38XmO18YtWQQIDAQAB",
   "icons": {
@@ -13,7 +13,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "GetSmart DM",
+    "default_title": "SIDM",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
@@ -39,7 +39,9 @@
     "webNavigation",
     "scripting",
     "notifications",
-    "nativeMessaging"
+    "nativeMessaging",
+    "alarms",
+    "offscreen"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -51,9 +53,69 @@
         "https://*/*"
       ],
       "js": [
+        "page-sources.js",
+        "page-hook.js"
+      ],
+      "world": "MAIN",
+      "all_frames": true,
+      "match_about_blank": true,
+      "run_at": "document_start",
+      "exclude_matches": [
+        "*://netflix.com/*",
+        "*://*.netflix.com/*",
+        "*://nflxvideo.net/*",
+        "*://*.nflxvideo.net/*",
+        "*://primevideo.com/*",
+        "*://*.primevideo.com/*",
+        "*://amazonvideo.com/*",
+        "*://*.amazonvideo.com/*",
+        "*://disneyplus.com/*",
+        "*://*.disneyplus.com/*",
+        "*://disney-plus.net/*",
+        "*://*.disney-plus.net/*",
+        "*://hotstar.com/*",
+        "*://*.hotstar.com/*",
+        "*://hulu.com/*",
+        "*://*.hulu.com/*",
+        "*://max.com/*",
+        "*://*.max.com/*",
+        "*://hbomax.com/*",
+        "*://*.hbomax.com/*",
+        "*://peacocktv.com/*",
+        "*://*.peacocktv.com/*",
+        "*://paramountplus.com/*",
+        "*://*.paramountplus.com/*",
+        "*://tv.apple.com/*",
+        "*://*.tv.apple.com/*",
+        "*://music.apple.com/*",
+        "*://*.music.apple.com/*",
+        "*://spotify.com/*",
+        "*://*.spotify.com/*",
+        "*://scdn.co/*",
+        "*://*.scdn.co/*",
+        "*://deezer.com/*",
+        "*://*.deezer.com/*",
+        "*://tidal.com/*",
+        "*://*.tidal.com/*",
+        "*://crunchyroll.com/*",
+        "*://*.crunchyroll.com/*",
+        "*://youtube.com/*",
+        "*://*.youtube.com/*",
+        "*://googlevideo.com/*",
+        "*://*.googlevideo.com/*"
+      ]
+    },
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "page-sources.js",
         "overlay.js"
       ],
       "all_frames": true,
+      "match_about_blank": true,
       "run_at": "document_idle"
     }
   ]

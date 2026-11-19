@@ -9,7 +9,7 @@
 // File names: Chrome does not reliably honour `filename` passed to
 // chrome.downloads.download, so names we choose are remembered in a Map keyed
 // by URL and applied in onDeterminingFilename, only for items whose
-// byExtensionId is ours. Folder sorting ("GetSmart DM/<Category>/<name>")
+// byExtensionId is ours. Folder sorting ("SIDM/<Category>/<name>")
 // applies to every download while the setting is on.
 
 import {
@@ -26,6 +26,7 @@ import {
   sanitizeFilename,
 } from './common.js';
 import { setLanguage, t } from './i18n.js';
+import { runningFileJobs, setFileJobHooks, startWithCompanion } from './file-jobs.js';
 
 const QUEUE_KEY = 'queue'; // chrome.storage.local: [{ qid, url, filename?, referrer?, addedAt }]
 
@@ -88,6 +89,13 @@ export function removeQueued(qid) {
   });
 }
 
+/** Stop or start taking items from the queue. Running downloads are not touched. */
+export async function setQueuePaused(paused) {
+  await chrome.storage.local.set({ queuePaused: Boolean(paused) });
+  if (!paused) await pump();
+  return { ok: true };
+}
+
 /** Start queued items while there are free slots. */
 export function pump() {
   return locked(pumpUnlocked);
@@ -100,17 +108,20 @@ async function pumpUnlocked() {
 
   let queue = await getQueue();
   if (!queue.length) return;
+  const { queuePaused } = await chrome.storage.local.get('queuePaused');
+  if (queuePaused) return; // "Stop queue" in the manager (M12) or the scheduler (M14)
   const running = await chrome.downloads.search({ state: 'in_progress', paused: false });
-  let free = limit - running.length;
+  let free = limit - running.length - (await runningFileJobs());
 
   while (free > 0 && queue.length) {
     const next = queue.shift();
     await setQueue(queue); // remove first, so a crash never starts it twice
     try {
       await startDownload(next, settings);
+      await chrome.storage.session.set({ queueActive: true }); // scheduler.js: "when the queue is done"
       free -= 1;
     } catch (err) {
-      console.error('GetSmart DM: could not start', next.url, err);
+      console.error('SIDM: could not start', next.url, err);
       notifyFailure(next.filename || nameFromUrl(next.url), err?.message || String(err));
     }
     queue = await getQueue();
@@ -118,6 +129,16 @@ async function pumpUnlocked() {
 }
 
 async function startDownload(entry, settings) {
+  // Big files on servers that send parts go to the companion (M13), the rest to the browser.
+  const job = await startWithCompanion(entry, settings);
+  if (job) {
+    autoOpenProgress(`f:${job.id}`, 'ours');
+    return job.id;
+  }
+  return startBrowserDownload(entry, settings);
+}
+
+async function startBrowserDownload(entry, settings) {
   if (entry.filename) chosenNames.set(entry.url, entry.filename);
   const options = {
     url: entry.url,
@@ -128,6 +149,32 @@ async function startDownload(entry, settings) {
   autoOpenProgress(id, 'ours'); // not awaited: the queue does not wait for a window
   return id;
 }
+
+/**
+ * Save a file the extension made itself (a blob: URL from the offscreen page,
+ * M15) under `filename`, with the usual folder sorting. Returns the download id.
+ */
+export async function saveFile(url, filename) {
+  const settings = await cachedSettings();
+  return startBrowserDownload({ url, filename }, settings);
+}
+
+setFileJobHooks({
+  // The companion turned a file down (no ranges, login needed): the browser downloads it.
+  fallback: async (entry) => {
+    try {
+      await startBrowserDownload(entry, await cachedSettings());
+    } catch (err) {
+      notifyFailure(entry.filename || nameFromUrl(entry.url), err?.message || String(err));
+    }
+  },
+  finished: (job) => {
+    pump();
+    const name = baseName(job.filename) || job.name;
+    if (job.state === 'done') notify(`gsdm-fdone-${job.id}`, 'notifDoneTitle', name);
+    else if (job.state === 'error') notify(`gsdm-ffail-${job.id}`, 'notifFailedTitle', `${name}\n${job.error || ''}`.trim());
+  },
+});
 
 // ---------- File names and folder sorting ----------
 
@@ -160,7 +207,7 @@ function onDeterminingFilename(item, suggest) {
       else suggest();
     })
     .catch((err) => {
-      console.error('GetSmart DM: filename step failed', err);
+      console.error('SIDM: filename step failed', err);
       suggest();
     });
   return true; // we call suggest asynchronously

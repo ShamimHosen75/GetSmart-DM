@@ -1,7 +1,7 @@
 // Popup: tabs "Downloads" and "This page".
 // Downloads tab: downloads-view.js. "+" panel: add-links.js.
 
-import { initPage } from './common.js';
+import { initPage, openManager } from './common.js';
 import { showUpdateLink } from './update-check.js';
 import { initDownloadsView, refreshDownloads, showToast } from './downloads-view.js';
 import { initAddLinks } from './add-links.js';
@@ -39,6 +39,10 @@ async function main() {
   });
   initPageView({ showToast });
 
+  document.getElementById('open-manager').addEventListener('click', async () => {
+    await openManager();
+    window.close();
+  });
   document.getElementById('open-settings').addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
     window.close();

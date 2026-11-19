@@ -1,13 +1,15 @@
-# CLAUDE.md: GetSmart DM
+# CLAUDE.md: SIDM
 
 Permanent rules for anyone (human or AI) working in this repo. Read this first, every session.
 
 ## Project overview
 
-**GetSmart DM** ("Download Smarter. Faster. Better.") is a free download manager for **Chrome, Edge and Brave on Windows**, with a companion installer for **macOS and Linux** too (Step 5).
+**SIDM - Smart Internet Download Manager** ("Download Smarter. Faster. Better."; short name **SIDM**, renamed from "GetSmart DM" on 2026-11-17) is a free download manager for **Chrome, Edge and Brave on Windows**, with a companion installer for **macOS and Linux** too (Step 5).
 
 - Distributed from our own website as a ZIP. It is **not** published on the Chrome Web Store, because it downloads videos from social sites.
-- It is an original product. **Never copy the name, logo, UI, text or code of Internet Download Manager or any other product.**
+- Users download **only the extension ZIP** and load it; nothing else to install (owner's decision, 2026-11-18). The companion app is an optional extra for YouTube and multi-connection downloads; the normal flow must never require it.
+- It is an original product. The name SIDM is the owner's choice (2026-11-17), made knowing it is close to Internet Download Manager's name. **Never copy the logo, UI, icons, text or code of Internet Download Manager or any other product**: match features, not the look.
+- Internal names: save folder `Downloads/SIDM/`, native host `com.sidm.host`, release ZIPs `sidm-v<version>-extension.zip` (main download, extension only, with the Windows setup program inside) and the optional `sidm-v<version>-companion-setup.exe`, `sidm-v<version>-companion-windows.zip` / `-companion-macos-linux.zip`. User-facing name of the companion: "the SIDM desktop program". The GitHub repo keeps its name (`GetSmart-DM`) and the extension ID never changes.
 
 ## Folder map
 
@@ -43,10 +45,11 @@ Status: **Step 5 done**, waiting for the owner's "continue". Tested for real on 
 
 Step 4 (`scripts/`) builds the release tooling: `scripts/release.py` (Windows ZIP, size + SHA-256, `site/version.json`, `site/index.html` via `data-release` markers), `scripts/bump.py`, `CHANGELOG.md`, `RELEASE.md` (checklist and `v<version>` tags), the popup "Update available" footer link (`extension/update-check.js`) and the `test` GitHub Actions workflow.
 
-Step 4 status: **release tooling done**, waiting for the owner's "continue". Open: the website domain for `SITE_URL` in `extension/update-check.js`.
+Step 4 status: **release tooling done**, waiting for the owner's "continue". `SITE_URL` is `https://sidm.online` (owner bought the domain 2026-11-19).
 
 Earlier steps are not finished yet:
-- Step 1 (`extension/`): M1 to M9 done, version 0.1.0 (`scripts/test_extension.py` passes). Next: M10+ download-manager features the owner asked for (video overlay button, per-download progress panel, multi-connection downloads through the companion, full manager page, speed limiter, scheduler, on-completion options).
+- Step 1 (`extension/`): M1 to M18 done, version 0.5.1 (`scripts/test_extension.py` passes). M10 video button on any site, M11 progress window, M12 multi-connection downloads through the companion (`extension/file-jobs.js`, `add_file` in the protocol), M13 manager page, M14 speed limiter, scheduler and "when the queue is done". M15 (owner's decision 2026-11-18: users download only the extension ZIP, no install): videos are downloaded in the browser from the HLS/DASH/MP4-piece streams the page plays (`stream-jobs.js`, `offscreen.js`, `mp4.js`, `stream-parse.js`); the companion is optional (YouTube, multi-connection files). M16: video addresses from the page's own data (`page-sources.js` + `page-hook.js` in the page's MAIN world read site API replies, `<video data-sources>`, og:video), matched to the video by thumbnail or length; plain MP4s with sound offered whole (LinkedIn fix); highest quality first; "Copy debug info". M17 (0.5.0): install once (`companionSeen` in storage.local, longer wait, warm-up), sizes per quality (`video_info`), folder dialog per video download (`pick_folder`, setting `askVideoFolder`). M18 (0.5.1, after the owner's first real Windows test showed nothing): menu shows the program version and "program is older" offer (`companionOutdated`), follows the job after the click (`videoJob`) and shows errors; companion installs Deno for yt-dlp's YouTube support and Setup always refreshes yt-dlp. Not verified on real sites or on Windows yet (the sandbox blocks real video hosts).
+- Step 6 (owner's request 2026-11-18, "same as IDM program installed on the PC"): Windows setup program `companion/windows/sidm-setup.nsi`, built by `scripts/build_setup.py` (NSIS, works on Linux), per-user, no admin, runs `install.bat /quiet`, uninstaller. Shipped inside the extension ZIP (`extension/setup/SIDM-Setup.exe`, gitignored, added by release.py) and as `sidm-v<version>-companion-setup.exe`. Settings has "Install SIDM for Windows". Install/uninstall checked under Wine only; not run on real Windows yet. Unsigned, so SmartScreen warns.
 - Step 2 (`companion/`): M1 (`host.py` + `scripts/test_host.py`), M2 (bat files + README), M3 (`scripts/test_companion.py`, end to end with the extension's M7 bridge) and M4 (`companion/QA.md`, version 0.1.0, CHANGELOG) done. Open: the owner's real `install.bat` run on Windows and the `companion/QA.md` real-site pass. Companion milestones: M1 host.py, M2 install/update/uninstall.bat + README, M3 end-to-end test, M4 QA.md + 0.1.0 + CHANGELOG.
 - Step 3 (`site/`): built (index, privacy, terms, `scripts/test_site.py`, `scripts/deploy_site.md`), waiting for "continue". Popup screenshots show the M1 popup and are placeholders.
 
@@ -72,11 +75,11 @@ Update this section at the end of every milestone.
 
 - The extension and companion protocol is defined **only** in `shared/protocol.md`. Code must match the spec; change the spec first, then the code.
 - Every message has `"type"` and `"v"` (protocol version, **currently 1**).
-- Native messaging host name: `com.getsmartdm.host`.
+- Native messaging host name: `com.sidm.host`.
 
 ## Content rules (non-negotiable)
 
-- **YouTube downloading is never a default.** It exists only behind an **off-by-default setting** that shows a Terms-of-Service warning before it can be enabled.
+- **YouTube** is supported through the companion (yt-dlp) and is **on by default** (owner's decision, 2026-11-17). The first YouTube download shows a one-time notice that the user is responsible for having the right to download and for the site's terms. The setting can be turned off; turning it back on shows the warning dialog.
 - **Never attempt DRM-protected content** (Netflix, Prime Video, Disney+, Spotify, or any other DRM source). Detect and refuse; do not try to work around DRM.
 
 ## QA rules

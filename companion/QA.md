@@ -2,21 +2,21 @@
 
 Manual checks on a real Windows 10/11 PC with Chrome (and spot checks in Edge and Brave). Run them before every release. Automated tests cover the same flows against a local test server: `python scripts/test_host.py` and `python scripts/test_companion.py`.
 
-Setup: load `extension/` unpacked (ID `ejkhmcfjnohjikdgfgkhjficmiaoghma`), extract the companion to `%LOCALAPPDATA%\GetSmart DM\companion` and run `install.bat`. Keep `host.log` open in a text editor that reloads.
+Setup: load `extension/` unpacked (ID `ejkhmcfjnohjikdgfgkhjficmiaoghma`), extract the companion to `%LOCALAPPDATA%\SIDM\companion` and run `install.bat`. Keep `host.log` open in a text editor that reloads.
 
 ## Install
 
 - [ ] `install.bat` on a clean folder downloads Python, yt-dlp and ffmpeg, prints the three versions and the `--check` output, then `Done`. No admin prompt.
 - [ ] Run `install.bat` again: only `[skip]` lines for the downloads, still ends with `Done`.
 - [ ] Unplug the network and run `install.bat` in a fresh folder: it names the failed download, says "Install did NOT finish" and `echo %errorlevel%` after it shows `1`.
-- [ ] Folder path with a space and Bangla letters (e.g. `C:\Users\<you>\GetSmart DM\কম্প্যানিয়ন`): install works and the companion connects.
-- [ ] `regedit`: `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.getsmartdm.host`, the same under `Microsoft\Edge` and `BraveSoftware\Brave-Browser`, each pointing at `com.getsmartdm.host.json`.
+- [ ] Folder path with a space and Bangla letters (e.g. `C:\Users\<you>\SIDM\কম্প্যানিয়ন`): install works and the companion connects.
+- [ ] `regedit`: `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.sidm.host`, the same under `Microsoft\Edge` and `BraveSoftware\Brave-Browser`, each pointing at `com.sidm.host.json`.
 - [ ] Restart Chrome, open the popup on a Facebook video: "This page" shows the companion as connected with the yt-dlp version. Same in Edge and Brave.
 - [ ] No console window flashes while the companion runs or downloads.
 
 ## Real sites
 
-For each: open the post in the browser, use the popup's "This page" card, quality Best. The file must land in `Downloads\GetSmart DM\Video`, play with sound in the Windows player, and `host.log` must show the start command and `rc=0`.
+For each: open the post in the browser, use the popup's "This page" card, quality Best. The file must land in `Downloads\SIDM\Video`, play with sound in the Windows player, and `host.log` must show the start command and `rc=0`.
 
 - [ ] Public Facebook video (a Page's video or a public reel).
 - [ ] X (Twitter) post with a video.
@@ -28,7 +28,7 @@ For each: open the post in the browser, use the popup's "This page" card, qualit
 - [ ] A title with Bangla or emoji: the file name is readable, not `????`.
 - [ ] Private Facebook or Instagram post (or one from a private account): the card shows "This video is private or needs you to log in…", no file is left behind.
 - [ ] A deleted post or a broken link: "Video not found (404)…" or "not supported", never a raw Python error.
-- [ ] YouTube with the setting off: the card says YouTube is off and nothing reaches `host.log`. With the setting on (after the ToS warning) a YouTube video downloads.
+- [ ] YouTube is on by default: a YouTube video downloads, and the first one shows the one-time notice. With the setting turned off, the card says YouTube is off and nothing reaches `host.log`.
 - [ ] A Netflix or Spotify page: refused as DRM; nothing is attempted.
 
 ## Cancel and failures

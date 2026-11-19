@@ -1,26 +1,32 @@
 @echo off
-rem GetSmart DM companion installer. No admin rights needed.
+rem SIDM companion installer. No admin rights needed.
 rem Downloads embedded Python, yt-dlp and ffmpeg into this folder, then
 rem registers the native-messaging host for Chrome, Edge and Brave (current user only).
+rem "install.bat /quiet" is how the setup program (SIDM-Setup.exe) runs it: no pauses, no progress bars.
 setlocal EnableExtensions
 rem UTF-8 so the manifest stays valid JSON when the folder path has non-English letters.
 chcp 65001 >nul
 cd /d "%~dp0"
 
 set "EXT_ID=ejkhmcfjnohjikdgfgkhjficmiaoghma"
-set "HOST_NAME=com.getsmartdm.host"
+set "HOST_NAME=com.sidm.host"
 set "PY_VER=3.12.10"
 set "PY_URL=https://www.python.org/ftp/python/%PY_VER%/python-%PY_VER%-embed-amd64.zip"
 set "YTDLP_URL=https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
 set "FFMPEG_URL=https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+set "DENO_URL=https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip"
 
+set "QUIET="
+if /i "%~1"=="/quiet" set "QUIET=1"
+set "CURL_PROGRESS=--progress-bar"
+if defined QUIET set "CURL_PROGRESS=-sS"
 set "HERE=%~dp0"
 set "WORK=%TEMP%\gsdm-install-%RANDOM%"
 set "MANIFEST=%HERE%%HOST_NAME%.json"
 set "LAUNCHER=%HERE%run_host.bat"
 
 echo.
-echo GetSmart DM companion installer
+echo SIDM companion installer
 echo Folder: %HERE%
 echo.
 
@@ -57,17 +63,23 @@ if errorlevel 1 (
 
 :ytdlp
 rem ---- 3. yt-dlp
-if exist "%HERE%yt-dlp.exe" (
+rem The setup program (/quiet) always fetches the newest yt-dlp: YouTube changes often.
+if exist "%HERE%yt-dlp.exe" if not defined QUIET (
   echo [skip] yt-dlp.exe is already present. Run update.bat to get the newest version.
   goto :ffmpeg
 )
 echo [2/3] Downloading yt-dlp...
-call :download "%YTDLP_URL%" "%WORK%\yt-dlp.exe" || goto :fail
+call :download "%YTDLP_URL%" "%WORK%\yt-dlp.exe" || goto :ytdlpfail
 move /y "%WORK%\yt-dlp.exe" "%HERE%yt-dlp.exe" >nul
 if errorlevel 1 (
   echo ERROR: Could not copy yt-dlp.exe into the companion folder.
-  goto :fail
+  goto :ytdlpfail
 )
+goto :ffmpeg
+:ytdlpfail
+rem Keep the yt-dlp.exe that is already here; without one, stop.
+if not exist "%HERE%yt-dlp.exe" goto :fail
+echo WARNING: Could not get the newest yt-dlp; keeping the one already installed.
 
 :ffmpeg
 rem ---- 4. ffmpeg + ffprobe
@@ -93,6 +105,20 @@ copy /y "%FOUND_FFMPEG%ffmpeg.exe" "%HERE%ffmpeg.exe" >nul || goto :copyfail
 copy /y "%FOUND_FFMPEG%ffprobe.exe" "%HERE%ffprobe.exe" >nul || goto :copyfail
 
 :register
+rem ---- 4b. Deno: the JavaScript runtime yt-dlp needs for YouTube. Optional: a failure only warns.
+if exist "%HERE%deno.exe" (
+  echo [skip] deno.exe is already present.
+  goto :manifest
+)
+echo Downloading Deno for YouTube, about 40 MB...
+call :download "%DENO_URL%" "%WORK%\deno.zip" || goto :denofail
+tar -xf "%WORK%\deno.zip" -C "%WORK%" || goto :denofail
+move /y "%WORK%\deno.exe" "%HERE%deno.exe" >nul || goto :denofail
+goto :manifest
+:denofail
+echo WARNING: Deno could not be installed. Some YouTube videos may not download. Run install.bat again later.
+
+:manifest
 rem ---- 5. Launcher and native-messaging manifest
 > "%LAUNCHER%" echo @echo off
 >> "%LAUNCHER%" echo "%%~dp0python\python.exe" "%%~dp0host.py" %%*
@@ -100,7 +126,7 @@ rem ---- 5. Launcher and native-messaging manifest
 set "JSON_PATH=%LAUNCHER:\=\\%"
 > "%MANIFEST%" echo {
 >> "%MANIFEST%" echo   "name": "%HOST_NAME%",
->> "%MANIFEST%" echo   "description": "GetSmart DM companion",
+>> "%MANIFEST%" echo   "description": "SIDM companion",
 >> "%MANIFEST%" echo   "path": "%JSON_PATH%",
 >> "%MANIFEST%" echo   "type": "stdio",
 >> "%MANIFEST%" echo   "allowed_origins": ["chrome-extension://%EXT_ID%/"]
@@ -141,17 +167,17 @@ if errorlevel 1 (
 
 rmdir /s /q "%WORK%" >nul 2>&1
 echo.
-echo Done. Restart Chrome, Edge or Brave, then open GetSmart DM: the companion should show as connected.
+echo Done. Restart Chrome, Edge or Brave, then open SIDM: the companion should show as connected.
 echo Keep this folder where it is. If you move it, run install.bat again.
 echo.
-pause
+if not defined QUIET pause
 exit /b 0
 
 rem ---------------------------------------------------------------- helpers
 
 :download
 rem %1 = URL, %2 = target file
-curl -fL --retry 3 --retry-delay 2 --connect-timeout 30 --progress-bar -o "%~2" "%~1"
+curl -fL --retry 3 --retry-delay 2 --connect-timeout 30 %CURL_PROGRESS% -o "%~2" "%~1"
 if errorlevel 1 (
   echo ERROR: Download failed: %~1
   echo Check your internet connection and try again, or follow "Manual setup" in README.md.
@@ -177,5 +203,5 @@ if defined WORK rmdir /s /q "%WORK%" >nul 2>&1
 echo.
 echo Install did NOT finish. See the message above.
 echo.
-pause
+if not defined QUIET pause
 exit /b 1
