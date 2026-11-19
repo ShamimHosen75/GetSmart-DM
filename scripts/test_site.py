@@ -110,7 +110,7 @@ def capture_popup(pw, kwargs):
             channel="chromium",  # new headless mode, which can load extensions
             headless=True,
             args=[f"--disable-extensions-except={ext}", f"--load-extension={ext}"],
-            viewport={"width": 400, "height": 360},
+            viewport={"width": 400, "height": 480},
             device_scale_factor=2,
             locale="en-US",
             **kwargs,
