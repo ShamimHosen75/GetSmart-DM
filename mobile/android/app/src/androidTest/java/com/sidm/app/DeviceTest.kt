@@ -53,7 +53,7 @@ class DeviceTest {
     @Test
     fun fileDownloadEndToEnd(): Unit = runBlocking {
         app.settings.update { it.copy(welcomeDone = true, wifiOnly = false) }
-        val url = "https://raw.githubusercontent.com/ShamimHosen75/GetSmart-DM/main/site/assets/icon-128.png"
+        val url = "https://www.w3.org/Icons/w3c_home.png"
         val result = withTimeout(120_000) { app.engine.analyze(url) }
         assertTrue("expected a file, got $result", result is Analysis.FileLink)
         val item = app.engine.addFile(result as Analysis.FileLink)
