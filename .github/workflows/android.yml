@@ -52,7 +52,7 @@ jobs:
           KEYSTORE_B64: ${{ secrets.SIDM_KEYSTORE_BASE64 }}
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/sidm-release.jks"
+            echo "$KEYSTORE_B64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/sidm-release.jks"
             echo "SIDM_KEYSTORE=$RUNNER_TEMP/sidm-release.jks" >> "$GITHUB_ENV"
           fi
 
@@ -109,8 +109,20 @@ jobs:
             echo "::error::Add the SIDM_KEYSTORE_BASE64 and SIDM_KEYSTORE_PASSWORD repository secrets first (mobile/android/README.md)."
             exit 1
           fi
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/sidm-release.jks"
+          echo "$KEYSTORE_B64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/sidm-release.jks"
           echo "SIDM_KEYSTORE=$RUNNER_TEMP/sidm-release.jks" >> "$GITHUB_ENV"
+
+      - name: Check the key and its password
+        env:
+          SIDM_KEYSTORE_PASSWORD: ${{ secrets.SIDM_KEYSTORE_PASSWORD }}
+        run: |
+          pw="$(printf '%s' "$SIDM_KEYSTORE_PASSWORD" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          echo "keystore: $(wc -c < "$SIDM_KEYSTORE") bytes, sha256 $(sha256sum "$SIDM_KEYSTORE" | cut -c1-12)…; password: ${#pw} characters"
+          if ! keytool -list -keystore "$SIDM_KEYSTORE" -storepass "$pw" -alias sidm > /dev/null 2>&1; then
+            echo "::error::SIDM_KEYSTORE_PASSWORD does not open SIDM_KEYSTORE_BASE64 (or the key 'sidm' is missing). Paste both secrets again, exactly as in the two .txt files."
+            exit 1
+          fi
+          echo "key and password OK"
 
       - name: Signed release APKs
         working-directory: mobile/android

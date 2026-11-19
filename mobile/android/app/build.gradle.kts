@@ -17,7 +17,9 @@ val keystoreProps = Properties().apply {
     val f = rootProject.file("keystore.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
-fun signingValue(env: String, prop: String): String? = System.getenv(env) ?: keystoreProps.getProperty(prop)
+// Trimmed: a password pasted into a GitHub secret often brings a newline along.
+fun signingValue(env: String, prop: String): String? =
+    (System.getenv(env)?.takeIf { it.isNotBlank() } ?: keystoreProps.getProperty(prop))?.trim()
 
 android {
     namespace = "com.sidm.app"
