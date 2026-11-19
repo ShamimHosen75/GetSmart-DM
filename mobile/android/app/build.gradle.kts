@@ -33,7 +33,9 @@ android {
         versionName = sidmVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // The download website, e.g. "https://sidm.example". Empty: no app update check.
-        buildConfigField("String", "SITE_URL", "\"${System.getenv("SIDM_SITE_URL") ?: ""}\"")
+        // The SIDM website: update checks read <site>/version.json and fetch <site>/downloads/*.apk.
+        val siteUrl = System.getenv("SIDM_SITE_URL")?.takeIf { it.isNotBlank() } ?: "https://sidm.online"
+        buildConfigField("String", "SITE_URL", "\"$siteUrl\"")
         buildConfigField("String", "SOURCE_URL", "\"https://github.com/ShamimHosen75/GetSmart-DM\"")
     }
 

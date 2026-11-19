@@ -6,9 +6,8 @@
 // same day costs no network request. Any failure (offline, 404, bad JSON) just
 // means no hint is shown.
 
-// The download website. Set this once the domain is decided, e.g.
-// 'https://sidm.example'. While it is empty, no check is made.
-export const SITE_URL = '';
+// The download website (owner's domain, 2026-11-19). While it is empty, no check is made.
+export const SITE_URL = 'https://sidm.online';
 
 const CHECK_EVERY_MS = 24 * 60 * 60 * 1000;
 const CACHE_KEY = 'updateCheck'; // { checkedAt: ms, latest: "x.y.z" | null }

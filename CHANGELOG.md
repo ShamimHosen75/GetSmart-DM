@@ -14,6 +14,7 @@ SIDM for Android, installed from the website. YouTube with SIDM for Windows: fil
 - The desktop program starts with the browser, and when a video site opens, so the first click is quick.
 - The quality menu (video button and popup) shows the size of each quality, for example "≈ 98 MB", and hides qualities the video does not have.
 - Choose where to save: clicking a quality opens Windows' "Select folder" window; the video downloads straight into the folder you pick (the last one is suggested next time). Closing the window cancels. Settings: "Ask where to save each video" (on by default; off = Downloads\SIDM\Video).
+- The popup's "Update available" check now reads https://sidm.online/version.json.
 
 ### Companion
 
@@ -40,6 +41,7 @@ SIDM for Android, installed from the website. YouTube with SIDM for Windows: fil
 - The video engine (yt-dlp) updates itself every day; the app checks the website for new versions and installs them.
 - DRM services (Netflix, Prime Video, Disney+, Spotify and others) are refused.
 - Saved in `Downloads/SIDM`.
+- Checks https://sidm.online for new app versions.
 
 ## [0.4.0] - 2026-11-18
 
