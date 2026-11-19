@@ -26,7 +26,7 @@ import threading
 import time
 from urllib.parse import urlparse
 
-VERSION = "0.5.0"
+VERSION = "0.5.1"
 PROTOCOL_V = 1
 HOST_NAME = "com.sidm.host"
 
@@ -34,6 +34,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 IS_WIN = os.name == "nt"
 CREATE_NO_WINDOW = 0x08000000 if IS_WIN else 0
 INSTALLER = "install.bat" if IS_WIN else "install.sh"
+UPDATER = "Update SIDM tools (Start menu) or update.bat" if IS_WIN else "install.sh"
 DOWNLOADS_GUID = "{374DE290-123F-4565-9164-39C4925E51D8}"
 
 PROGRESS_INTERVAL = 0.5  # seconds between progress messages per job
@@ -117,6 +118,14 @@ def find_binary(name):
     if os.path.isfile(local):
         return local
     return shutil.which(name)
+
+
+def tool_env():
+    """Environment for yt-dlp: UTF-8 output, and the companion folder first on PATH so
+    yt-dlp finds the Deno JavaScript runtime installed next to it (needed for YouTube)."""
+    path = os.environ.get("PATH", "")
+    return dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1",
+                PATH=HERE + (os.pathsep + path if path else ""))
 
 
 def ytdlp_base():
@@ -248,6 +257,12 @@ def policy_error(url, youtube_allowed):
 
 
 ERROR_RULES = (
+    (re.compile(r"confirm you.?re not a bot|not a robot", re.I),
+     "YouTube asked to confirm you are not a bot. Wait a few minutes and try again, or open the video in "
+     "the browser first."),
+    (re.compile(r"JavaScript runtime|JS runtime|n challenge|nsig|signature extraction failed|"
+                r"Requested format is not available|Only images are available", re.I),
+     "YouTube needs a newer yt-dlp or the Deno helper. Run " + UPDATER + ", then try again."),
     (re.compile(r"\bDRM\b", re.I),
      "This video is DRM-protected. SIDM does not download DRM-protected content."),
     (re.compile(r"private|log ?in|sign ?in|cookies|registered users|members only|"
@@ -375,7 +390,7 @@ class Job:
         cmd, note = build_command(base, self.url, self.quality, self.dir, ffmpeg)
         log.info("job %s start: %s", self.id, subprocess.list2cmdline(cmd))
 
-        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
+        env = tool_env()
         with self.lock:
             if self.canceled:
                 self.progress("canceled")
@@ -631,7 +646,7 @@ def video_info(url, youtube):
     if not base:
         return {"error": "yt-dlp is missing. Run " + INSTALLER + " in the companion folder."}
     cmd = list(base) + ["-J", "--no-playlist", "--no-warnings", "--no-colors", "--encoding", "utf-8", "--", url]
-    env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
+    env = tool_env()
     try:
         proc = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               timeout=INFO_TIMEOUT, env=env, creationflags=CREATE_NO_WINDOW)
@@ -840,7 +855,8 @@ class Host:
         ytdlp, ffmpeg = tool_versions()
         reply = {"type": "hello", "version": VERSION, "ytdlp": ytdlp,
                  "ffmpeg": ffmpeg, "dir": default_dir(),
-                 "downloads": downloads_folder(), "features": FILE_FEATURES + VIDEO_FEATURES}
+                 "downloads": downloads_folder(), "features": FILE_FEATURES + VIDEO_FEATURES,
+                 "js_runtime": bool(find_binary("deno"))}
         log.info("hello: %s", reply)
         self.channel.send(reply)
 

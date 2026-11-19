@@ -243,3 +243,13 @@ Use a profile **without** the companion installed (or run `uninstall.bat` first)
 - [ ] Close the folder window without choosing: the menu says Canceled and nothing downloads.
 - [ ] Settings: turn off "Ask where to save each video": downloads go to Downloads\SIDM\Video without a window.
 - [ ] Uninstall SIDM: the install offer comes back.
+
+## M18 Visible versions and errors (0.5.1)
+
+- [ ] With the 0.5.1 program installed, the YouTube video menu heading reads "With the SIDM desktop program 0.5.1".
+- [ ] With an older program (0.4.0) still installed, the menu says the program is older and offers "Install the new SIDM desktop program"; qualities still download.
+- [ ] Click a quality: the menu shows "Choose a folder…", then "Downloading… N%", then closes; a failed download shows the program's error in the menu for 8 seconds.
+- [ ] With no internet, the sizes line says "Sizes not available: Network error…".
+- [ ] "Copy debug info" contains `program.version`, `program.features`, `programOutdated` and `lastVideoJobs`.
+- [ ] After SIDM Setup, `deno.exe` is in `%LOCALAPPDATA%\Programs\SIDM`, and Settings > Apps > Uninstall removes it.
+

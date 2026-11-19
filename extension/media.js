@@ -10,7 +10,7 @@ import { cachedSettings, categoryOf, fileExtension, nameFromUrl, sanitizeFilenam
 import { detectionBlockReason, hostMatches, hostOf, isDrmSite, isYouTube, videoPageStatus } from './sites.js';
 
 export { detectionBlockReason };
-import { bridge, companionSeen, waitForCompanion, warmUpCompanion } from './native-bridge.js';
+import { bridge, companionOutdated, companionSeen, getJobs, waitForCompanion, warmUpCompanion } from './native-bridge.js';
 import { classifyStream, clearTabStreams, hasRangeParams, recordStream, streamDebug, streamOptions } from './stream-jobs.js';
 import { setLanguage, t } from './i18n.js';
 
@@ -251,6 +251,11 @@ const OVERLAY_STRINGS = [
   'overlayLoading',
   'overlayVideoSite',
   'overlayViaCompanion',
+  'overlayProgramOld',
+  'overlayInstallUpdate',
+  'overlayDownloading',
+  'overlaySaved',
+  'overlaySizeError',
   'overlayFiles',
   'overlayNothing',
   'overlayStarted',
@@ -329,6 +334,10 @@ export const overlayHandlers = {
       companion,
       companionSeen: await companionSeen(),
       askFolder: Boolean(settings.askVideoFolder) && bridge.supports('pick_folder'),
+      // Which desktop program answered, so the menu can show it and ask for the new one when it is old.
+      programVersion: bridge.status === 'connected' ? bridge.info?.version || '' : '',
+      extensionVersion: chrome.runtime.getManifest().version,
+      outdated: companionOutdated(),
       streams,
       media: media.slice().reverse().map(({ url, name, size, mime }) => ({ url, name, size, mime })),
     };
@@ -349,6 +358,12 @@ export const overlayHandlers = {
       version: chrome.runtime.getManifest().version,
       browser: navigator.userAgent,
       companion: bridge.status,
+      companionError: bridge.error || '',
+      program: bridge.info
+        ? { version: bridge.info.version, ytdlp: bridge.info.ytdlp, ffmpeg: bridge.info.ffmpeg, features: bridge.info.features }
+        : null,
+      programOutdated: companionOutdated(),
+      lastVideoJobs: (await getJobs()).slice(0, 3).map((j) => ({ state: j.state, quality: j.quality, error: j.error || '', dir: Boolean(j.dir) })),
       useCompanion: Boolean(settings.useCompanion),
       site: videoPageStatus(sender.tab?.url || '', settings.allowYouTube, true),
       files: media.map((m) => ({ url: strip(m.url), mime: m.mime, size: m.size })),

@@ -4,6 +4,28 @@ All notable changes to SIDM. Newest version first. Each version has three parts:
 
 Add a new section with `python scripts/bump.py patch|minor|major`, then fill in the bullets before running `scripts/release.py`. See `RELEASE.md`.
 
+## [0.5.1] - 2026-11-19
+
+Fixes from the first real Windows test of 0.5.0: no sizes, no folder dialog and no download, with nothing shown.
+
+### Extension
+
+- The video menu shows which desktop program answered ("With the SIDM desktop program 0.5.1"). When the program is older than the extension (no sizes, no folder dialog), the menu says so and offers "Install the new SIDM desktop program".
+- After a quality is clicked, the menu follows the download: "Downloading… 12%", "Saved", or the error from the program, instead of only "Added to SIDM".
+- When the sizes cannot be read, the menu shows why ("Sizes not available: ...").
+- "Copy debug info" now includes the program version, its features, yt-dlp and ffmpeg versions, the connection error and the last video downloads' errors.
+
+### Companion
+
+- Installs Deno next to yt-dlp (Windows, macOS, Linux): yt-dlp needs a JavaScript runtime for YouTube. The program puts its own folder first on yt-dlp's PATH so it is found. `hello` reports `js_runtime`.
+- Running SIDM Setup again always fetches the newest yt-dlp (it used to keep the old one), and a yt-dlp that is in use no longer stops the install.
+- Clear messages for YouTube's "confirm you're not a bot" and for missing formats (yt-dlp too old or no Deno), instead of "private or needs log in".
+
+### Website
+
+- Version 0.5.1.
+
+
 ## [0.5.0] - 2026-11-19
 
 YouTube with SIDM for Windows: file sizes in the menu, a folder dialog for each download, and no more install offers once it is installed.

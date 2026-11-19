@@ -146,6 +146,8 @@ Reply to `hello`.
 | `downloads` | The user's Downloads folder (the root that `add_file` `folder` is relative to) |
 | `features` | List of optional features this companion supports. `"files"` = `add_file`, `pause_file`, `set_speed_limit` and `open_file`; `"video_info"` = `video_info`; `"pick_folder"` = `pick_folder`. An older companion sends no `features` (or fewer); the extension then does without them |
 
+Optional `js_runtime` (true/false): whether a JavaScript runtime (Deno) sits next to the companion. yt-dlp needs one for full YouTube support; the installers download it.
+
 The companion answers `hello` within a second: it keeps the yt-dlp and ffmpeg versions it found in its own `versions.json` and only asks the tools again when their files change.
 
 ### `progress`
