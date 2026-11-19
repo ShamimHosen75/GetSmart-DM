@@ -52,7 +52,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
 EXTENSION = ROOT / "extension"
 OUT = ROOT / "test-results" / "site"
-PAGES = ["index.html", "privacy.html", "terms.html"]
+PAGES = sorted(p.name for p in SITE.glob("*.html"))  # every page, guides included
 EXTENSION_ID = "ejkhmcfjnohjikdgfgkhjficmiaoghma"  # fixed by the "key" in manifest.json
 WIDTHS = [1280, 390]
 POPUP_COLORS = 64  # palette size for the quantised screenshots
@@ -110,7 +110,7 @@ def capture_popup(pw, kwargs):
             channel="chromium",  # new headless mode, which can load extensions
             headless=True,
             args=[f"--disable-extensions-except={ext}", f"--load-extension={ext}"],
-            viewport={"width": 400, "height": 360},
+            viewport={"width": 400, "height": 480},
             device_scale_factor=2,
             locale="en-US",
             **kwargs,
@@ -271,7 +271,7 @@ def check_download(strict):
             r'<a\b[^>]*\bdata-release="([\w-]+)-zip"[^>]*\bhref="([^"]*)"', html_text):
         hrefs.add(href)
         check = f"download link ({platform})"
-        ext = "exe" if platform == "companion-setup" else "zip"
+        ext = "exe" if platform == "companion-setup" else "apk" if platform.startswith("android") else "zip"
         expected = f"downloads/sidm-v{version}-{platform}.{ext}"
         if href != expected:
             report("FAIL", check, f"href is '{href}', expected '{expected}' (from #release-version)")

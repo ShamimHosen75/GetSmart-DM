@@ -55,7 +55,19 @@ Notes for Pages:
 - All links in the site are relative, so the `/GetSmart-DM/` sub-path works without changes.
 - Add an empty `.nojekyll` file at the branch root if you ever add files or folders starting with `_`.
 
-## Custom domain
+## Recommended for sidm.online: Cloudflare Pages + R2
+
+The domain is **sidm.online**. Cloudflare's free plan has no bandwidth cap, which matters with ~60 MB APKs and the 1M-visitor goal. Pages refuses files over 25 MiB, so the release files go in an R2 bucket (free up to 10 GB stored, downloads free) served at `dl.sidm.online`. `site/_redirects` sends every `/downloads/<file>` link on the site there, so the page links don't change.
+
+1. **Move DNS to Cloudflare.** Sign up at cloudflare.com (Free plan), **Add a domain** `sidm.online`. Cloudflare shows two nameservers. At the registrar, turn DNSSEC off if it is on, then replace the domain's nameservers with those two. Wait for Cloudflare's "active" email (minutes, up to a day).
+2. **Site.** **Workers & Pages > Create > Pages > Connect to Git**, pick `GetSmart-DM`, production branch `main`, framework preset **None**, build command empty, **build output directory `site`**. Deploy.
+3. **Domain on the site.** In the Pages project, **Custom domains > Set up a domain**: `sidm.online`, then again for `www.sidm.online`. Cloudflare adds the DNS records itself (CNAME `sidm.online` and CNAME `www`, both to `<project>.pages.dev`, proxied). Each page's canonical tag points at `https://sidm.online/...`, so search engines treat www as the same site.
+4. **Downloads.** **R2 Object Storage** (Cloudflare may ask for a payment method; nothing is charged inside the free allowance) **> Create bucket** `sidm-downloads` **> Settings > Public access > Custom Domains > Add** `dl.sidm.online`. Upload every file from `site/downloads/` (extension ZIP, setup .exe, companion ZIPs, both APKs). Do this for every release.
+5. **Search.** Add `sidm.online` in Google Search Console (Domain property; the TXT record can be added from Cloudflare DNS), then submit `https://sidm.online/sitemap.xml`.
+
+`scripts/build_sitemap.py` writes the sitemap, robots.txt and each page's canonical / Open Graph tags for `https://sidm.online` by default; run it again after adding a page.
+
+## Custom domain (other hosts)
 
 Buy the domain from any registrar, then:
 

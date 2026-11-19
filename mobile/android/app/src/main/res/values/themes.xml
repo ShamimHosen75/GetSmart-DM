@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SIDM" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/sidm_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+    <color name="sidm_bg">#F7F6FB</color>
+    <color name="sidm_purple">#6C3FF0</color>
+    <color name="sidm_icon_bg">#6A41D8</color>
+</resources>

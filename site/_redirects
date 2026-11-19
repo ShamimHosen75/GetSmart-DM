@@ -1,0 +1,3 @@
+# Cloudflare Pages: release files (APKs are over Pages' 25 MiB file limit)
+# live in the R2 bucket served at dl.sidm.online. See scripts/deploy_site.md.
+/downloads/* https://dl.sidm.online/:splat 302
