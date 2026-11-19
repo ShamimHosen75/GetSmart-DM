@@ -397,6 +397,33 @@ export async function addVideo({ url, quality, title, dir }) {
   return { id };
 }
 
+/** One video job's state, for the video button menu: { state, downloaded, total, error, filename } or {}. */
+export async function videoJob({ id }) {
+  const job = (await getJobs()).find((j) => j.id === id);
+  if (!job) return {};
+  const { state, downloaded, total, error, filename } = job;
+  return { state, downloaded, total, error, filename };
+}
+
+/** Program features this extension needs; an older program lacks them and should be reinstalled. */
+const NEEDED_FEATURES = ['video_info', 'pick_folder'];
+
+function versionTuple(v) {
+  return String(v || '0').split('.').map((n) => parseInt(n, 10) || 0);
+}
+
+/** True when the connected desktop program is older than this extension. */
+export function companionOutdated() {
+  if (bridge.status !== 'connected' || !bridge.info) return false;
+  if (NEEDED_FEATURES.some((f) => !bridge.supports(f))) return true;
+  const have = versionTuple(bridge.info.version);
+  const want = versionTuple(chrome.runtime.getManifest().version);
+  for (let i = 0; i < 3; i += 1) {
+    if ((have[i] || 0) !== (want[i] || 0)) return (have[i] || 0) < (want[i] || 0);
+  }
+  return false;
+}
+
 export async function cancelVideo({ id }) {
   if (bridge.port && bridge.post({ type: 'cancel', id })) return { ok: true };
   await withJobs((jobs) => {
@@ -483,6 +510,7 @@ addMenuBuilder({
 export const videoHandlers = {
   getVideoState,
   videoInfo,
+  videoJob,
   addVideo,
   cancelVideo,
   retryVideo,

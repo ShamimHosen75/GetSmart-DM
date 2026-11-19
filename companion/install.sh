@@ -209,9 +209,40 @@ else
   ffmpeg_linux || fail "Could not get ffmpeg for $ARCH. Install it with your package manager (package name: ffmpeg), then run install.sh again."
 fi
 
+# ---------------------------------------------------------------- 4b. Deno (optional)
+# yt-dlp needs a JavaScript runtime for full YouTube support. A failure only warns.
+deno_asset() {
+  case "$PLATFORM:$ARCH" in
+    macos:arm64) echo "deno-aarch64-apple-darwin.zip" ;;
+    macos:*) echo "deno-x86_64-apple-darwin.zip" ;;
+    *:x86_64|*:amd64) echo "deno-x86_64-unknown-linux-gnu.zip" ;;
+    *:aarch64|*:arm64) echo "deno-aarch64-unknown-linux-gnu.zip" ;;
+    *) echo "" ;;
+  esac
+}
+if [ -x "$HERE/deno" ]; then
+  say "[skip] deno is already present."
+elif command -v deno >/dev/null 2>&1; then
+  say "[ok] deno found on PATH: $(command -v deno)"
+else
+  DENO_ASSET="$(deno_asset)"
+  if [ -n "$DENO_ASSET" ] && command -v unzip >/dev/null 2>&1; then
+    say "Downloading Deno for YouTube, about 40 MB..."
+    rm -rf "$WORK/deno" && mkdir -p "$WORK/deno"
+    if download "${GSDM_DENO_URL:-https://github.com/denoland/deno/releases/latest/download/$DENO_ASSET}" "$WORK/deno.zip" \
+        && unzip -o -q "$WORK/deno.zip" -d "$WORK/deno" && mv -f "$WORK/deno/deno" "$HERE/deno"; then
+      chmod +x "$HERE/deno"
+    else
+      say "WARNING: Deno could not be installed. Some YouTube videos may not download. Run install.sh again later."
+    fi
+  else
+    say "WARNING: no Deno build for $PLATFORM/$ARCH (or unzip is missing). Some YouTube videos may not download."
+  fi
+fi
+
 if [ "$PLATFORM" = "macos" ]; then
   # Files fetched by a browser carry a quarantine flag that blocks them from running.
-  xattr -d com.apple.quarantine "$HERE/yt-dlp" "$HERE/ffmpeg" "$HERE/ffprobe" "$HERE/host.py" >/dev/null 2>&1 || true
+  xattr -d com.apple.quarantine "$HERE/deno" "$HERE/yt-dlp" "$HERE/ffmpeg" "$HERE/ffprobe" "$HERE/host.py" >/dev/null 2>&1 || true
 fi
 
 # ---------------------------------------------------------------- 5. launcher + manifest

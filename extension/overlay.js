@@ -362,9 +362,46 @@
         return;
       }
       menu.replaceChildren(note(result?.error || done || s('overlayStarted'), !result?.error));
-      setTimeout(hide, 1600);
+      if (result?.id && !result.error) {
+        followJob(result.id);
+        return;
+      }
+      setTimeout(hide, result?.error ? 6000 : 1600);
     });
     return el;
+  }
+
+  /** After a desktop-program download starts, show its progress for a while, and its error if it fails. */
+  async function followJob(id) {
+    const until = Date.now() + 45000;
+    while (Date.now() < until) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (!menuOpen) return;
+      const job = await send({ type: 'videoJob', id });
+      if (!job || !job.state) continue;
+      if (job.state === 'error') {
+        menu.replaceChildren(note(job.error || s('overlayFailed'), false));
+        setTimeout(hide, 8000);
+        return;
+      }
+      if (job.state === 'done') {
+        menu.replaceChildren(note(s('overlaySaved'), true));
+        setTimeout(hide, 1600);
+        return;
+      }
+      if (job.state === 'canceled') {
+        menu.replaceChildren(note(s('overlayCanceled'), false));
+        setTimeout(hide, 1000);
+        return;
+      }
+      const pct = job.total > 0 ? ` ${Math.floor((100 * job.downloaded) / job.total)}%` : '';
+      menu.replaceChildren(note(s('overlayDownloading') + pct, true));
+      if (job.downloaded > 0 && Date.now() > until - 35000) {
+        setTimeout(hide, 2500); // it is clearly running; the progress window and popup take over
+        return;
+      }
+    }
+    hide();
   }
 
   /** Ask the desktop program what each quality weighs, then show it ("98 MB"); hide qualities the video does not have. */
@@ -383,6 +420,10 @@
       const text = [row.defaultText, size].filter(Boolean).join(' · ');
       row.metaEl.textContent = text;
       row.metaEl.hidden = !text;
+    }
+    if (infoReply?.error && !Object.keys(sizes).length && rows.size) {
+      const last = [...rows.values()].pop();
+      if (last?.isConnected) last.after(note(s('overlaySizeError').replace('{error}', infoReply.error), false));
     }
     if (menuOpen) place();
   }
@@ -452,7 +493,11 @@
     }
     if (reply?.companion === 'connected' && (reply.site === 'video' || reply.site === 'generic')) {
       // The optional companion app, when it is installed: YouTube and other sites the browser cannot save.
-      parts.push(head(s('overlayViaCompanion')));
+      parts.push(head(reply.programVersion ? `${s('overlayViaCompanion')} ${reply.programVersion}` : s('overlayViaCompanion')));
+      if (reply.outdated) {
+        parts.push(note(s('overlayProgramOld').replace('{old}', reply.programVersion || '?').replace('{new}', reply.extensionVersion || '')));
+        parts.push(item(s('overlayInstallUpdate'), '', () => send({ type: 'overlayCompanionHelp' }), { closeOnly: true }));
+      }
       const pageUrl = videoPageUrl(currentVideo);
       const rows = new Map();
       for (const [quality, key] of QUALITIES) {

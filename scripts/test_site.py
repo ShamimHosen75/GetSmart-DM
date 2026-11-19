@@ -118,6 +118,9 @@ def capture_popup(pw, kwargs):
     except Exception as exc:  # noqa: BLE001
         report("FAIL", "popup screenshots", f"could not start Chromium with the extension: {exc}")
         return
+    # The popup's update check asks the real website; answer it so screenshots are the same offline.
+    ctx.route("https://sidm.online/**", lambda route: route.fulfill(
+        status=200, content_type="application/json", body='{"version": "0.0.0"}'))
     try:
         if not ctx.service_workers:
             ctx.wait_for_event("serviceworker", timeout=10_000)

@@ -84,7 +84,7 @@ On a Mac and on a Linux desktop (a fresh user account if possible):
 
 ## How users get updates
 
-- **Extension**: once a day at most, the popup fetches `<SITE_URL>/version.json` and shows a small "Update available" link in its footer when the site has a newer version. The link opens the website. `SITE_URL` is set in `extension/update-check.js`; while it is empty no check is made.
+- **Extension**: once a day at most, the popup fetches `<SITE_URL>/version.json` and shows a small "Update available" link in its footer when the site has a newer version. The link opens the website. `SITE_URL` (`https://sidm.online`) is set in `extension/update-check.js`; while it is empty no check is made.
 - **Companion**: `companion\update.bat` downloads the newest `yt-dlp.exe`. A new companion `host.py` arrives with the new ZIP.
 
 ## Adding a platform

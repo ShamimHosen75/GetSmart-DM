@@ -331,6 +331,9 @@ class Browser:
                 time.sleep(0.2)
         self.browser = playwright.chromium.connect_over_cdp("http://127.0.0.1:%d" % port)
         self.context = self.browser.contexts[0]
+        # The popup's update check asks the real website; answer it here (no network in tests).
+        self.context.route("https://sidm.online/**", lambda route: route.fulfill(
+            status=200, content_type="application/json", body='{"version": "0.0.0"}'))
         cdp = self.browser.new_browser_cdp_session()
         cdp.send("Browser.setDownloadBehavior", {"behavior": "default"})
         self.console_errors = []
@@ -977,6 +980,9 @@ def check_companion_files(b, base):
     assert video["state"] == "done", video
     assert os.path.dirname(os.path.realpath(video["filename"])) == os.path.realpath(chosen), video["filename"]
     assert b.call("async () => (await chrome.storage.local.get('lastVideoFolder')).lastVideoFolder") == chosen
+    # The video menu follows the job after the click (shows "Saved" or the error instead of going silent).
+    state = b.message({"type": "videoJob", "id": added["id"]})
+    assert state.get("state") == "done", state
     # Closing the dialog without a folder cancels the download.
     with open(os.path.join(b.tmp, "choice"), "w", encoding="utf-8") as f:
         f.write("")
@@ -1003,7 +1009,7 @@ def check_companion_files(b, base):
     assert jobs[0]["url"] == base + "/u/status/12345" and jobs[0]["quality"] == "best", jobs[0]
     page.close()
     reset(b)
-    return "video button: Best quality for the post address; 8 MB over several connections into SIDM/Archives, parts shown, pause/resume, popup row; 500 KB/s limit; no-range file went to the browser; video saved into the folder picked in the dialog, cancel, sizes"
+    return "video button: Best quality for the post address; 8 MB over several connections into SIDM/Archives, parts shown, pause/resume, popup row; 500 KB/s limit; no-range file went to the browser; video saved into the folder picked in the dialog, job state for the menu, cancel, sizes"
 
 
 CHECKS = [

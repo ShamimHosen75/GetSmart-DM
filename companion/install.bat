@@ -14,6 +14,7 @@ set "PY_VER=3.12.10"
 set "PY_URL=https://www.python.org/ftp/python/%PY_VER%/python-%PY_VER%-embed-amd64.zip"
 set "YTDLP_URL=https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
 set "FFMPEG_URL=https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+set "DENO_URL=https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip"
 
 set "QUIET="
 if /i "%~1"=="/quiet" set "QUIET=1"
@@ -62,17 +63,23 @@ if errorlevel 1 (
 
 :ytdlp
 rem ---- 3. yt-dlp
-if exist "%HERE%yt-dlp.exe" (
+rem The setup program (/quiet) always fetches the newest yt-dlp: YouTube changes often.
+if exist "%HERE%yt-dlp.exe" if not defined QUIET (
   echo [skip] yt-dlp.exe is already present. Run update.bat to get the newest version.
   goto :ffmpeg
 )
 echo [2/3] Downloading yt-dlp...
-call :download "%YTDLP_URL%" "%WORK%\yt-dlp.exe" || goto :fail
+call :download "%YTDLP_URL%" "%WORK%\yt-dlp.exe" || goto :ytdlpfail
 move /y "%WORK%\yt-dlp.exe" "%HERE%yt-dlp.exe" >nul
 if errorlevel 1 (
   echo ERROR: Could not copy yt-dlp.exe into the companion folder.
-  goto :fail
+  goto :ytdlpfail
 )
+goto :ffmpeg
+:ytdlpfail
+rem Keep the yt-dlp.exe that is already here; without one, stop.
+if not exist "%HERE%yt-dlp.exe" goto :fail
+echo WARNING: Could not get the newest yt-dlp; keeping the one already installed.
 
 :ffmpeg
 rem ---- 4. ffmpeg + ffprobe
@@ -98,6 +105,20 @@ copy /y "%FOUND_FFMPEG%ffmpeg.exe" "%HERE%ffmpeg.exe" >nul || goto :copyfail
 copy /y "%FOUND_FFMPEG%ffprobe.exe" "%HERE%ffprobe.exe" >nul || goto :copyfail
 
 :register
+rem ---- 4b. Deno: the JavaScript runtime yt-dlp needs for YouTube. Optional: a failure only warns.
+if exist "%HERE%deno.exe" (
+  echo [skip] deno.exe is already present.
+  goto :manifest
+)
+echo Downloading Deno for YouTube, about 40 MB...
+call :download "%DENO_URL%" "%WORK%\deno.zip" || goto :denofail
+tar -xf "%WORK%\deno.zip" -C "%WORK%" || goto :denofail
+move /y "%WORK%\deno.exe" "%HERE%deno.exe" >nul || goto :denofail
+goto :manifest
+:denofail
+echo WARNING: Deno could not be installed. Some YouTube videos may not download. Run install.bat again later.
+
+:manifest
 rem ---- 5. Launcher and native-messaging manifest
 > "%LAUNCHER%" echo @echo off
 >> "%LAUNCHER%" echo "%%~dp0python\python.exe" "%%~dp0host.py" %%*
