@@ -27,6 +27,12 @@ const HELLO_TIMEOUT_MS = 10000;
 const IDLE_DISCONNECT_MS = 60000;
 const PROGRESS_FIELDS = ['downloaded', 'total', 'speed', 'eta', 'filename', 'error', 'note'];
 const FINAL_STATES = new Set(['done', 'error', 'canceled']);
+export const SEEN_KEY = 'companionSeen'; // storage.local: true once the desktop program answered on this browser
+const LAST_FOLDER_KEY = 'lastVideoFolder'; // storage.local: folder chosen for the last video download
+const INFO_TTL_MS = 10 * 60 * 1000;
+const PICK_TIMEOUT_MS = 10 * 60 * 1000;
+const INFO_TIMEOUT_MS = 70 * 1000;
+const REPLY_TYPES = new Set(['video_info', 'folder']);
 
 // ---------- Jobs in chrome.storage.session ----------
 
@@ -70,6 +76,24 @@ class NativeBridge {
     this.idleTimer = 0;
     this.missingAt = 0; // when connecting last failed with "not installed"
     this.listeners = []; // { connected(), progress(msg) -> bool handled, disconnect(), busy() -> Promise<bool> } (file-jobs.js)
+    this.pending = new Map(); // request id -> { resolve, timer } for video_info / pick_folder
+  }
+
+  /** Send a request that has one reply with the same id (video_info, pick_folder). Resolves null on timeout or disconnect. */
+  request(type, fields, timeoutMs) {
+    const id = randomId();
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        resolve(null);
+      }, timeoutMs);
+      this.pending.set(id, { resolve, timer });
+      if (!this.post({ type, id, ...fields })) {
+        clearTimeout(timer);
+        this.pending.delete(id);
+        resolve(null);
+      }
+    });
   }
 
   /** Let another module handle some progress messages and know about disconnects. */
@@ -145,6 +169,14 @@ class NativeBridge {
       console.warn('SIDM: companion speaks protocol', msg.v, '- ignored');
       return;
     }
+    if (REPLY_TYPES.has(msg.type) && msg.id && this.pending.has(msg.id)) {
+      const { resolve, timer } = this.pending.get(msg.id);
+      clearTimeout(timer);
+      this.pending.delete(msg.id);
+      resolve(msg);
+      this.scheduleIdle();
+      return;
+    }
     if (msg.type === 'hello') {
       this.info = {
         version: msg.version ?? null,
@@ -155,6 +187,7 @@ class NativeBridge {
         features: Array.isArray(msg.features) ? msg.features : [],
       };
       this.finishConnect('connected');
+      chrome.storage.local.set({ [SEEN_KEY]: true }); // installed: never offer the installer again
       for (const l of this.listeners) l.connected?.();
       this.scheduleIdle();
     } else if (msg.type === 'progress' && msg.id) {
@@ -177,12 +210,20 @@ class NativeBridge {
     clearTimeout(this.idleTimer);
     if (this.status === 'connecting' || this.status === 'idle') {
       const missing = /not found|not installed|forbidden|Specified native messaging host/i.test(reason);
-      if (missing) this.missingAt = Date.now();
+      if (missing) {
+        this.missingAt = Date.now();
+        chrome.storage.local.remove(SEEN_KEY); // not registered any more: it was uninstalled
+      }
       this.finishConnect(missing ? 'missing' : 'error', reason);
     } else {
       this.finishConnect('idle', reason);
     }
     for (const l of this.listeners) l.disconnect?.();
+    for (const { resolve, timer } of this.pending.values()) {
+      clearTimeout(timer);
+      resolve(null);
+    }
+    this.pending.clear();
     // Anything still running cannot finish without the companion.
     withJobs((jobs) => {
       for (const job of Object.values(jobs)) {
@@ -209,7 +250,7 @@ class NativeBridge {
   scheduleIdle() {
     clearTimeout(this.idleTimer);
     this.idleTimer = setTimeout(async () => {
-      let running = (await getJobs()).some((job) => job.state === 'running');
+      let running = this.pending.size > 0 || (await getJobs()).some((job) => job.state === 'running');
       for (const l of this.listeners) if (!running && l.busy) running = await l.busy();
       if (running) this.scheduleIdle();
       else this.disconnect();
@@ -222,6 +263,61 @@ class NativeBridge {
 }
 
 export const bridge = new NativeBridge();
+
+/** True once the desktop program has answered on this browser (and was not uninstalled since). */
+export async function companionSeen() {
+  return Boolean((await chrome.storage.local.get(SEEN_KEY))[SEEN_KEY]);
+}
+
+/** Start the desktop program in the background when it is installed, so the first click is quick. */
+export async function warmUpCompanion() {
+  const settings = await cachedSettings();
+  if (!settings.useCompanion && !settings.allowYouTube) return;
+  if (bridge.status !== 'connected' && bridge.status !== 'connecting' && (await companionSeen())) bridge.connect();
+}
+
+/**
+ * Wait for the desktop program. Installed before: up to `seenMs` (it may be
+ * starting after a reboot); never seen: up to `newMs`. Resolves the status.
+ */
+export async function waitForCompanion(newMs = 1500, seenMs = 8000) {
+  if (bridge.status === 'connected' && bridge.port) return 'connected';
+  const limit = (await companionSeen()) ? seenMs : newMs;
+  await Promise.race([bridge.ensureConnected(), new Promise((resolve) => setTimeout(resolve, limit))]);
+  return bridge.status;
+}
+
+const infoCache = new Map(); // url -> { at, reply }
+
+/** Size of each quality for a page (desktop program's video_info). {} when unknown. */
+export async function videoInfo({ url }) {
+  const settings = await cachedSettings();
+  if (!/^https?:\/\//i.test(url || '') || isDrmSite(url)) return {};
+  const youtube = isYouTube(url);
+  if (youtube && !settings.allowYouTube) return {};
+  const cached = infoCache.get(url);
+  if (cached && Date.now() - cached.at < INFO_TTL_MS) return cached.reply;
+  if ((await waitForCompanion()) !== 'connected' || !bridge.supports('video_info')) return {};
+  const msg = await bridge.request('video_info', youtube ? { url, youtube: true } : { url }, INFO_TIMEOUT_MS);
+  if (!msg) return {};
+  const reply = { sizes: msg.sizes || {}, maxHeight: msg.max_height || 0, error: msg.error || '' };
+  if (!msg.error) infoCache.set(url, { at: Date.now(), reply });
+  while (infoCache.size > 50) infoCache.delete(infoCache.keys().next().value);
+  return reply;
+}
+
+/** Ask the user for a folder with the desktop program's dialog. { path } | { canceled } | { none } (no dialog here). */
+async function chooseFolder() {
+  if (!bridge.supports('pick_folder')) return { none: true };
+  const settings = await cachedSettings();
+  setLanguage(settings.language);
+  const { [LAST_FOLDER_KEY]: last = '' } = await chrome.storage.local.get(LAST_FOLDER_KEY);
+  const msg = await bridge.request('pick_folder', { title: t('pickFolderTitle'), start: last || bridge.info?.dir || '' }, PICK_TIMEOUT_MS);
+  if (!msg || msg.error) return { none: true };
+  if (!msg.path) return { canceled: true };
+  await chrome.storage.local.set({ [LAST_FOLDER_KEY]: msg.path });
+  return { path: msg.path };
+}
 
 async function notifyFinished(job) {
   const settings = await cachedSettings();
@@ -254,7 +350,7 @@ export async function getVideoState({ url, tabId } = {}) {
 }
 
 /** Start a video download through the companion. Returns { id } or { error }. */
-export async function addVideo({ url, quality, title }) {
+export async function addVideo({ url, quality, title, dir }) {
   const settings = await cachedSettings();
   setLanguage(settings.language);
   if (!/^https?:\/\//i.test(url || '')) return { error: t('videoErrBadUrl') };
@@ -277,11 +373,20 @@ export async function addVideo({ url, quality, title }) {
     return { error: bridge.status === 'missing' ? t('companionMissing') : t('companionError'), status: bridge.status };
   }
 
+  // Where to save: the folder the user picks in the desktop program's dialog (Settings can turn this off).
+  let folder = typeof dir === 'string' && dir ? dir : '';
+  if (!folder && settings.askVideoFolder) {
+    const chosen = await chooseFolder();
+    if (chosen.canceled) return { canceled: true };
+    folder = chosen.path || '';
+  }
+
   const id = randomId();
   await withJobs((jobs) => {
-    jobs[id] = { id, url, title: title || '', quality: q, state: 'running', downloaded: 0, createdAt: Date.now(), updatedAt: Date.now() };
+    jobs[id] = { id, url, title: title || '', quality: q, dir: folder, state: 'running', downloaded: 0, createdAt: Date.now(), updatedAt: Date.now() };
   });
   const message = { type: 'add_video', id, url, quality: q };
+  if (folder) message.dir = folder;
   if (youtube) message.youtube = true; // only reached when the setting is on
   if (!bridge.post(message)) {
     await withJobs((jobs) => {
@@ -303,7 +408,7 @@ export async function cancelVideo({ id }) {
 export async function retryVideo({ id }) {
   const job = (await getJobs()).find((j) => j.id === id);
   if (!job) return { error: 'not found' };
-  const result = await addVideo({ url: job.url, quality: job.quality, title: job.title });
+  const result = await addVideo({ url: job.url, quality: job.quality, title: job.title, dir: job.dir || undefined });
   if (result.id) await removeVideo({ id });
   return result;
 }
@@ -377,6 +482,7 @@ addMenuBuilder({
 
 export const videoHandlers = {
   getVideoState,
+  videoInfo,
   addVideo,
   cancelVideo,
   retryVideo,

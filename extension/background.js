@@ -17,7 +17,7 @@ import { autoOpenProgress, seedDefaultSettings } from './common.js';
 import { enqueue, pump, registerQueueListeners, removeQueued, setQueuePaused } from './queue.js';
 import { buildMenus, registerMenuListeners } from './menus.js';
 import { registerMediaListeners, overlayHandlers } from './media.js';
-import { videoHandlers } from './native-bridge.js';
+import { videoHandlers, warmUpCompanion } from './native-bridge.js';
 import { fileHandlers, registerFileJobListeners, runningFileJobs } from './file-jobs.js';
 import { planAlarms, registerSchedulerListeners } from './scheduler.js';
 import { markInterruptedStreams, registerStreamListeners, runningStreamJobs, streamHandlers } from './stream-jobs.js';
@@ -35,6 +35,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onStartup.addListener(() => {
   markInterruptedStreams();
+  warmUpCompanion(); // installed once: start the desktop program with the browser, like any download manager
   updateBadge();
   pump();
   planAlarms();
@@ -100,7 +101,7 @@ chrome.downloads.onCreated.addListener((item) => autoOpenProgress(item.id, 'all'
 
 // ---------- Messages from extension pages ----------
 
-const CONTENT_SCRIPT_CALLS = new Set(['overlayInfo', 'overlayMedia', 'overlaySawVideo', 'overlayCompanionHelp', 'enqueue', 'addVideo', 'addStream', 'streamDebug', 'savePageSources', 'overlayDebug']);
+const CONTENT_SCRIPT_CALLS = new Set(['overlayInfo', 'overlayMedia', 'overlaySawVideo', 'overlayCompanionHelp', 'enqueue', 'addVideo', 'addStream', 'streamDebug', 'savePageSources', 'overlayDebug', 'videoInfo']);
 
 const handlers = {
   enqueue: (msg) => enqueue(msg.items || []),

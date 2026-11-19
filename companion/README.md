@@ -26,6 +26,10 @@ Like any Windows program: one file, click **Install**, done.
    - an entry in Windows **Settings > Apps > Installed apps**
 4. The extension finds the program by itself; the Settings page turns green. If it does not, restart the browser.
 
+You install it **once**. It stays installed and registered after you restart the browser or the PC, and the extension remembers it, so you are not asked to install again. (A Windows "Reset this PC" or a fresh Windows removes all installed programs, SIDM included; then install it once more.)
+
+**Choose a folder per video.** When you download a YouTube video, SIDM opens a Windows folder dialog; the video is saved straight into the folder you pick (the last folder is offered next time). Turn this off in SIDM Settings ("Ask where to save each video") to always use `Downloads\SIDM\Video`. The program keeps the folders you picked in `folders.json` and the tool versions in `versions.json` (so it answers the extension quickly); both sit in the program folder.
+
 Uninstall from the Start menu or Installed apps. It removes the browser registration and SIDM's own files in that folder. Your videos in `Downloads\SIDM` are never touched.
 
 Setup is built from `companion/windows/sidm-setup.nsi` with `python scripts/build_setup.py` (needs NSIS 3; on Linux `sudo apt-get install nsis`).

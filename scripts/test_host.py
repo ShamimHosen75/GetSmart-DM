@@ -68,9 +68,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 class HostProcess:
-    def __init__(self):
+    def __init__(self, env=None):
         self.proc = subprocess.Popen(
-            [sys.executable, HOST_PY], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            [sys.executable, HOST_PY], stdin=subprocess.PIPE, stdout=subprocess.PIPE, env=env)
         self.messages = queue.Queue()
         threading.Thread(target=self._reader, daemon=True).start()
 
@@ -208,6 +208,81 @@ class HostTest(unittest.TestCase):
         self.assertEqual(final["state"], "error")
         self.assertIn("DRM", final["error"])
 
+    def test_hello_lists_features_and_caches_versions(self):
+        self.host.send({"type": "hello", "v": 1})
+        hello = self.host.next(pred=lambda m: m["type"] == "hello")
+        for feature in ("files", "video_info", "pick_folder"):
+            self.assertIn(feature, hello["features"])
+        self.assertTrue(os.path.isfile(os.path.join(os.path.dirname(HOST_PY), "versions.json")))
+        again = HostProcess()
+        try:
+            started = time.time()
+            again.send({"type": "hello", "v": 1})
+            second = again.next(pred=lambda m: m["type"] == "hello")
+            self.assertEqual(second["ytdlp"], hello["ytdlp"])
+            self.assertLess(time.time() - started, 5)
+        finally:
+            again.close()
+
+    def test_video_info(self):
+        self.host.send({"type": "video_info", "v": 1, "id": "info-1", "url": self.base + "/clip.mp4"})
+        reply = self.host.next(60, lambda m: m["type"] == "video_info")
+        self.assertEqual(reply["id"], "info-1")
+        self.assertNotIn("error", reply, reply)
+        self.assertIsInstance(reply["sizes"], dict)
+
+    def test_video_info_youtube_needs_the_setting(self):
+        self.host.send({"type": "video_info", "v": 1, "id": "info-yt", "url": "https://www.youtube.com/watch?v=abc"})
+        reply = self.host.next(30, lambda m: m["type"] == "video_info")
+        self.assertIn("YouTube", reply["error"])
+
+    def test_pick_folder_and_save_there(self):
+        # A stand-in for the system dialog (zenity) that "chooses" a folder.
+        chosen = os.path.join(self.dir, "Chosen folder")
+        os.makedirs(chosen)
+        bindir = os.path.join(self.dir, "bin")
+        os.makedirs(bindir)
+        fake = os.path.join(bindir, "zenity")
+        with open(fake, "w") as f:
+            f.write("#!/bin/sh\necho \"$SIDM_TEST_CHOICE\"\n")
+        os.chmod(fake, 0o755)
+        folders = os.path.join(os.path.dirname(HOST_PY), "folders.json")
+        backup = open(folders).read() if os.path.isfile(folders) else None
+        env = dict(os.environ, PATH=bindir + os.pathsep + os.environ.get("PATH", ""), SIDM_TEST_CHOICE=chosen)
+        self.host.close()
+        self.host = HostProcess(env)
+        try:
+            self.host.send({"type": "pick_folder", "v": 1, "id": "pick-1", "title": "Where?"})
+            reply = self.host.next(30, lambda m: m["type"] == "folder")
+            self.assertEqual(reply, dict(reply, id="pick-1", path=chosen))
+            with open(folders) as f:
+                self.assertIn(chosen, json.load(f))
+            self.host.send({"type": "add_video", "v": 1, "id": "job-dir", "url": self.base + "/clip.mp4",
+                            "quality": "best", "dir": chosen})
+            final = self.host.job("job-dir")[-1]
+            self.assertEqual(final["state"], "done", final)
+            self.assertEqual(os.path.dirname(final["filename"]), chosen)
+            # Canceled dialog: path null.
+            env["SIDM_TEST_CHOICE"] = ""
+            self.host.close()
+            self.host = HostProcess(env)
+            self.host.send({"type": "pick_folder", "v": 1, "id": "pick-2"})
+            reply = self.host.next(30, lambda m: m["type"] == "folder")
+            self.assertIsNone(reply["path"])
+        finally:
+            if backup is None:
+                if os.path.isfile(folders):
+                    os.remove(folders)
+            else:
+                with open(folders, "w") as f:
+                    f.write(backup)
+
+    def test_missing_folder_refused(self):
+        self.add("job-nodir", "/clip.mp4", dir=os.path.join(self.dir, "does-not-exist"))
+        final = self.host.job("job-nodir")[-1]
+        self.assertEqual(final["state"], "error")
+        self.assertIn("does not exist", final["error"])
+
     def test_wrong_version(self):
         self.host.send({"type": "add_video", "v": 2, "id": "job-v2", "quality": "best",
                         "url": self.base + "/clip.mp4", "dir": self.dir})
@@ -223,6 +298,23 @@ class HelperTest(unittest.TestCase):
         sys.path.insert(0, os.path.dirname(HOST_PY))
         import host
         cls.h = host
+
+    def test_sizes_from_info(self):
+        info = {"duration": 100, "formats": [
+            {"ext": "mhtml", "vcodec": "none", "acodec": "none"},
+            {"vcodec": "none", "acodec": "mp4a", "abr": 129, "filesize": 1600000},
+            {"vcodec": "none", "acodec": "opus", "abr": 135, "filesize": 1700000},
+            {"vcodec": "avc1", "acodec": "mp4a", "height": 360, "tbr": 500},
+            {"vcodec": "avc1.640028", "acodec": "none", "height": 1080, "fps": 30, "filesize": 40000000},
+            {"vcodec": "vp9", "acodec": "none", "height": 1080, "fps": 30, "filesize": 30000000},
+            {"vcodec": "avc1", "acodec": "none", "height": 720, "fps": 30, "filesize_approx": 20000000},
+        ]}
+        out = self.h.sizes_from_info(info)
+        self.assertEqual(out["max_height"], 1080)
+        self.assertEqual(out["sizes"]["best"], 30000000 + 1700000)  # vp9 is preferred over avc1, like yt-dlp
+        self.assertEqual(out["sizes"]["720"], 20000000 + 1700000)
+        self.assertEqual(out["sizes"]["360"], 6250000)  # one file with sound: no extra audio
+        self.assertEqual(out["sizes"]["audio"], 1700000)
 
     def test_quality_map(self):
         args, note = self.h.format_args("720", "/x/ffmpeg")

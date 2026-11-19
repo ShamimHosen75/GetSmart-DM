@@ -46,6 +46,7 @@ let state = null;
 let chosenQuality = null;
 let busy = false;
 let streams = { options: [], refused: '' };
+let info = { url: '', sizes: {}, maxHeight: 0, asked: false }; // desktop program's video_info for this tab
 
 export async function initVideoCard({ currentTab, showToast }) {
   card = document.getElementById('video-card');
@@ -72,6 +73,16 @@ async function refresh() {
   if (!state || state.error) return;
   if (!chosenQuality) chosenQuality = state.defaultQuality;
   render();
+  if (state.companion?.status === 'connected' && tab?.url && info.url !== tab.url) {
+    // Sizes of each quality: the desktop program asks the site (a few seconds).
+    info = { url: tab.url, sizes: {}, maxHeight: 0, asked: true };
+    chrome.runtime.sendMessage({ type: 'videoInfo', url: tab.url }).then((reply) => {
+      if (info.url !== tab.url || !reply) return;
+      info.sizes = reply.sizes || {};
+      info.maxHeight = Number(reply.maxHeight) || 0;
+      render();
+    }).catch(() => {});
+  }
 }
 
 function el(tag, className, text) {
@@ -132,10 +143,13 @@ function controls() {
   const select = el('select', 'select');
   select.id = 'v-quality';
   for (const q of VIDEO_QUALITIES) {
-    const option = el('option', '', t(QUALITY_LABEL[q]));
+    if (info.maxHeight && Number(q) > info.maxHeight) continue; // the video has no such quality
+    const size = info.sizes[q] > 0 ? ` (≈ ${formatBytes(info.sizes[q])})` : '';
+    const option = el('option', '', t(QUALITY_LABEL[q]) + size);
     option.value = q;
     select.append(option);
   }
+  if (![...select.options].some((o) => o.value === chosenQuality)) chosenQuality = 'best';
   select.value = chosenQuality || 'best';
   const button = el('button', 'primary-button', t('downloadVideo'));
   button.type = 'button';
@@ -262,6 +276,7 @@ async function onClick(event) {
     const reply = await chrome.runtime.sendMessage({ type: 'addVideo', url: tab.url, quality: chosenQuality, title: tab.title });
     busy = false;
     if (reply?.error) toast(reply.error, true);
+    else if (reply?.canceled) toast(t('overlayCanceled'));
     else toast(t('videoAdded'));
     return refresh();
   }

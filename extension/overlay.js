@@ -326,7 +326,7 @@
     currentVideo = null;
   }
 
-  function item(name, meta, onClick, { closeOnly = false, done = '' } = {}) {
+  function item(name, meta, onClick, { closeOnly = false, done = '', pending = '' } = {}) {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = 'item';
@@ -335,12 +335,12 @@
     n.className = 'name';
     n.textContent = name;
     el.append(n);
-    if (meta) {
-      const m = document.createElement('span');
-      m.className = 'meta';
-      m.textContent = meta;
-      el.append(m);
-    }
+    const m = document.createElement('span');
+    m.className = 'meta';
+    m.textContent = meta || '';
+    m.hidden = !meta;
+    el.append(m);
+    el.metaEl = m;
     el.addEventListener('click', async (event) => {
       event.stopPropagation();
       if (closeOnly) {
@@ -348,11 +348,43 @@
         hide();
         return;
       }
+      // While the desktop program's folder dialog is open, say so.
+      if (pending) menu.replaceChildren(note(pending, false));
       const result = await onClick();
+      if (result?.reopen) {
+        menuOpen = false;
+        toggleMenu();
+        return;
+      }
+      if (result?.canceled) {
+        menu.replaceChildren(note(s('overlayCanceled'), false));
+        setTimeout(hide, 1000);
+        return;
+      }
       menu.replaceChildren(note(result?.error || done || s('overlayStarted'), !result?.error));
       setTimeout(hide, 1600);
     });
     return el;
+  }
+
+  /** Ask the desktop program what each quality weighs, then show it ("98 MB"); hide qualities the video does not have. */
+  async function fillSizes(pageUrl, rows) {
+    const infoReply = await send({ type: 'videoInfo', url: pageUrl });
+    const sizes = infoReply?.sizes || {};
+    const maxHeight = Number(infoReply?.maxHeight) || 0;
+    for (const [quality, row] of rows) {
+      if (!row.isConnected) continue;
+      const height = Number(quality);
+      if (maxHeight && height && height > maxHeight && quality !== 'best') {
+        row.hidden = true; // same file as "Best available"
+        continue;
+      }
+      const size = sizes[quality] > 0 ? `≈ ${formatSize(sizes[quality])}` : '';
+      const text = [row.defaultText, size].filter(Boolean).join(' · ');
+      row.metaEl.textContent = text;
+      row.metaEl.hidden = !text;
+    }
+    if (menuOpen) place();
   }
 
   function note(text, ok) {
@@ -422,10 +454,21 @@
       // The optional companion app, when it is installed: YouTube and other sites the browser cannot save.
       parts.push(head(s('overlayViaCompanion')));
       const pageUrl = videoPageUrl(currentVideo);
+      const rows = new Map();
       for (const [quality, key] of QUALITIES) {
-        const meta = quality === info.quality ? s('overlayDefault') : '';
-        parts.push(item(s(key), meta, () => send({ type: 'addVideo', url: pageUrl, quality, title: document.title })));
+        const defaultText = quality === info.quality ? s('overlayDefault') : '';
+        const row = item(s(key), [defaultText, s('overlaySizeLoading')].filter(Boolean).join(' · '),
+          () => send({ type: 'addVideo', url: pageUrl, quality, title: document.title }),
+          { pending: reply.askFolder ? s('overlayChooseFolder') : '' });
+        row.defaultText = defaultText;
+        rows.set(quality, row);
+        parts.push(row);
       }
+      fillSizes(pageUrl, rows);
+    } else if (!options.length && reply?.youtube && reply.companionSeen && reply.companion !== 'missing') {
+      // Installed before: it is still starting (after a restart, for example). Never ask to install again.
+      parts.push(note(s('overlayCompanionStarting')));
+      parts.push(item(s('overlayTryAgain'), '', async () => ({ reopen: true })));
     } else if (!options.length && reply?.youtube) {
       parts.push(note(s('overlayYouTubeCompanion')));
       parts.push(item(s('overlayInstallHelp'), '', () => send({ type: 'overlayCompanionHelp' }), { closeOnly: true }));

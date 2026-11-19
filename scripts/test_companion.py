@@ -165,6 +165,9 @@ class CompanionEndToEnd(unittest.TestCase):
         self.fail("job %s timed out: %r" % (job_id, seen[-1] if seen else None))
 
     def add(self, url, quality="best"):
+        # The folder dialog has its own check in test_extension.py; here videos go to the default folder.
+        self.page.evaluate("() => chrome.storage.sync.set({askVideoFolder: false})")
+        time.sleep(0.2)
         reply = self.send({"type": "addVideo", "url": url, "quality": quality, "title": "test"})
         self.assertIn("id", reply, reply)
         return reply["id"]

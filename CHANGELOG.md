@@ -4,6 +4,30 @@ All notable changes to SIDM. Newest version first. Each version has three parts:
 
 Add a new section with `python scripts/bump.py patch|minor|major`, then fill in the bullets before running `scripts/release.py`. See `RELEASE.md`.
 
+## [0.5.0] - 2026-11-19
+
+YouTube with SIDM for Windows: file sizes in the menu, a folder dialog for each download, and no more install offers once it is installed.
+
+### Extension
+
+- Install once: when the desktop program has answered once, SIDM remembers it and never offers the installer again (menu or Settings), unless the browser reports it is no longer registered (uninstalled). After a restart it waits up to 8 seconds for the program to start instead of 1.5, and says "starting, try again" rather than "install".
+- The desktop program starts with the browser, and when a video site opens, so the first click is quick.
+- The quality menu (video button and popup) shows the size of each quality, for example "≈ 98 MB", and hides qualities the video does not have.
+- Choose where to save: clicking a quality opens Windows' "Select folder" window; the video downloads straight into the folder you pick (the last one is suggested next time). Closing the window cancels. Settings: "Ask where to save each video" (on by default; off = Downloads\SIDM\Video).
+
+### Companion
+
+- `video_info`: sizes per quality from yt-dlp (`-J`), estimated the way the download picks formats.
+- `pick_folder`: the system folder dialog (Windows Explorer-style dialog via PowerShell, on top of the browser; macOS `choose folder`; Linux zenity or kdialog). Chosen folders are remembered in `folders.json`, so "Open folder" works there too.
+- `add_video` `dir` must be an existing absolute folder.
+- `hello` answers within a second: tool versions are kept in `versions.json` until yt-dlp or ffmpeg change (asking yt-dlp.exe took seconds, which made the extension think the program was missing).
+- Protocol additions in `shared/protocol.md` (still v1; new optional features `video_info`, `pick_folder`).
+- The uninstaller also removes `versions.json` and `folders.json`.
+
+### Website
+
+- No changes besides the version.
+
 ## [0.4.0] - 2026-11-18
 
 LinkedIn fixed, the highest quality first, and SIDM for Windows: a setup program like any PC download manager's.

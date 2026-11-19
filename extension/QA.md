@@ -234,3 +234,12 @@ Use a profile **without** the companion installed (or run `uninstall.bat` first)
 - [ ] Run SIDM Setup: no console window, no admin prompt, it finishes with "SIDM is ready"; Settings turns green within a few seconds without a browser restart.
 - [ ] YouTube: the menu's video choices come from the desktop program; without it the menu says so and **Get the SIDM desktop program** opens Settings.
 - [ ] Uninstall SIDM from the Start menu: Settings says the program is not installed; videos in Downloads\SIDM are still there.
+
+## M17 Install once, sizes, choose folder (0.5.0)
+
+- [ ] With SIDM for Windows installed, restart the PC, open a YouTube video, click **Download**: the qualities appear (maybe after a few seconds), never "Get the SIDM desktop program". Settings shows no install button.
+- [ ] Each quality shows "≈ size"; qualities above the video's own resolution are not listed.
+- [ ] Click a quality: Windows' "Select folder" window opens on top of the browser; pick a folder: the download starts and the file lands in that folder. Next time the same folder is suggested.
+- [ ] Close the folder window without choosing: the menu says Canceled and nothing downloads.
+- [ ] Settings: turn off "Ask where to save each video": downloads go to Downloads\SIDM\Video without a window.
+- [ ] Uninstall SIDM: the install offer comes back.

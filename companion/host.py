@@ -26,7 +26,7 @@ import threading
 import time
 from urllib.parse import urlparse
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 PROTOCOL_V = 1
 HOST_NAME = "com.sidm.host"
 
@@ -139,6 +139,39 @@ def ytdlp_version():
     except (OSError, subprocess.SubprocessError) as e:
         log.warning("yt-dlp --version failed: %s", e)
         return None
+
+
+VERSIONS_FILE = os.path.join(HERE, "versions.json")
+
+
+def _stamp(path):
+    try:
+        st = os.stat(path)
+        return [path, int(st.st_mtime), st.st_size]
+    except (OSError, TypeError):
+        return [path]
+
+
+def tool_versions():
+    """(yt-dlp version, ffmpeg version). Asking yt-dlp.exe takes seconds on Windows,
+    so the answers are kept in versions.json until the tools' files change."""
+    ytdlp = find_binary("yt-dlp")
+    ffmpeg = find_binary("ffmpeg")
+    key = [_stamp(ytdlp) if ytdlp else None, _stamp(ffmpeg) if ffmpeg else None]
+    try:
+        with open(VERSIONS_FILE, encoding="utf-8") as f:
+            saved = json.load(f)
+        if saved.get("key") == key and (saved.get("ytdlp") or not ytdlp):
+            return saved.get("ytdlp"), saved.get("ffmpeg")
+    except (OSError, ValueError, AttributeError):
+        pass
+    versions = (ytdlp_version(), ffmpeg_version(ffmpeg))
+    try:
+        with open(VERSIONS_FILE, "w", encoding="utf-8") as f:
+            json.dump({"key": key, "ytdlp": versions[0], "ffmpeg": versions[1]}, f)
+    except OSError as e:
+        log.warning("could not save %s: %s", VERSIONS_FILE, e)
+    return versions
 
 
 def ffmpeg_version(path):
@@ -525,6 +558,237 @@ class KillOnExitJob:
 CHILD_JOB = None  # KillOnExitJob, created in main()
 
 
+# ---------------------------------------------------------------- video_info, pick_folder
+
+VIDEO_FEATURES = ["video_info", "pick_folder"]
+INFO_TIMEOUT = 60
+FOLDERS_FILE = os.path.join(HERE, "folders.json")
+MAX_FOLDERS = 20
+# yt-dlp prefers these codecs, best first (its default format sorting).
+VCODEC_RANK = (("av01", 6), ("vp09", 5), ("vp9", 5), ("hev1", 4), ("hvc1", 4), ("h265", 4),
+               ("avc1", 3), ("h264", 3), ("vp8", 2))
+
+
+def _format_size(f, duration):
+    size = f.get("filesize") or f.get("filesize_approx")
+    if not size and f.get("tbr") and duration:
+        size = f["tbr"] * 1000 / 8 * duration
+    return int(size) if size else None
+
+
+def _has_video(f):
+    return f.get("vcodec") not in (None, "none") and (f.get("height") or 0) > 0
+
+
+def _has_audio(f):
+    return f.get("acodec") not in (None, "none")
+
+
+def _codec_rank(f):
+    codec = (f.get("vcodec") or "").lower()
+    return next((rank for prefix, rank in VCODEC_RANK if codec.startswith(prefix)), 1)
+
+
+def sizes_from_info(info):
+    """Estimated bytes per add_video quality, picked the way format_args() asks yt-dlp."""
+    duration = info.get("duration")
+    formats = [f for f in info.get("formats") or [] if f.get("ext") != "mhtml" and _format_size(f, duration)]
+    if not formats and _format_size(info, duration):
+        formats = [info]  # a single-file video
+    videos = [f for f in formats if _has_video(f)]
+    audios = [f for f in formats if _has_audio(f) and not _has_video(f)]
+    best_audio = max(audios, key=lambda f: (f.get("abr") or f.get("tbr") or 0), default=None)
+    audio_size = _format_size(best_audio, duration) if best_audio else 0
+    sizes = {}
+    for quality in QUALITIES:
+        if quality == "audio":
+            if best_audio:
+                sizes["audio"] = audio_size
+            continue
+        limit = None if quality == "best" else int(quality)
+        fits = [f for f in videos if limit is None or (f.get("height") or 0) <= limit]
+        if not fits:
+            continue
+        video = max(fits, key=lambda f: (f.get("height") or 0, f.get("fps") or 0, _codec_rank(f), f.get("tbr") or 0))
+        sizes[quality] = _format_size(video, duration) + (0 if _has_audio(video) else audio_size)
+    out = {"sizes": sizes}
+    heights = [f.get("height") for f in videos if f.get("height")]
+    if heights:
+        out["max_height"] = max(heights)
+    if info.get("title"):
+        out["title"] = str(info["title"])[:300]
+    if info.get("duration"):
+        out["duration"] = int(info["duration"])
+    return out
+
+
+def video_info(url, youtube):
+    """What a page offers: {"sizes": {...}, "max_height", "title", "duration"} or {"error"}."""
+    refusal = policy_error(url, youtube)
+    if refusal:
+        return {"error": refusal}
+    base = ytdlp_base()
+    if not base:
+        return {"error": "yt-dlp is missing. Run " + INSTALLER + " in the companion folder."}
+    cmd = list(base) + ["-J", "--no-playlist", "--no-warnings", "--no-colors", "--encoding", "utf-8", "--", url]
+    env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
+    try:
+        proc = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              timeout=INFO_TIMEOUT, env=env, creationflags=CREATE_NO_WINDOW)
+    except subprocess.TimeoutExpired:
+        return {"error": "The site took too long to answer."}
+    if proc.returncode != 0:
+        lines = proc.stderr.decode("utf-8", "replace").splitlines()
+        return {"error": friendly_error(lines)}
+    return sizes_from_info(json.loads(proc.stdout.decode("utf-8", "replace")))
+
+
+class NoDialog(Exception):
+    pass
+
+
+# Windows: the Explorer-style "Select folder" dialog (IFileOpenDialog with
+# FOS_PICKFOLDERS), shown on top of the browser. Falls back to the older
+# FolderBrowserDialog if the C# part cannot be compiled.
+WIN_PICKER = r"""
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+Add-Type -AssemblyName System.Windows.Forms
+$cs = @'
+using System;
+using System.Runtime.InteropServices;
+public static class SidmFolderPicker {
+  [ComImport, Guid("DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7")] class FileOpenDialogClass {}
+  [ComImport, Guid("42f85136-db7e-439c-85f1-e4075d135fc8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IFileDialog {
+    [PreserveSig] int Show(IntPtr parent);
+    void SetFileTypes(uint count, IntPtr specs);
+    void SetFileTypeIndex(uint index);
+    void GetFileTypeIndex(out uint index);
+    void Advise(IntPtr sink, out uint cookie);
+    void Unadvise(uint cookie);
+    void SetOptions(uint options);
+    void GetOptions(out uint options);
+    void SetDefaultFolder(IShellItem item);
+    void SetFolder(IShellItem item);
+    void GetFolder(out IShellItem item);
+    void GetCurrentSelection(out IShellItem item);
+    void SetFileName([MarshalAs(UnmanagedType.LPWStr)] string name);
+    void GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string name);
+    void SetTitle([MarshalAs(UnmanagedType.LPWStr)] string title);
+    void SetOkButtonLabel([MarshalAs(UnmanagedType.LPWStr)] string text);
+    void SetFileNameLabel([MarshalAs(UnmanagedType.LPWStr)] string label);
+    void GetResult(out IShellItem item);
+  }
+  [ComImport, Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IShellItem {
+    void BindToHandler(IntPtr bc, ref Guid bhid, ref Guid riid, out IntPtr ppv);
+    void GetParent(out IShellItem parent);
+    void GetDisplayName(uint sigdn, out IntPtr name);
+    void GetAttributes(uint mask, out uint attributes);
+    void Compare(IShellItem other, uint hint, out int order);
+  }
+  [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+  static extern void SHCreateItemFromParsingName(string path, IntPtr bc, ref Guid riid, out IShellItem item);
+  public static string Pick(IntPtr owner, string title, string start) {
+    IFileDialog dialog = (IFileDialog)new FileOpenDialogClass();
+    dialog.SetOptions(0x20 | 0x40 | 0x800); // pick folders, file system only, path must exist
+    if (!String.IsNullOrEmpty(title)) dialog.SetTitle(title);
+    if (!String.IsNullOrEmpty(start)) {
+      try {
+        Guid iid = typeof(IShellItem).GUID;
+        IShellItem folder;
+        SHCreateItemFromParsingName(start, IntPtr.Zero, ref iid, out folder);
+        dialog.SetFolder(folder);
+      } catch (Exception) { }
+    }
+    if (dialog.Show(owner) != 0) return null; // canceled
+    IShellItem result;
+    dialog.GetResult(out result);
+    IntPtr name;
+    result.GetDisplayName(0x80058000, out name); // SIGDN_FILESYSPATH
+    string path = Marshal.PtrToStringUni(name);
+    Marshal.FreeCoTaskMem(name);
+    return path;
+  }
+}
+'@
+$owner = New-Object System.Windows.Forms.Form
+$owner.TopMost = $true
+$owner.ShowInTaskbar = $false
+$owner.FormBorderStyle = 'None'
+$owner.StartPosition = 'CenterScreen'
+$owner.Size = New-Object System.Drawing.Size(1, 1)
+$owner.Opacity = 0
+$owner.Show()
+$owner.Activate()
+$path = $null
+try {
+  Add-Type -TypeDefinition $cs -Language CSharp
+  $path = [SidmFolderPicker]::Pick($owner.Handle, $env:SIDM_TITLE, $env:SIDM_START)
+} catch {
+  $d = New-Object System.Windows.Forms.FolderBrowserDialog
+  $d.Description = $env:SIDM_TITLE
+  $d.ShowNewFolderButton = $true
+  if ($env:SIDM_START) { $d.SelectedPath = $env:SIDM_START }
+  if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { $path = $d.SelectedPath }
+}
+$owner.Close()
+if ($path) { [Console]::Out.Write($path) }
+"""
+
+
+def _encoded_powershell(script):
+    import base64
+    return base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+
+
+def pick_folder_dialog(title, start):
+    """Show the system's folder dialog. Returns the chosen path, or None if canceled."""
+    env = dict(os.environ, SIDM_TITLE=title, SIDM_START=start or "")
+    if IS_WIN:
+        cmd = ["powershell.exe", "-NoProfile", "-NonInteractive", "-STA", "-ExecutionPolicy", "Bypass",
+               "-EncodedCommand", _encoded_powershell(WIN_PICKER)]
+    elif sys.platform == "darwin":
+        script = ('set p to POSIX path of (choose folder with prompt (system attribute "SIDM_TITLE")'
+                  ' default location POSIX file (system attribute "SIDM_START"))\nreturn p')
+        cmd = ["osascript", "-e", 'tell application "System Events" to activate', "-e", script]
+    elif shutil.which("zenity"):
+        cmd = ["zenity", "--file-selection", "--directory", "--title", title, "--filename", (start or "") + os.sep]
+    elif shutil.which("kdialog"):
+        cmd = ["kdialog", "--getexistingdirectory", start or os.path.expanduser("~"), "--title", title]
+    else:
+        raise NoDialog()
+    proc = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          env=env, creationflags=CREATE_NO_WINDOW)
+    path = proc.stdout.decode("utf-8", "replace").strip()
+    if proc.returncode != 0 or not path:
+        if proc.stderr:
+            log.info("folder dialog: %s", proc.stderr.decode("utf-8", "replace").strip()[:300])
+        return None
+    if len(path) > 3:  # keep "C:\\" and "/" as they are
+        path = path.rstrip("/\\") or path
+    return path if os.path.isdir(path) else None
+
+
+def chosen_folders():
+    try:
+        with open(FOLDERS_FILE, encoding="utf-8") as f:
+            folders = json.load(f)
+        return [p for p in folders if isinstance(p, str)]
+    except (OSError, ValueError):
+        return []
+
+
+def remember_folder(path):
+    folders = [path] + [p for p in chosen_folders() if p != path]
+    try:
+        with open(FOLDERS_FILE, "w", encoding="utf-8") as f:
+            json.dump(folders[:MAX_FOLDERS], f)
+    except OSError as e:
+        log.warning("could not save %s: %s", FOLDERS_FILE, e)
+
+
 # ---------------------------------------------------------------- host
 
 class Host:
@@ -565,14 +829,18 @@ class Host:
             self.on_speed_limit(msg)
         elif mtype == "open_file":
             open_path(msg.get("path"), bool(msg.get("reveal")))
+        elif mtype == "video_info":
+            self.on_video_info(msg)
+        elif mtype == "pick_folder":
+            self.on_pick_folder(msg)
         else:
             log.warning("ignoring unknown message type %r", mtype)
 
     def on_hello(self):
-        ffmpeg = find_binary("ffmpeg")
-        reply = {"type": "hello", "version": VERSION, "ytdlp": ytdlp_version(),
-                 "ffmpeg": ffmpeg_version(ffmpeg), "dir": default_dir(),
-                 "downloads": downloads_folder(), "features": FILE_FEATURES}
+        ytdlp, ffmpeg = tool_versions()
+        reply = {"type": "hello", "version": VERSION, "ytdlp": ytdlp,
+                 "ffmpeg": ffmpeg, "dir": default_dir(),
+                 "downloads": downloads_folder(), "features": FILE_FEATURES + VIDEO_FEATURES}
         log.info("hello: %s", reply)
         self.channel.send(reply)
 
@@ -586,8 +854,13 @@ class Host:
             self.channel.send({"type": "progress", "id": job_id, "state": "error",
                                "error": "Invalid request (url or quality missing)."})
             return
-        if msg.get("dir") is not None and not isinstance(msg.get("dir"), str):
+        target = msg.get("dir")
+        if target is not None and not isinstance(target, str):
             msg = dict(msg, dir=None)
+        elif target and not (os.path.isabs(target) and os.path.isdir(target)):
+            self.channel.send({"type": "progress", "id": job_id, "state": "error",
+                               "error": "The folder %s does not exist." % target})
+            return
         with self.lock:
             if job_id in self.jobs:
                 log.warning("add_video: id %s is already running, ignored", job_id)
@@ -595,6 +868,49 @@ class Host:
             job = Job(self, msg)
             self.jobs[job_id] = job
         job.thread.start()
+
+    def on_video_info(self, msg):
+        req_id = msg.get("id")
+        url = msg.get("url")
+        if not isinstance(req_id, str) or not req_id or not isinstance(url, str):
+            log.warning("video_info without id or url: %r", msg)
+            return
+        threading.Thread(target=self._video_info, args=(req_id, url, msg.get("youtube")),
+                         name="info-" + req_id[:16], daemon=True).start()
+
+    def _video_info(self, req_id, url, youtube):
+        reply = {"type": "video_info", "id": req_id}
+        try:
+            reply.update(video_info(url, youtube))
+        except Exception as e:  # never let a request kill the host
+            log.exception("video_info %s failed", req_id)
+            reply["error"] = "Could not read the video page: %s" % e
+        self.channel.send(reply)
+
+    def on_pick_folder(self, msg):
+        req_id = msg.get("id")
+        if not isinstance(req_id, str) or not req_id:
+            log.warning("pick_folder without id: %r", msg)
+            return
+        title = msg.get("title") if isinstance(msg.get("title"), str) else "Choose a folder"
+        start = msg.get("start") if isinstance(msg.get("start"), str) else ""
+        threading.Thread(target=self._pick_folder, args=(req_id, title[:200], start),
+                         name="folder-" + req_id[:16], daemon=True).start()
+
+    def _pick_folder(self, req_id, title, start):
+        reply = {"type": "folder", "id": req_id, "path": None}
+        try:
+            path = pick_folder_dialog(title, start if os.path.isdir(start) else default_dir())
+            if path:
+                reply["path"] = path
+                remember_folder(path)
+        except NoDialog:
+            reply["error"] = "no_dialog"
+        except Exception:
+            log.exception("pick_folder %s failed", req_id)
+            reply["error"] = "no_dialog"
+        log.info("pick_folder %s -> %s", req_id, reply.get("path") or reply.get("error") or "canceled")
+        self.channel.send(reply)
 
     def on_cancel(self, msg):
         with self.lock:
@@ -1127,9 +1443,10 @@ def open_path(path, reveal):
     """Open a finished file, or its folder. Only inside the Downloads folder."""
     if not isinstance(path, str) or not path:
         return False
-    root = os.path.realpath(downloads_folder())
+    roots = [os.path.realpath(r) for r in [downloads_folder()] + chosen_folders()]
     real = os.path.realpath(path)
-    if not real.startswith(root + os.sep) or not os.path.exists(real):
+    inside = any(real == r or real.startswith(r.rstrip(os.sep) + os.sep) for r in roots)
+    if not inside or not os.path.exists(real):
         log.warning("open_file refused: %s", path)
         return False
     try:

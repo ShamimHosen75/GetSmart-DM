@@ -115,9 +115,11 @@ async function getSetup() {
   await chrome.tabs.create({ url: page });
 }
 
-function showSetupRow(status) {
+async function showSetupRow(status) {
   const row = document.getElementById('companion-get-row');
-  row.hidden = status === 'connected';
+  // Installed once (seen on this browser and still registered): never offer the installer again.
+  const { companionSeen } = await chrome.storage.local.get('companionSeen');
+  row.hidden = status === 'connected' || (Boolean(companionSeen) && status !== 'missing');
   document.getElementById('companion-get').textContent = t(isWindows ? 'setupButton' : 'setupButtonOther');
   const hint = document.getElementById('companion-get-hint');
   if (!hint.dataset.saved) hint.textContent = t(isWindows ? 'setupHint' : 'setupHintOther');
