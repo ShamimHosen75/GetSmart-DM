@@ -843,7 +843,7 @@ def check_stream_videos(b, base):
     dash = stream_download(b, base, "/s-dash.html", with_audio("360p"), "SIDM/Video/DASH Test (360p).mp4", ["audio", "video"])
     assert "audio" in dash, dash
     stream_download(b, base, "/s-pieces.html", with_audio("360p"), "SIDM/Video/Pieces Test (360p).mp4", ["audio", "video"])
-    stream_download(b, base, "/s-ts.html", lambda opts: opts[0], "SIDM/Video/TS Test.ts", ["audio", "video"])
+    stream_download(b, base, "/s-ts.html", lambda opts: opts[0] if opts else None, "SIDM/Video/TS Test.ts", ["audio", "video"])
 
     # Encrypted HLS is refused, never downloaded.
     page = b.page()
