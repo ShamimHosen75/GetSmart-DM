@@ -103,6 +103,9 @@ class CompanionEndToEnd(unittest.TestCase):
             locale="en-US",
             **launch_kwargs(cls.pw),
         )
+        # The popup's update check asks the real website; answer it here.
+        cls.ctx.route("https://sidm.online/**", lambda route: route.fulfill(
+            status=200, content_type="application/json", body='{"version": "0.0.0"}'))
         cls.console_errors = []
         cls.sw = cls.ctx.service_workers[0] if cls.ctx.service_workers else \
             cls.ctx.wait_for_event("serviceworker", timeout=15_000)
