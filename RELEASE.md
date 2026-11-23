@@ -64,7 +64,8 @@ On a Mac and on a Linux desktop (a fresh user account if possible):
   git add -A
   git commit -m "chore: release v<version>"
   ```
-- [ ] Merge to `main`, then tag the merge commit and push the tag:
+- [ ] Android: run Actions > android > Run workflow on the release branch with "publish" ticked. It uploads the signed APKs to the GitHub Release `v<version>` (creating the release and its tag if needed) and commits the site links. The APKs never go in `site/` (Cloudflare Pages refuses files of 25 MiB or more; `python scripts/check_site_size.py` checks it).
+- [ ] Merge to `main`, then, if the Android publish run has not already created the tag, tag the merge commit and push the tag:
   ```
   git checkout main && git pull
   git tag -a v<version> -m "SIDM <version>"

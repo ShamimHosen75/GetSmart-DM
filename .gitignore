@@ -53,3 +53,6 @@ companion/ffprobe
 
 # Built by scripts/release.py into the extension ZIP only
 extension/setup/
+
+# Android APKs are too big for the website host; they go in the GitHub Release
+site/downloads/*.apk

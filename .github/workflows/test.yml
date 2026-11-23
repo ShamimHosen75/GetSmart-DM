@@ -47,6 +47,10 @@ jobs:
       - name: Shell scripts (shellcheck companion/*.sh)
         run: shellcheck -s bash -e SC1091 companion/*.sh
 
+      # Cloudflare Pages refuses files of 25 MiB or more (big files go in the GitHub Release).
+      - name: Website file sizes (scripts/check_site_size.py)
+        run: python scripts/check_site_size.py
+
       # Standard-library tests (no browser).
       - name: Release tooling (scripts/test_release.py)
         run: python scripts/test_release.py

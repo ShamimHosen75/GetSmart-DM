@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: "Sign the APKs and add them to site/downloads on this branch"
+        description: "Sign the APKs, put them in the GitHub Release v<version> and link them from the site on this branch"
         type: boolean
         default: false
 
@@ -69,17 +69,24 @@ jobs:
       - name: APK sizes
         run: find app/build/outputs/apk -name '*.apk' -exec ls -la {} \;
 
+      # A convenience copy only (about 370 MB per run). When the account's
+      # artifact storage is full the upload fails; that must not stop the build
+      # or the publish job.
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: sidm-android-apks
           path: mobile/android/app/build/outputs/apk/**/*.apk
-          retention-days: 14
+          retention-days: 3
           compression-level: 0
 
   # Run by hand (Actions > android > Run workflow, "publish" ticked) for a release:
   # builds the APKs signed with the SIDM release key, then scripts/release.py
-  # copies them to site/downloads and writes their size and SHA-256 on the site,
-  # and the result is committed to the branch it ran on.
+  # writes their size, SHA-256 and GitHub Release link on the site, the APKs are
+  # uploaded to the GitHub Release v<version> (created at this commit if it does
+  # not exist yet), and the site changes are committed to the branch it ran on.
+  # The APKs (about 60 MB) never go in site/: the website host (Cloudflare
+  # Pages) refuses files of 25 MiB or more.
   publish:
     if: github.event_name == 'workflow_dispatch' && inputs.publish
     needs: build
@@ -135,13 +142,26 @@ jobs:
       - name: Add them to the website
         run: python scripts/release.py --android-only --apk-dir mobile/android/app/build/outputs/apk/release
 
+      - name: Upload them to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(python -c 'import json; print(json.load(open("site/version.json"))["version"])')"
+          tag="v$version"
+          if ! gh release view "$tag" > /dev/null 2>&1; then
+            gh release create "$tag" --target "$GITHUB_SHA" --title "SIDM $version" \
+              --notes "SIDM $version. Download it from https://sidm.online. The Android APKs are attached here because they are too big for the website host."
+          fi
+          gh release upload "$tag" dist/android/*.apk --clobber
+          gh release view "$tag" --json assets --jq '.assets[].name'
+
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f site/downloads/*.apk
-          git add -A site/downloads site/index.html site/version.json
-          git commit -m "chore: signed Android APKs for the website"
+          python scripts/check_site_size.py
+          git add -A site/downloads site/index.html site/version.json site/_redirects
+          git commit -m "chore: link the signed Android APKs from the GitHub Release"
           git pull --rebase origin "${GITHUB_REF_NAME}"
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
@@ -195,6 +215,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         if: always()
+        continue-on-error: true
         with:
           name: sidm-android-device-test
           path: |
