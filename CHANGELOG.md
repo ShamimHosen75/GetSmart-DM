@@ -8,6 +8,8 @@ Add a new section with `python scripts/bump.py patch|minor|major`, then fill in 
 
 Fixes from the first real Windows test of 0.5.0: no sizes, no folder dialog and no download, with nothing shown.
 
+Later (2026-11-23): the Android APKs moved from the website to the GitHub Release v0.5.1, because the website host (Cloudflare Pages) refuses files of 25 MiB or more. The site's Android buttons and the old `/downloads/` APK addresses point there.
+
 ### Extension
 
 - The video menu shows which desktop program answered ("With the SIDM desktop program 0.5.1"). When the program is older than the extension (no sizes, no folder dialog), the menu says so and offers "Install the new SIDM desktop program".

@@ -50,11 +50,11 @@ The Android app shares the SIDM version: `python scripts/bump.py` sets `sidmVers
 python scripts/release.py --apk-dir mobile/android/app/build/outputs/apk/release
 ```
 
-which copies them to `site/downloads/sidm-v<version>-android.apk` and `-android-32bit.apk`, refuses unsigned APKs, and fills in the size and SHA-256 on the website (`data-release="android-*"` markers).
+which copies them to `dist/android/sidm-v<version>-android.apk` and `-android-32bit.apk`, refuses unsigned APKs, and fills in the size, SHA-256 and download link on the website (`data-release="android-*"` markers). The link is the GitHub Release asset, `https://github.com/ShamimHosen75/GetSmart-DM/releases/download/v<version>/sidm-v<version>-android.apk`, and `site/_redirects` sends `https://sidm.online/downloads/sidm-v<version>-android.apk` (what the in-app updater fetches) there too.
 
-Add `--android-only` to leave the other downloads as they are. GitHub Actions can do all of this: Actions > android > Run workflow, pick the release branch, tick "publish". It builds the signed APKs with the secrets above, runs `release.py --android-only` and commits the APKs and website changes to that branch.
+Each APK is about 60 MB (Python, yt-dlp and ffmpeg are inside), over Cloudflare Pages' 25 MiB file limit, so APKs never go in `site/`; they are attached to the GitHub Release `v<version>`.
 
-Each APK is about 60 MB (Python, yt-dlp and ffmpeg are inside), so check that the website host accepts files that large (Cloudflare Pages, for one, stops at 25 MB per file).
+Add `--android-only` to leave the other downloads as they are. GitHub Actions does all of this: Actions > android > Run workflow, pick the release branch, tick "publish". It builds the signed APKs with the secrets above, runs `release.py --android-only`, uploads the APKs to the GitHub Release `v<version>` (creating the release and tag at that commit if needed) and commits the website changes to that branch.
 
 ## License note
 

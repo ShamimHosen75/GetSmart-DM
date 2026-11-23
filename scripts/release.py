@@ -21,12 +21,18 @@ What it does:
    once a day to show "Update available".
 5. With --apk-dir, copies the signed Android APKs (built by GitHub Actions or
    ./gradlew :app:assembleRelease in mobile/android) to
-   site/downloads/sidm-v<version>-android.apk (64-bit ARM, nearly every phone)
+   dist/android/sidm-v<version>-android.apk (64-bit ARM, nearly every phone)
    and sidm-v<version>-android-32bit.apk (older 32-bit phones). See APK_PLATFORMS.
+   The APKs are about 60 MB, over Cloudflare Pages' 25 MiB file limit, so they
+   are not put in site/: they are uploaded to the GitHub Release v<version>
+   (the android workflow's "publish" run does it) and the website links there
+   (RELEASE_ASSET_URL). site/_redirects is rewritten so the old
+   /downloads/<apk> address, which the Android app's updater uses, redirects too.
 6. Updates the version, size, SHA-256 and download link on site/index.html.
    It only touches elements marked with data-release="..." attributes:
        data-release="version"            text = 1.2.3 (any number of these)
-       data-release="<platform>-zip"     href = downloads/<zip name>
+       data-release="<platform>-zip"     href = downloads/<zip name>, or the
+                                         GitHub Release address for the APKs
        data-release="<platform>-size"    text = e.g. 1.2 MB
        data-release="<platform>-sha256"  text = hex SHA-256
    The marked elements must hold plain text only (no nested tags).
@@ -125,6 +131,14 @@ APK_PLATFORMS = {
     "android-32bit": "armeabi-v7a",
 }
 APK_NAME = "sidm-v{version}-{platform}.apk"
+APK_OUT = os.path.join("dist", "android")  # gitignored; the APKs go to the GitHub Release from here
+RELEASE_ASSET_URL = "https://github.com/ShamimHosen75/GetSmart-DM/releases/download/v{version}/{name}"
+REDIRECTS_HEADER = (
+    "# Cloudflare Pages redirects, written by scripts/release.py.\n"
+    "# The Android APKs (about 60 MB) are over Pages' 25 MiB file limit, so they live\n"
+    "# in the GitHub Release; the old /downloads/ address (used by the Android app's\n"
+    "# updater) redirects there. Every other download is served from site/downloads/.\n"
+)
 ANDROID_GRADLE = os.path.join("mobile", "android", "app", "build.gradle.kts")
 
 
@@ -281,7 +295,7 @@ def human_size(size):
 
 def remove_old_zips(downloads, platform, keep_name):
     removed = []
-    ext = "apk" if platform in APK_PLATFORMS else "exe" if PLATFORMS[platform].get("setup_file") else "zip"
+    ext = "exe" if PLATFORMS[platform].get("setup_file") else "zip"
     for path in glob.glob(os.path.join(downloads, f"sidm-v*-{platform}.{ext}")):
         if os.path.basename(path) != keep_name:
             os.remove(path)
@@ -342,7 +356,7 @@ def update_site_html(path, version, builds):
         warnings.append('no data-release="version" element')
     for platform, info in builds.items():
         for key, setter, value in (
-            (f"{platform}-zip", set_href, f"downloads/{info['name']}"),
+            (f"{platform}-zip", set_href, info.get("url") or f"downloads/{info['name']}"),
             (f"{platform}-size", set_text, info["size_text"]),
             (f"{platform}-sha256", set_text, info["sha256"]),
         ):
@@ -353,6 +367,13 @@ def update_site_html(path, version, builds):
     with open(path, "w", encoding="utf-8", newline="") as f:
         f.write(html)
     return warnings
+
+
+def write_redirects(site, apk_builds):
+    """site/_redirects: /downloads/<apk> -> its GitHub Release address."""
+    lines = [f"/downloads/{info['name']} {info['url']} 302\n" for _, info in sorted(apk_builds.items())]
+    with open(os.path.join(site, "_redirects"), "w", encoding="utf-8", newline="\n") as f:
+        f.write(REDIRECTS_HEADER + "".join(lines))
 
 
 def write_version_json(site, version):
@@ -425,7 +446,10 @@ def release(root, platforms, keep=False, out=print, setup=True, apk_dir=None):
             for old in remove_old_zips(downloads, platform, name):
                 out(f"    removed old {old}")
 
+    apk_builds = {}
     if apk_dir:
+        apk_out = os.path.join(root, APK_OUT)
+        os.makedirs(apk_out, exist_ok=True)
         for platform, abi in APK_PLATFORMS.items():
             source = os.path.join(apk_dir, f"app-{abi}-release.apk")
             if not os.path.isfile(source):
@@ -433,19 +457,23 @@ def release(root, platforms, keep=False, out=print, setup=True, apk_dir=None):
             if not apk_is_signed(source):
                 raise ReleaseError(f"{source} is not signed; sign it with the SIDM release key first")
             name = APK_NAME.format(version=version, platform=platform)
-            path = os.path.join(downloads, name)
+            path = os.path.join(apk_out, name)
             with open(source, "rb") as src, open(path, "wb") as dst:
                 dst.write(src.read())
             size = os.path.getsize(path)
             info = {"name": name, "path": path, "size": size, "size_text": human_size(size),
-                    "sha256": sha256_of(path), "files": 1}
-            builds[platform] = info
-            out(f"  {os.path.relpath(path, root)}")
+                    "sha256": sha256_of(path), "files": 1,
+                    "url": RELEASE_ASSET_URL.format(version=version, name=name)}
+            builds[platform] = apk_builds[platform] = info
+            out(f"  {os.path.relpath(path, root)} (upload to the GitHub Release v{version})")
             out(f"    size:    {size} bytes ({info['size_text']})")
             out(f"    sha256:  {info['sha256']}")
-            if not keep:
-                for old in remove_old_zips(downloads, platform, name):
-                    out(f"    removed old {old}")
+            # APKs never belong in site/ (too big for the website host).
+            for old in glob.glob(os.path.join(downloads, f"sidm-v*-{platform}.apk")):
+                os.remove(old)
+                out(f"    removed {os.path.relpath(old, root)}")
+        write_redirects(site, apk_builds)
+        out("  site/_redirects updated")
 
     write_version_json(site, version)
     out("  site/version.json updated")
@@ -458,6 +486,13 @@ def release(root, platforms, keep=False, out=print, setup=True, apk_dir=None):
             out(f"    warning: {warning}")
     else:
         out("  warning: site/index.html not found, website text not updated")
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from check_site_size import too_big
+    big = too_big(site)
+    if big:
+        raise ReleaseError("files in site/ at or over the 25 MiB website limit: "
+                           + ", ".join(f"{rel} ({size / 1048576:.1f} MiB)" for rel, size in big))
     return version, builds
 
 

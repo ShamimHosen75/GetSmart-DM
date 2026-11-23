@@ -273,8 +273,15 @@ def check_download(strict):
         check = f"download link ({platform})"
         ext = "exe" if platform == "companion-setup" else "apk" if platform.startswith("android") else "zip"
         expected = f"downloads/sidm-v{version}-{platform}.{ext}"
+        if ext == "apk":
+            # Too big for the website host: the APKs live in the GitHub Release.
+            expected = ("https://github.com/ShamimHosen75/GetSmart-DM/releases/download/"
+                        f"v{version}/sidm-v{version}-{platform}.apk")
         if href != expected:
             report("FAIL", check, f"href is '{href}', expected '{expected}' (from #release-version)")
+            continue
+        if ext == "apk":
+            report("PASS", check, f"{href} (GitHub Release)")
             continue
         zip_path = SITE / href
         if zip_path.is_file():

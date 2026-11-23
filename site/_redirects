@@ -1,3 +1,6 @@
-# Cloudflare Pages: release files (APKs are over Pages' 25 MiB file limit)
-# live in the R2 bucket served at dl.sidm.online. See scripts/deploy_site.md.
-/downloads/* https://dl.sidm.online/:splat 302
+# Cloudflare Pages redirects, written by scripts/release.py.
+# The Android APKs (about 60 MB) are over Pages' 25 MiB file limit, so they live
+# in the GitHub Release; the old /downloads/ address (used by the Android app's
+# updater) redirects there. Every other download is served from site/downloads/.
+/downloads/sidm-v0.5.1-android.apk https://github.com/ShamimHosen75/GetSmart-DM/releases/download/v0.5.1/sidm-v0.5.1-android.apk 302
+/downloads/sidm-v0.5.1-android-32bit.apk https://github.com/ShamimHosen75/GetSmart-DM/releases/download/v0.5.1/sidm-v0.5.1-android-32bit.apk 302

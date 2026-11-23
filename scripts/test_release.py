@@ -324,11 +324,32 @@ class BumpTest(RepoCopy):
         self.write("site/index.html", SITE_HTML.replace("</body>", extra + "</body>"))
         _, builds = release.release(self.root, ["extension"], out=self.out.write, apk_dir=self.path("apks"))
         html = self.read("site/index.html")
-        self.assertIn('href="downloads/sidm-v1.2.3-android.apk"', html)
-        self.assertIn('href="downloads/sidm-v1.2.3-android-32bit.apk"', html)
+        base = "https://github.com/ShamimHosen75/GetSmart-DM/releases/download/v1.2.3/"
+        self.assertIn(f'href="{base}sidm-v1.2.3-android.apk"', html)
+        self.assertIn(f'href="{base}sidm-v1.2.3-android-32bit.apk"', html)
         self.assertIn(builds["android"]["sha256"], html)
-        self.assertTrue(os.path.isfile(self.path("site/downloads/sidm-v1.2.3-android.apk")))
+        # The APKs go to dist/android for the GitHub Release, never into site/.
+        self.assertTrue(os.path.isfile(self.path("dist/android/sidm-v1.2.3-android.apk")))
+        self.assertFalse(os.path.exists(self.path("site/downloads/sidm-v1.2.3-android.apk")))
+        redirects = self.read("site/_redirects")
+        self.assertIn(f"/downloads/sidm-v1.2.3-android.apk {base}sidm-v1.2.3-android.apk 302", redirects)
         self.assertNotIn("warning", self.out.getvalue())
+
+    def test_old_apks_in_site_are_removed(self):
+        self._android()
+        self._apk("apks/app-arm64-v8a-release.apk")
+        self._apk("apks/app-armeabi-v7a-release.apk")
+        self.write("site/downloads/sidm-v1.2.2-android.apk", "old")
+        release.main(["--android-only", "--apk-dir", self.path("apks"), "--root", self.root])
+        self.assertEqual(sorted(os.listdir(self.path("site/downloads"))), [])
+
+    def test_refuses_a_file_too_big_for_the_website(self):
+        self.write("site/huge.bin", "")
+        with open(self.path("site/huge.bin"), "wb") as f:
+            f.truncate(25 * 1024 * 1024)  # sparse, so the test stays fast
+        with self.assertRaises(release.ReleaseError) as caught:
+            release.release(self.root, ["companion-windows"], out=self.out.write, setup=False)
+        self.assertIn("huge.bin", str(caught.exception))
 
     def test_android_only_leaves_other_downloads(self):
         self._android()
@@ -336,8 +357,9 @@ class BumpTest(RepoCopy):
         self._apk("apks/app-armeabi-v7a-release.apk")
         code = release.main(["--android-only", "--apk-dir", self.path("apks"), "--root", self.root])
         self.assertEqual(code, 0)
-        files = sorted(os.listdir(self.path("site/downloads")))
-        self.assertEqual(files, ["sidm-v1.2.3-android-32bit.apk", "sidm-v1.2.3-android.apk"])
+        self.assertEqual(sorted(os.listdir(self.path("site/downloads"))), [])
+        self.assertEqual(sorted(os.listdir(self.path("dist/android"))),
+                         ["sidm-v1.2.3-android-32bit.apk", "sidm-v1.2.3-android.apk"])
 
     def test_unsigned_apk_refused(self):
         self._android()
