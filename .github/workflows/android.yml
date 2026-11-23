@@ -69,11 +69,15 @@ jobs:
       - name: APK sizes
         run: find app/build/outputs/apk -name '*.apk' -exec ls -la {} \;
 
+      # A convenience copy only (about 370 MB per run). When the account's
+      # artifact storage is full the upload fails; that must not stop the build
+      # or the publish job.
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: sidm-android-apks
           path: mobile/android/app/build/outputs/apk/**/*.apk
-          retention-days: 14
+          retention-days: 3
           compression-level: 0
 
   # Run by hand (Actions > android > Run workflow, "publish" ticked) for a release:
@@ -211,6 +215,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         if: always()
+        continue-on-error: true
         with:
           name: sidm-android-device-test
           path: |
