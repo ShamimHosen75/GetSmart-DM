@@ -23,5 +23,5 @@ ENV PORT=8080 \
     PIP_USER=1 \
     PATH="/home/sidm/.local/bin:${PATH}"
 EXPOSE 8080
-HEALTHCHECK --interval=60s --timeout=10s CMD python -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/api/health',timeout=8)"
+HEALTHCHECK --interval=60s --timeout=10s CMD python -c "import os,urllib.request;urllib.request.urlopen('http://127.0.0.1:%s/api/health' % os.environ.get('PORT', '8080'), timeout=8)"
 ENTRYPOINT ["./entrypoint.sh"]

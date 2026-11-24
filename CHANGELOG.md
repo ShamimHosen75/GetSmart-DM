@@ -16,9 +16,10 @@ Add a new section with `python scripts/bump.py patch|minor|major`, then fill in 
 
 ### Website
 
+- The Video link (paste-a-link) tab is switched on: the page points at the SIDM Online service on Render's free plan (`render.yaml`, one-click Blueprint). The page wakes the service when it opens and says so when the first link is slow.
 - New **MP4 to MP3** page (`online-downloader.html`, "MP4 to MP3" in the nav, footer and sitemap): converts a video file to MP3 at 128, 192 or 320 kbps right in the browser (Web Audio + lamejs); the file is never uploaded.
 - The same page has a paste-a-link video downloader (MP4 qualities, MP3, original audio; YouTube with the one-time notice; DRM sites refused). It stays hidden until the SIDM Online service runs: set `<meta name="sidm-api">` to its address to show it.
-- New `online/`, SIDM Online: the service that paste-a-link uses (`server.py`, standard-library Python + yt-dlp + ffmpeg + Deno, Docker image, deploy steps in `online/README.md`). Not deployed yet.
+- New `online/`, SIDM Online: the service that paste-a-link uses (`server.py`, standard-library Python + yt-dlp + ffmpeg + Deno, Docker image, deploy steps in `online/README.md`).
 - Privacy policy: the converter keeps files on your device. Terms: lamejs licence.
 
 ### Android

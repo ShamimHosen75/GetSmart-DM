@@ -14,7 +14,25 @@ the page's MP4 to MP3 converter runs in the browser and needs nothing.
 | `Dockerfile`, `entrypoint.sh` | Image with Python, ffmpeg, Deno (yt-dlp needs it for YouTube) and yt-dlp, updated on every start and once a day |
 | `docker-compose.yml`, `Caddyfile` | One-command deploy with automatic HTTPS at `api.sidm.online` |
 
-## Deploy (about 15 minutes)
+## Free hosting on Render (about 10 minutes)
+
+`render.yaml` at the repository root sets everything up on [Render](https://render.com)'s free plan:
+
+1. Open https://render.com/deploy?repo=https://github.com/ShamimHosen75/GetSmart-DM and sign in
+   with GitHub (no card needed for the free plan).
+2. Press **Deploy Blueprint**. Render builds the Docker image in `online/` (about 5 minutes).
+3. Open the service's address, for example `https://sidm-online.onrender.com/api/health`; it shows
+   `{"ok": true, ...}`.
+4. Put that address (without `/api/health`) in `<meta name="sidm-api">` in
+   `site/online-downloader.html`. The Video link tab appears once it is deployed.
+
+Free plan limits: it sleeps after 15 minutes with no visitors and takes up to a minute to wake
+(the page wakes it when it opens and tells the visitor), 512 MB of memory (two downloads at once,
+files up to 1 GB, videos up to 2 hours) and a monthly traffic allowance. Move to a paid plan or the
+VPS below when it gets busy. Optional: add `api.sidm.online` as a custom domain in Render and a
+CNAME record in Cloudflare DNS, then use that address in the meta tag instead.
+
+## Deploy on your own server (about 15 minutes)
 
 It needs a machine that runs Docker all the time. A small VPS is enough to start
 (2 vCPU, 2 to 4 GB RAM, 40 GB disk; for example Hetzner CX22, DigitalOcean, Vultr or Linode,

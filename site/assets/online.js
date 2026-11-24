@@ -159,9 +159,17 @@ function tabFromHash() {
   selectTab(location.hash === '#mp3' ? $('tab-mp3') : $('tab-link'));
 }
 if (API) {
-  $('mp3').hidden = false;
   tabFromHash();
   window.addEventListener('hashchange', tabFromHash);
+  // The free host sleeps when idle: wake it now so the first link is quicker.
+  fetch(`${API}/api/health`).catch(() => {});
+} else {
+  $('mp3').hidden = true;
+  $('panel-link').hidden = true;
+  $('panel-mp3').hidden = false;
+  document.title = 'Free MP4 to MP3 Converter, Private and Online | SIDM';
+  $('od-title').querySelector('.od-gradient').textContent = 'Free Online MP4\u00a0to\u00a0MP3 Converter';
+  document.querySelector('.od-lede').textContent = 'Turn any video file into an MP3 in seconds. Nothing to install, no sign-up, and your file never leaves your device.';
 }
 
 // ---------- Paste a link ----------
@@ -257,6 +265,9 @@ linkForm.addEventListener('submit', async (e) => {
   }
   setBusy(linkGo, true, 'Getting links…');
   setStatus(linkStatus, 'Looking at the link. This takes a few seconds…');
+  const slow = setTimeout(() => {
+    setStatus(linkStatus, 'Still working. If the downloader was asleep, it takes up to a minute to wake up…');
+  }, 8000);
   try {
     const info = await api('/api/info', { method: 'POST', body: JSON.stringify({ url: url.href }) });
     setStatus(linkStatus, '');
@@ -264,6 +275,7 @@ linkForm.addEventListener('submit', async (e) => {
   } catch (err) {
     setStatus(linkStatus, err.offline ? directFallback(url, err.message) : err.message, true);
   } finally {
+    clearTimeout(slow);
     setBusy(linkGo, false, 'Get Download Links');
   }
 });
