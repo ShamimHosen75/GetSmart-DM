@@ -6,15 +6,24 @@ Add a new section with `python scripts/bump.py patch|minor|major`, then fill in 
 
 ## [Unreleased]
 
+### Extension
+
+- No changes.
+
+### Companion
+
+- No changes.
+
 ### Website
 
 - New **Online Downloader** page (`online-downloader.html`), in the nav, footer and sitemap: paste a video link (or share text) and get MP4 qualities, MP3 and the original audio, from YouTube (with the one-time notice), TikTok, Facebook, Instagram, X, Vimeo, Reddit and the other sites yt-dlp supports, plus direct video links. DRM sites are refused.
 - **MP4 to MP3** converter on the same page, done in the browser (Web Audio + lamejs); the file is never uploaded.
 - Privacy policy: what the online downloader's server sees and how long it keeps it. Terms: lamejs licence.
+- New `online/`, SIDM Online: the service the online downloader page uses (`server.py`, standard-library Python + yt-dlp + ffmpeg + Deno, Docker image). Files are deleted 30 minutes after they are ready; per-IP limits; refuses DRM sites and private network addresses.
 
-### Online service
+### Android
 
-- New `online/`: the SIDM Online service the page uses (`server.py`, standard-library Python + yt-dlp + ffmpeg + Deno, Docker image). Files are deleted 30 minutes after they are ready; per-IP limits; refuses DRM sites and private network addresses.
+- No changes.
 
 
 ## [0.5.1] - 2026-11-19
