@@ -1,0 +1,27 @@
+# One-command deploy on a small server (VPS) with Docker:
+#   1. Point api.sidm.online (DNS "A" record, grey cloud / DNS only) at the server's IP.
+#   2. Copy this folder to the server and run:  docker compose up -d --build
+# Caddy gets the HTTPS certificate by itself and passes requests to the service.
+services:
+  sidm-online:
+    build: .
+    restart: unless-stopped
+    environment:
+      SIDM_ORIGINS: "https://sidm.online,https://www.sidm.online,https://*.sidm.pages.dev"
+    tmpfs:
+      - /tmp:size=8g
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - sidm-online
+
+volumes:
+  caddy-data:
