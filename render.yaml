@@ -1,0 +1,26 @@
+# Render Blueprint for SIDM Online, the service behind the website's online
+# downloader. One click: https://render.com/deploy?repo=https://github.com/ShamimHosen75/GetSmart-DM
+# The free plan sleeps after 15 minutes without visitors; the first link after
+# that takes up to a minute while it wakes. See online/README.md.
+services:
+  - type: web
+    name: sidm-online
+    runtime: docker
+    plan: free
+    dockerfilePath: ./online/Dockerfile
+    dockerContext: ./online
+    healthCheckPath: /api/health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - online/**
+    envVars:
+      - key: SIDM_ORIGINS
+        value: https://sidm.online,https://www.sidm.online,https://*.sidm.pages.dev
+      # The free plan has 512 MB of memory and a small temporary disk.
+      - key: SIDM_MAX_JOBS
+        value: "2"
+      - key: SIDM_MAX_FILESIZE
+        value: "1073741824"
+      - key: SIDM_MAX_DURATION
+        value: "7200"
