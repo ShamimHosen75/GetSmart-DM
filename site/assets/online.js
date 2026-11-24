@@ -153,11 +153,16 @@ for (const tab of tabs) {
   });
 }
 
+// Without the service (no sidm-api address) the page is the MP4 to MP3 converter
+// alone; the paste-a-link tab appears once the service is set up.
 function tabFromHash() {
-  if (location.hash === '#mp3') selectTab($('tab-mp3'));
+  selectTab(location.hash === '#mp3' ? $('tab-mp3') : $('tab-link'));
 }
-tabFromHash();
-window.addEventListener('hashchange', tabFromHash);
+if (API) {
+  $('mp3').hidden = false;
+  tabFromHash();
+  window.addEventListener('hashchange', tabFromHash);
+}
 
 // ---------- Paste a link ----------
 

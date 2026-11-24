@@ -16,10 +16,10 @@ Add a new section with `python scripts/bump.py patch|minor|major`, then fill in 
 
 ### Website
 
-- New **Online Downloader** page (`online-downloader.html`), in the nav, footer and sitemap: paste a video link (or share text) and get MP4 qualities, MP3 and the original audio, from YouTube (with the one-time notice), TikTok, Facebook, Instagram, X, Vimeo, Reddit and the other sites yt-dlp supports, plus direct video links. DRM sites are refused.
-- **MP4 to MP3** converter on the same page, done in the browser (Web Audio + lamejs); the file is never uploaded.
-- Privacy policy: what the online downloader's server sees and how long it keeps it. Terms: lamejs licence.
-- New `online/`, SIDM Online: the service the online downloader page uses (`server.py`, standard-library Python + yt-dlp + ffmpeg + Deno, Docker image). Files are deleted 30 minutes after they are ready; per-IP limits; refuses DRM sites and private network addresses.
+- New **MP4 to MP3** page (`online-downloader.html`, "MP4 to MP3" in the nav, footer and sitemap): converts a video file to MP3 at 128, 192 or 320 kbps right in the browser (Web Audio + lamejs); the file is never uploaded.
+- The same page has a paste-a-link video downloader (MP4 qualities, MP3, original audio; YouTube with the one-time notice; DRM sites refused). It stays hidden until the SIDM Online service runs: set `<meta name="sidm-api">` to its address to show it.
+- New `online/`, SIDM Online: the service that paste-a-link uses (`server.py`, standard-library Python + yt-dlp + ffmpeg + Deno, Docker image, deploy steps in `online/README.md`). Not deployed yet.
+- Privacy policy: the converter keeps files on your device. Terms: lamejs licence.
 
 ### Android
 

@@ -78,6 +78,11 @@
   border: 1px solid var(--border);
 }
 
+.od-tabs[hidden],
+.od-panel[hidden] {
+  display: none;
+}
+
 .od-tab {
   display: inline-flex;
   align-items: center;
@@ -765,6 +770,14 @@
 
   .od-opt-btn {
     grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .od-mp3-file {
+    flex-basis: 100%;
+  }
+
+  .od-mp3-done .btn {
     width: 100%;
   }
 }

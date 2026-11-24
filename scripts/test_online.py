@@ -10,7 +10,8 @@
        - "720p" downloads an MP4 that is really 1280x720 with sound,
        - "Audio only" downloads a real MP3,
        - a Netflix link is refused on the page,
-       - the MP4 to MP3 tab converts a local MP4 in the browser.
+       - the MP4 to MP3 tab converts a local MP4 in the browser,
+       - with no service address in the page, only MP4 to MP3 shows.
 
 Needs: yt-dlp (pip install yt-dlp), ffmpeg, ffprobe, playwright + Chromium.
 
@@ -155,7 +156,14 @@ def end_to_end(tmp):
             page = ctx.new_page()
             errors = []
             page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto("http://localhost:%d/online-downloader.html" % site_port)
+            if page.get_attribute('meta[name="sidm-api"]', "content"):
+                check(page.is_visible("#tab-link"), "with the service address set, the paste-a-link tab shows")
+            else:
+                check(not page.is_visible("#link-input") and not page.is_visible("#tab-link") and page.is_visible("#mp3-drop"),
+                      "without the service address, only MP4 to MP3 shows")
             page.goto("http://localhost:%d/online-downloader.html?api=http://127.0.0.1:%d" % (site_port, api_port))
+            check(page.is_visible("#link-input"), "with ?api= the paste-a-link tab shows")
 
             page.fill("#link-input", "Watch this! http://127.0.0.1:%d/hls/master.m3u8" % media_port)
             page.click("#link-go")
