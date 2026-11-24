@@ -1,0 +1,6 @@
+api.sidm.online {
+	encode gzip
+	reverse_proxy sidm-online:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
+}

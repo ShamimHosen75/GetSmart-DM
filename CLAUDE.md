@@ -18,6 +18,7 @@ Permanent rules for anyone (human or AI) working in this repo. Read this first, 
 | `extension/` | Chrome extension, Manifest V3, plain JavaScript ES modules, no build step |
 | `companion/` | Companion app: Python native-messaging host that runs yt-dlp + ffmpeg. One `host.py` for all systems; `*.bat` installers for Windows, `*.sh` for macOS/Linux |
 | `site/` | Static download website (HTML/CSS, no framework) |
+| `online/` | SIDM Online: the small yt-dlp service behind the website's online downloader page (Python stdlib, Docker) |
 | `scripts/` | Packaging and release scripts |
 | `shared/` | Contracts shared by extension and companion; `shared/protocol.md` is the protocol spec |
 | `mobile/android/` | SIDM for Android (Kotlin, Jetpack Compose): `core/` plain-Kotlin engine with JVM tests, `app/` the app. Built and tested by `.github/workflows/android.yml` |

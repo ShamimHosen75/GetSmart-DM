@@ -26,3 +26,20 @@
 - [ ] Lighthouse (DevTools) on each page: Accessibility 95 or more.
 - [ ] Contact email placeholder replaced before launch.
 - [ ] After deploying to Vercel: `/privacy` and `/terms` work without `.html`.
+
+## MP4 to MP3 and online downloader (`online-downloader.html`)
+
+While `<meta name="sidm-api">` is empty, the page shows only MP4 to MP3 and the paste-a-link checks below wait until the SIDM Online service runs.
+
+Automated: `python scripts/test_online.py` (local test videos, the real service, Chromium).
+
+- [ ] "MP4 to MP3" is in the nav (highlighted on its own page), the phone menu and the footer on every page.
+- [ ] Paste button: reads the clipboard (Chrome asks once) and starts; in Firefox it asks you to press Ctrl+V.
+- [ ] Real links on the live site, each giving the right title, thumbnail and choices and a file that plays: YouTube (one-time notice first), YouTube Short, TikTok, Facebook reel, Instagram reel, X post, Vimeo, Reddit, Dailymotion, a direct `.mp4` link.
+- [ ] Share text with a link inside (for example from the TikTok app) works.
+- [ ] MP3 choice gives an MP3 that plays; 1080p gives a 1080p MP4 with sound.
+- [ ] Netflix, Spotify or Disney+ links are refused with the DRM message; a private video shows the login message.
+- [ ] Two downloads at once work; a third asks you to wait.
+- [ ] With the service stopped, the page says it is not reachable and, for a direct file link, offers to open the file.
+- [ ] MP4 to MP3: choose and drop a file (MP4 from a phone, MOV, WebM); 128/192/320 kbps all play; a file without sound shows a clear message; nothing is uploaded (DevTools Network).
+- [ ] Light and dark, 1280 px and 390 px: no sideways scroll, result card and buttons readable.

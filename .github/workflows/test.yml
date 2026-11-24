@@ -71,6 +71,9 @@ jobs:
         if: hashFiles('scripts/test_companion.py') != ''
         run: xvfb-run -a python scripts/test_companion.py
 
+      - name: Online downloader (scripts/test_online.py)
+        run: xvfb-run -a python scripts/test_online.py
+
       - name: Website (scripts/test_site.py)
         if: hashFiles('scripts/test_site.py') != ''
         run: xvfb-run -a python scripts/test_site.py

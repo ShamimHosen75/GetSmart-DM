@@ -271,6 +271,7 @@ kbd {
   text-decoration: none;
   font-size: 14.5px;
   font-weight: 600;
+  white-space: nowrap;
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
@@ -1653,7 +1654,17 @@ section {
   font-weight: 600;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1320px) {
+  .nav-free {
+    display: none;
+  }
+
+  .nav-links a {
+    padding: 7px 10px;
+  }
+}
+
+@media (max-width: 1180px) {
   .nav-main {
     display: none;
   }
@@ -1827,4 +1838,10 @@ section {
   .footer-about {
     grid-column: 1 / -1;
   }
+}
+
+.nav-links a[aria-current='page'],
+.nav-menu-panel a[aria-current='page'] {
+  color: var(--accent);
+  background: var(--surface);
 }

@@ -4,6 +4,28 @@ All notable changes to SIDM. Newest version first. Each version has **Extension*
 
 Add a new section with `python scripts/bump.py patch|minor|major`, then fill in the bullets before running `scripts/release.py`. See `RELEASE.md`.
 
+## [Unreleased]
+
+### Extension
+
+- No changes.
+
+### Companion
+
+- No changes.
+
+### Website
+
+- New **MP4 to MP3** page (`online-downloader.html`, "MP4 to MP3" in the nav, footer and sitemap): converts a video file to MP3 at 128, 192 or 320 kbps right in the browser (Web Audio + lamejs); the file is never uploaded.
+- The same page has a paste-a-link video downloader (MP4 qualities, MP3, original audio; YouTube with the one-time notice; DRM sites refused). It stays hidden until the SIDM Online service runs: set `<meta name="sidm-api">` to its address to show it.
+- New `online/`, SIDM Online: the service that paste-a-link uses (`server.py`, standard-library Python + yt-dlp + ffmpeg + Deno, Docker image, deploy steps in `online/README.md`). Not deployed yet.
+- Privacy policy: the converter keeps files on your device. Terms: lamejs licence.
+
+### Android
+
+- No changes.
+
+
 ## [0.5.1] - 2026-11-19
 
 Fixes from the first real Windows test of 0.5.0: no sizes, no folder dialog and no download, with nothing shown.
