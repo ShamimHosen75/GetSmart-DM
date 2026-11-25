@@ -207,7 +207,13 @@ export async function streamOptions(msg, sender) {
   const stored = (await chrome.storage.session.get(pageKey(tabId)))[pageKey(tabId)] || {};
   const raw = msg.page || stored;
   const keep = (list) => (Array.isArray(list) ? list : []).filter((p) => p && (p.text || (p.url && /^https?:/i.test(p.url) && !blocked(p.url, settings))));
-  const page = { matched: keep(raw.matched), other: keep(raw.other) };
+  const page = {
+    matched: keep(raw.matched),
+    other: keep(raw.other),
+    // The clicked video's length and whether it is alone on screen: they keep other videos out.
+    duration: Number(raw.duration) > 0 && Number.isFinite(Number(raw.duration)) ? Number(raw.duration) : 0,
+    single: raw.single !== false,
+  };
   if (!streams.length && !page.matched.length && !page.other.length) return { options: [], refused: '' };
   const reply = await toOffscreen({ type: 'streamResolve', streams, page });
   const options = (reply?.options || []).map((o) => ({ ...o, id: randomId() }));

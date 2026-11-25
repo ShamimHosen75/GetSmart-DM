@@ -90,6 +90,17 @@ fetch("/f/part.mp4?size=300000&mime=video/mp4", {headers: {Range: "bytes=0-99"}}
   v.style.cssText = 'width:480px;height:270px;display:block;background:#123';
   root.append(v);
 }, 1200);</script></body></html>""",
+    # A watch page (its own address is a post link) with another video's preview in the sidebar.
+    "/watch": """<!doctype html><html><head><title>Watch</title></head><body style="margin:0">
+<video style="width:480px;height:270px;display:block;background:#000"></video>
+<p><a href="/watch?v=AAA&t=5">0:05</a></p>
+<aside style="margin:20px"><a href="/watch?v=BBB"><div id="player"></div></a> <a href="/watch?v=CCC">Next</a></aside>
+<script>setTimeout(() => {
+  const root = document.getElementById('player').attachShadow({mode: 'open'});
+  const v = document.createElement('video');
+  v.style.cssText = 'width:480px;height:270px;display:block;background:#123';
+  root.append(v);
+}, 1200);</script></body></html>""",
     "/empty.html": """<!doctype html><html><head><title>Nothing</title></head><body>No links.</body></html>""",
 }
 
@@ -111,6 +122,8 @@ PAGES.update({
     "/s-dash.html": STREAM_PAGE % ("DASH Test", "fetch('/sv/dash.mpd');"),
     "/s-pieces.html": STREAM_PAGE % ("Pieces Test",
         "fetch('/sv/v.mp4?bytestart=0&byteend=9999'); fetch('/sv/a.mp4?bytestart=0&byteend=9999');"),
+    # A feed: the tab played this 6 s video, then preloaded the next one (8 s).
+    "/s-feed.html": STREAM_PAGE % ("Feed Test", "fetch('/sv/v360.m3u8').then(() => setTimeout(() => fetch('/sv/o8.m3u8'), 300));"),
     "/s-enc.html": STREAM_PAGE % ("Encrypted Test", "fetch('/sv/enc.m3u8');"),
     # LinkedIn-style (M16): the player shows a blob: URL; every quality is in the page's API reply.
     "/s-linkedin.html": STREAM_PAGE % ("LinkedIn Test",
@@ -144,6 +157,10 @@ def make_stream_fixtures():
         ff("-i", src, *hls, "-hls_segment_type", "fmp4", "-hls_fmp4_init_filename", name + "-init.mp4",
            "-hls_segment_filename", name + "-%d.m4s", name + ".m3u8")
     ff("-i", "v.mp4", "-i", "a.mp4", "-map", "0", "-map", "1", *hls, "-hls_segment_filename", "ts-%d.ts", "ts.m3u8")
+    # Another video in the same feed, 8 s long: the one that must not be saved for a 6 s video.
+    ff("-f", "lavfi", "-i", "testsrc=duration=8:size=640x360:rate=25", "-c:v", "libx264", "-g", "25", "-pix_fmt", "yuv420p", *frag, "o8.mp4")
+    ff("-i", "o8.mp4", *hls, "-hls_segment_type", "fmp4", "-hls_fmp4_init_filename", "o8-init.mp4",
+       "-hls_segment_filename", "o8-%d.m4s", "o8.m3u8")
     ff("-i", "v.mp4", "-i", "a.mp4", "-map", "0", "-map", "1", "-c", "copy", "-f", "dash", "-seg_duration", "2",
        "-use_template", "1", "-use_timeline", "1", "dash.mpd")
     # Plain MP4 files with sound (M16): fast start (header first), and one with the header at the end.
@@ -843,6 +860,37 @@ def stream_download(b, base, page_path, pick, expect_name, expect_streams):
     return labels
 
 
+def media_seconds(path):
+    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path],
+                         capture_output=True, text=True, check=True).stdout.strip()
+    return float(out or 0)
+
+
+def check_feed_picks_clicked_video(b, base):
+    """A feed tab played the clicked 6 s video, then preloaded an 8 s one: only the 6 s one is offered."""
+    page = b.page()
+    page.goto(base + "/s-feed.html")
+    tab = tab_id_for(b, base + "/s-feed.html")
+    wait_for(lambda: len(b.call("(k) => chrome.storage.session.get(k).then((r) => r[k] || [])", "streams:%d" % tab) or []) >= 2,
+             what="both feed streams seen")
+    clicked = {"matched": [], "other": [], "duration": 6.0, "single": True}
+    reply = b.message({"type": "streamOptions", "tabId": tab, "page": clicked})
+    mine = [o for o in reply.get("options") or [] if not o.get("other")]
+    assert len(mine) == 1, "only the clicked video's stream may be offered, got %r (%r)" % (reply, b.message({"type": "streamDebug", "tabId": tab}))
+    added = b.message({"type": "addStream", "optionId": mine[0]["id"], "tabId": tab, "title": "Feed Test"})
+    assert added.get("id"), added
+    rel = wait_for(lambda: next((f for f in files_on_disk(b.downloads) if f.startswith("SIDM/Video/Feed Test")), None), timeout=60,
+                   what="feed video on disk (have %r)" % files_on_disk(b.downloads))
+    if shutil.which("ffprobe"):
+        seconds = media_seconds(os.path.join(b.downloads, rel))
+        assert abs(seconds - 6) < 1, "saved the wrong video: %s is %.1f s long, the clicked one is 6 s (%r %r)" % (
+            rel, seconds, reply, b.message({"type": "streamDebug", "tabId": tab}))
+    # Two videos on screen and no length known: what the tab played may be either, so it is listed as "other".
+    unsure = b.message({"type": "streamOptions", "tabId": tab, "page": {"matched": [], "other": [], "duration": 0, "single": False}})
+    assert unsure.get("options") and all(o.get("other") for o in unsure["options"]), unsure
+    page.close()
+
+
 def check_stream_videos(b, base):
     if not STREAM_DIR:
         return "skipped: ffmpeg not installed"
@@ -854,6 +902,7 @@ def check_stream_videos(b, base):
     assert "audio" in dash, dash
     stream_download(b, base, "/s-pieces.html", with_audio("360p"), "SIDM/Video/Pieces Test (360p).mp4", ["audio", "video"])
     stream_download(b, base, "/s-ts.html", lambda opts: opts[0] if opts else None, "SIDM/Video/TS Test.ts", ["audio", "video"])
+    check_feed_picks_clicked_video(b, base)
 
     # Encrypted HLS is refused, never downloaded.
     page = b.page()
@@ -1008,8 +1057,19 @@ def check_companion_files(b, base):
                     what="video job from the button")
     assert jobs[0]["url"] == base + "/u/status/12345" and jobs[0]["quality"] == "best", jobs[0]
     page.close()
+    # On a watch page, a preview in the sidebar is that video, not the page's own one.
+    b.call("() => chrome.storage.session.set({videoJobs: {}})")
+    page = b.page()
+    page.set_viewport_size({"width": 900, "height": 800})
+    page.goto(base + "/watch?v=AAA")
+    open_video_menu(page)
+    page.keyboard.press("Enter")
+    jobs = wait_for(lambda: b.call("async () => Object.values((await chrome.storage.session.get('videoJobs')).videoJobs || {})"),
+                    what="video job from the sidebar preview")
+    assert jobs[0]["url"] == base + "/watch?v=BBB", "downloaded %s instead of the hovered preview" % jobs[0]["url"]
+    page.close()
     reset(b)
-    return "video button: Best quality for the post address; 8 MB over several connections into SIDM/Archives, parts shown, pause/resume, popup row; 500 KB/s limit; no-range file went to the browser; video saved into the folder picked in the dialog, job state for the menu, cancel, sizes"
+    return "video button: Best quality for the post address, the hovered preview on a watch page; 8 MB over several connections into SIDM/Archives, parts shown, pause/resume, popup row; 500 KB/s limit; no-range file went to the browser; video saved into the folder picked in the dialog, job state for the menu, cancel, sizes"
 
 
 CHECKS = [
