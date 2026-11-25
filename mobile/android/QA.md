@@ -30,6 +30,16 @@ For each site, use a public post with a video. Share it to SIDM from the site's 
 - [ ] A private or friends-only post you can see: SIDM says to sign in; **Browser** opens it; after signing in there and tapping **Download**, it works.
 - [ ] A Netflix or Spotify link: refused with the DRM message, nothing is downloaded.
 
+## The right video (0.5.2)
+
+- [ ] SIDM browser, Instagram or Facebook feed: scroll to the third video, let it play, tap **Download**: the first row is "The video on your screen", and the quality list shows that video's title and picture, and the saved file is that video (not the first or the next one).
+- [ ] Same on TikTok (For You), X (home), and YouTube's home page with a playing preview: the downloaded video is the one on screen, not the page or a neighbouring video.
+- [ ] YouTube watch page: **Download** gives the video being watched, not a related one.
+- [ ] Open a reel page, go back to the feed, tap **Download**: no file from the reel page is listed.
+- [ ] Share video A to SIDM, then right away share video B: the quality list shows B, and only B is added.
+- [ ] Share a video, download it, close SIDM, then open SIDM from Recents (also after **Settings > Developer options > Don't keep activities**): nothing is analyzed or downloaded again.
+- [ ] An Instagram post with several videos: the saved file is the video the quality list showed.
+
 ## Files
 
 - [ ] Paste a direct link to a big file (for example a 100 MB+ test file): SIDM asks "Download this file?" with its name and size.

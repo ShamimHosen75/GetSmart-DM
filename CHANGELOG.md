@@ -31,7 +31,12 @@ One version for the extension, the Windows program and the Android app, with the
 
 ### Android
 
-- (filled in by the Android thread)
+- Downloads exactly the video that was chosen, never an earlier or a preloaded one (owner's report 2026-11-25):
+  - In SIDM's browser, **Download** asks the page which video is on your screen (the playing one, or the most visible) and downloads that video's own post, reel or watch link. Before, on feeds (Facebook, Instagram, TikTok, X, YouTube's home page) it used the page address or listed the newest file the page had preloaded, which was often the next video. The list's first row is now "The video on your screen".
+  - Video files a previous page was still loading are no longer listed on the next page.
+  - Sharing two links quickly: the second one always wins. Before, a slower look at the first link could replace it (and with "Always download the best quality" on, add the first video).
+  - Opening SIDM from Recents, or after Android restarted it, no longer runs an old share again.
+  - A post with several videos downloads the same video the quality list showed.
 
 
 ## [0.5.1] - 2026-11-19
