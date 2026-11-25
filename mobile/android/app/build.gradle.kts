@@ -8,8 +8,8 @@ plugins {
 
 // The SIDM version is shared with the extension and the companion:
 // scripts/bump.py writes it here (versionName) and bumps versionCode.
-val sidmVersionName = "0.5.1"
-val sidmVersionCode = 3
+val sidmVersionName = "0.5.2"
+val sidmVersionCode = 4
 
 // Release signing: keystore path and passwords come from environment variables
 // (GitHub Actions secrets) or mobile/android/keystore.properties (never committed).
