@@ -24,6 +24,9 @@
     <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
     <link rel="apple-touch-icon" href="assets/icon-128.png">
     <link rel="stylesheet" href="assets/site.css">
+    <link rel="stylesheet" href="assets/home.css">
+    <script>document.documentElement.classList.add("js")</script>
+    <script src="assets/home.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -71,37 +74,99 @@
     <main id="main">
       <!-- Hero -->
       <section class="hero" id="download" aria-labelledby="hero-title">
-        <div class="wrap">
-          <p class="eyebrow"><span class="dot" aria-hidden="true"></span>SIDM - Smart Internet Download Manager</p>
-          <h1 id="hero-title">Download Smarter. Faster. <span class="accent">Better.</span></h1>
-          <p class="lede">One free download manager for your browser, your Windows PC and your Android phone. Save videos from the sites you use, speed up big files and keep every download in order. No account. No tracking.</p>
+        <div class="hero-bg" aria-hidden="true">
+          <span class="orb orb-1"></span>
+          <span class="orb orb-2"></span>
+          <span class="orb orb-3"></span>
+          <span class="drop d1"></span><span class="drop d2"></span><span class="drop d3"></span><span class="drop d4"></span><span class="drop d5"></span><span class="drop d6"></span>
+        </div>
+        <div class="wrap hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow"><span class="dot" aria-hidden="true"></span>SIDM - Smart Internet Download Manager</p>
+            <h1 id="hero-title">Download Smarter. Faster. <span class="accent">Better.</span></h1>
+            <p class="lede">One free download manager for your browser, your Windows PC and your Android phone. Save videos from the sites you use, speed up big files and keep every download in order. No account. No tracking.</p>
 
-          <!--
-            Release block, rewritten by scripts/release.py (Step 4) via data-release attributes:
-              data-release="extension-zip"   href -> downloads/sidm-v<version>-extension.zip (the main download)
-              data-release="version"         text -> <version> (may appear several times)
-              data-release="extension-size"    text -> e.g. "1.2 MB"
-              data-release="extension-sha256"  text -> hex SHA-256 of the ZIP
-              The optional companion downloads use companion-setup-*, companion-windows-* and companion-macos-linux-*.
-            The Mac/Linux ZIP uses the same keys with "macos-linux-" (in the FAQ).
-            Keep these attributes (and plain-text contents) when editing this block.
-          -->
-          <div class="hero-actions">
-            <a class="btn btn-primary btn-big" id="download-link" data-release="extension-zip" href="downloads/sidm-v0.5.2-extension.zip" download>
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
-              Download for your computer
-            </a>
-            <a class="btn btn-ghost btn-big" href="#android">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>
-              Get it for Android
-            </a>
+            <!--
+              Release block, rewritten by scripts/release.py (Step 4) via data-release attributes:
+                data-release="extension-zip"   href -> downloads/sidm-v<version>-extension.zip (the main download)
+                data-release="version"         text -> <version> (may appear several times)
+                data-release="extension-size"    text -> e.g. "1.2 MB"
+                data-release="extension-sha256"  text -> hex SHA-256 of the ZIP
+                The optional companion downloads use companion-setup-*, companion-windows-* and companion-macos-linux-*.
+              The Mac/Linux ZIP uses the same keys with "macos-linux-" (in the FAQ).
+              Keep these attributes (and plain-text contents) when editing this block.
+            -->
+            <div class="hero-actions">
+              <a class="btn btn-primary btn-big btn-shine" id="download-link" data-release="extension-zip" href="downloads/sidm-v0.5.2-extension.zip" download>
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+                Download for your computer
+              </a>
+              <a class="btn btn-ghost btn-big" href="#android">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>
+                Get it for Android
+              </a>
+            </div>
+            <p class="release-meta">
+              <span>Version <span id="release-version" data-release="version">0.5.2</span></span>
+              <span>ZIP, <span id="release-size" data-release="extension-size">271 KB</span></span>
+              <span>Chrome, Edge and Brave</span>
+            </p>
+            <p class="release-hash">SHA-256: <code data-release="extension-sha256">e61ef2f49b0f48dfffbd0aa190810d58adb7bc231c950e7f7ad38262ccd7043b</code></p>
+            <p class="hero-how"><a href="#how"><span class="play-dot" aria-hidden="true"></span>See how it works in 4 steps</a></p>
           </div>
-          <p class="release-meta">
-            <span>Version <span id="release-version" data-release="version">0.5.2</span></span>
-            <span>ZIP, <span id="release-size" data-release="extension-size">271 KB</span></span>
-            <span>Chrome, Edge and Brave</span>
-          </p>
-          <p class="release-hash">SHA-256: <code data-release="extension-sha256">e61ef2f49b0f48dfffbd0aa190810d58adb7bc231c950e7f7ad38262ccd7043b</code></p>
+
+          <!-- Looping demo: a video page, the SIDM button, the quality menu, then "Saved". Decorative. -->
+          <div class="hero-visual" aria-hidden="true">
+            <div class="hv-window">
+              <div class="hv-bar"><i></i><i></i><i></i><span class="hv-url">video page</span></div>
+              <div class="hv-body">
+                <div class="hv-video">
+                  <span class="hv-sun"></span><span class="hv-hill h1"></span><span class="hv-hill h2"></span>
+                  <span class="hv-play"></span>
+                  <span class="hv-track"><span></span></span>
+                  <span class="hv-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download</span>
+                  <span class="hv-menu">
+                    <span class="on">Best · 1080p <em>98 MB</em></span>
+                    <span>720p <em>52 MB</em></span>
+                    <span>Audio · MP3 <em>4 MB</em></span>
+                  </span>
+                  <span class="hv-cursor"></span>
+                </div>
+                <div class="hv-lines"><span></span><span></span><span></span></div>
+              </div>
+            </div>
+            <div class="hv-toast">
+              <span class="hv-file"></span>
+              <span class="hv-toast-text"><b>video-1080p.mp4</b><span class="hv-prog"><span></span></span><small class="hv-state"><span class="s1">Downloading…</span><span class="s2">Saved to Downloads\SIDM</span></small></span>
+            </div>
+            <span class="hv-chip c1">16 connections</span>
+            <span class="hv-chip c2">No account</span>
+            <span class="hv-chip c3">12.4 MB/s</span>
+          </div>
+        </div>
+
+        <div class="marquee">
+          <p class="marquee-title">Works with</p>
+          <div class="marquee-track">
+            <ul>
+              <li>Facebook</li><li>Instagram</li><li>TikTok</li><li>X (Twitter)</li><li>LinkedIn</li><li>Reddit</li><li>Vimeo</li><li>Dailymotion</li><li>YouTube</li><li>1,000+ more sites</li>
+            </ul>
+            <ul aria-hidden="true">
+              <li>Facebook</li><li>Instagram</li><li>TikTok</li><li>X (Twitter)</li><li>LinkedIn</li><li>Reddit</li><li>Vimeo</li><li>Dailymotion</li><li>YouTube</li><li>1,000+ more sites</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Numbers -->
+      <section class="stats" aria-label="SIDM in numbers">
+        <div class="wrap">
+          <ul class="stat-list">
+            <li><span class="stat-num" data-count="3">3</span><span class="stat-label">Platforms: browser, Windows, Android</span></li>
+            <li><span class="stat-num" data-count="1000" data-suffix="+">1000+</span><span class="stat-label">Video sites supported</span></li>
+            <li><span class="stat-num" data-count="16">16</span><span class="stat-label">Connections per big file</span></li>
+            <li><span class="stat-num" data-count="0">0</span><span class="stat-label">Accounts, ads or trackers</span></li>
+          </ul>
         </div>
       </section>
 
@@ -121,6 +186,7 @@
                     <span class="product-text">
                       <span class="product-name">Chrome extension</span>
                       <span class="product-desc">Downloads, videos and the queue, inside Chrome, Edge or Brave. The only thing most people need.</span>
+                      <span class="product-more">Learn more <span aria-hidden="true">→</span></span>
                     </span>
                   </a>
                 </li>
@@ -132,6 +198,7 @@
                     <span class="product-text">
                       <span class="product-name">Windows desktop program</span>
                       <span class="product-desc">An optional add-on for YouTube, sizes per quality, a folder for each video and 16-connection downloads.</span>
+                      <span class="product-more">Learn more <span aria-hidden="true">→</span></span>
                     </span>
                   </a>
                 </li>
@@ -148,10 +215,183 @@
                     <span class="product-text">
                       <span class="product-name">Android app</span>
                       <span class="product-desc">Share a video link to SIDM from any app and it lands in your Gallery. Files download fast, in the background.</span>
+                      <span class="product-more">Learn more <span aria-hidden="true">→</span></span>
                     </span>
                   </a>
                 </li>
               </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- How to use: interactive walkthrough -->
+      <section class="how" id="how" aria-labelledby="how-title">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="kicker">How to use</p>
+            <h2 id="how-title">See it work, step by step</h2>
+            <p>Pick your device. The demo plays by itself, or click a step, or try the glowing button in the demo yourself.</p>
+          </div>
+
+          <div class="demo" data-demo>
+            <div class="demo-tabs" role="tablist" aria-label="Choose a device">
+              <button type="button" role="tab" id="tab-ext" aria-controls="demo-ext" aria-selected="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18"/></svg>
+                Extension
+              </button>
+              <button type="button" role="tab" id="tab-win" aria-controls="demo-win" aria-selected="false" tabindex="-1">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+                Windows
+              </button>
+              <button type="button" role="tab" id="tab-and" aria-controls="demo-and" aria-selected="false" tabindex="-1">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>
+                Android
+              </button>
+            </div>
+
+            <!-- Extension -->
+            <div class="demo-panel" id="demo-ext" role="tabpanel" aria-labelledby="tab-ext" data-step="0">
+              <h3 class="demo-panel-title">With the Chrome extension</h3>
+              <ol class="demo-steps">
+                <li><button type="button" class="demo-step" data-go="0"><span class="demo-num">1</span><span class="demo-txt"><b>Play the video</b><span>Open the post and let it play for a few seconds. SIDM spots every quality the site has.</span></span><span class="demo-bar"></span></button></li>
+                <li><button type="button" class="demo-step" data-go="1"><span class="demo-num">2</span><span class="demo-txt"><b>Click Download</b><span>A Download button appears on the video itself.</span></span><span class="demo-bar"></span></button></li>
+                <li><button type="button" class="demo-step" data-go="2"><span class="demo-num">3</span><span class="demo-txt"><b>Pick a quality</b><span>Best quality comes first. Or choose a smaller one, or audio only.</span></span><span class="demo-bar"></span></button></li>
+                <li><button type="button" class="demo-step" data-go="3"><span class="demo-num">4</span><span class="demo-txt"><b>It's saved</b><span>Picture and sound joined into one MP4, filed in Downloads\SIDM\Video.</span></span><span class="demo-bar"></span></button></li>
+              </ol>
+              <div class="demo-stage" aria-hidden="true">
+                <div class="mk-browser">
+                  <div class="mk-bar"><i></i><i></i><i></i><span class="mk-url">a video post</span><span class="mk-ext">S</span></div>
+                  <div class="mk-page">
+                    <div class="mk-post"><span class="mk-avatar"></span><span class="mk-line w60"></span></div>
+                    <div class="mk-video">
+                      <span class="hv-sun"></span><span class="hv-hill h1"></span><span class="hv-hill h2"></span>
+                      <span class="sc sc0 mk-bigplay" data-hot="1"></span>
+                      <span class="sc sc0 sc1 sc2 sc3 mk-track"><span></span></span>
+                      <span class="sc sc1 sc2 mk-dl" data-hot="2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download</span>
+                      <span class="sc sc2 mk-menu">
+                        <span class="on" data-hot="3">Best · 1080p MP4 <em>98 MB</em></span>
+                        <span>720p MP4 <em>52 MB</em></span>
+                        <span>480p MP4 <em>27 MB</em></span>
+                        <span>Audio only · MP3 <em>4 MB</em></span>
+                      </span>
+                      <span class="sc sc3 mk-saved"><span class="mk-check"></span>Saved</span>
+                    </div>
+                    <div class="mk-line w80"></div><div class="mk-line w50"></div>
+                  </div>
+                </div>
+                <div class="sc sc3 mk-toast">
+                  <span class="mk-file">MP4</span>
+                  <span><b>video-1080p.mp4</b><span class="mk-prog"><span></span></span><small>98 MB · Downloads\SIDM\Video</small></span>
+                </div>
+                <p class="sc sc0 mk-tip">Try it: click play</p>
+                <p class="sc sc1 mk-tip">Try it: click Download</p>
+                <p class="sc sc2 mk-tip">Try it: pick a quality</p>
+                <p class="sc sc3 mk-tip"><span data-hot="0">Play again</span></p>
+              </div>
+            </div>
+
+            <!-- Windows -->
+            <div class="demo-panel" id="demo-win" role="tabpanel" aria-labelledby="tab-win" data-step="0">
+              <h3 class="demo-panel-title">With the Windows desktop program</h3>
+              <ol class="demo-steps">
+                <li><button type="button" class="demo-step" data-go="0"><span class="demo-num">1</span><span class="demo-txt"><b>Run SIDM Setup once</b><span>In SIDM Settings click Install SIDM for Windows, then Install. No admin rights needed.</span></span><span class="demo-bar"></span></button></li>
+                <li><button type="button" class="demo-step" data-go="1"><span class="demo-num">2</span><span class="demo-txt"><b>Click Download on YouTube</b><span>The menu now shows the size of every quality before you pick.</span></span><span class="demo-bar"></span></button></li>
+                <li><button type="button" class="demo-step" data-go="2"><span class="demo-num">3</span><span class="demo-txt"><b>Choose a folder</b><span>Windows' folder window opens. The last folder is suggested next time.</span></span><span class="demo-bar"></span></button></li>
+                <li><button type="button" class="demo-step" data-go="3"><span class="demo-num">4</span><span class="demo-txt"><b>Fast, in parts</b><span>Big files come down over up to 16 connections at once.</span></span><span class="demo-bar"></span></button></li>
+              </ol>
+              <div class="demo-stage" aria-hidden="true">
+                <div class="mk-desktop">
+                  <div class="sc sc0 mk-win mk-setup">
+                    <div class="mk-win-bar"><span class="mk-logo">S</span>SIDM Setup</div>
+                    <div class="mk-win-body">
+                      <b>Install the SIDM desktop program</b>
+                      <span class="mk-line w90"></span><span class="mk-line w70"></span>
+                      <span class="mk-checkrow"><span class="mk-box"></span>Chrome, Edge and Brave</span>
+                      <span class="mk-checkrow"><span class="mk-box"></span>YouTube tools</span>
+                      <span class="mk-btn" data-hot="1">Install</span>
+                    </div>
+                  </div>
+                  <div class="sc sc1 mk-win mk-yt">
+                    <div class="mk-win-bar"><i></i><i></i><i></i><span class="mk-url">a video page</span></div>
+                    <div class="mk-video">
+                      <span class="hv-sun"></span><span class="hv-hill h1"></span><span class="hv-hill h2"></span>
+                      <span class="mk-dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download</span>
+                      <span class="mk-menu mk-menu-show">
+                        <small>With the SIDM desktop program</small>
+                        <span class="on" data-hot="2">1080p <em>≈ 98 MB</em></span>
+                        <span>720p <em>≈ 52 MB</em></span>
+                        <span>Audio only <em>≈ 4 MB</em></span>
+                      </span>
+                    </div>
+                  </div>
+                  <div class="sc sc2 mk-win mk-folder">
+                    <div class="mk-win-bar">Choose a folder</div>
+                    <div class="mk-folder-body">
+                      <ul class="mk-tree"><li>Desktop</li><li>Documents</li><li class="on">Videos</li><li>Music</li></ul>
+                      <div class="mk-files"><span class="mk-dir">SIDM</span><span class="mk-dir">Trips</span><span class="mk-dir">Family</span></div>
+                    </div>
+                    <div class="mk-win-foot"><span class="mk-path">C:\Users\you\Videos</span><span class="mk-btn" data-hot="3">Select folder</span></div>
+                  </div>
+                  <div class="sc sc3 mk-win mk-parts">
+                    <div class="mk-win-bar"><span class="mk-logo">S</span>big-file.zip · 1.2 GB</div>
+                    <div class="mk-win-body">
+                      <span class="mk-speed"><b>38.6 MB/s</b> · 16 connections</span>
+                      <span class="mk-partbars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                      <span class="mk-prog mk-prog-big"><span></span></span>
+                      <span class="mk-btnrow"><span class="mk-btn ghost">Pause</span><span class="mk-btn" data-hot="0">Play again</span></span>
+                    </div>
+                  </div>
+                </div>
+                <p class="sc sc0 mk-tip">Try it: click Install</p>
+                <p class="sc sc1 mk-tip">Try it: pick 1080p</p>
+                <p class="sc sc2 mk-tip">Try it: click Select folder</p>
+                <p class="sc sc3 mk-tip">16 parts at once</p>
+              </div>
+            </div>
+
+            <!-- Android -->
+            <div class="demo-panel" id="demo-and" role="tabpanel" aria-labelledby="tab-and" data-step="0">
+              <h3 class="demo-panel-title">With the Android app</h3>
+              <ol class="demo-steps">
+                <li><button type="button" class="demo-step" data-go="0"><span class="demo-num">1</span><span class="demo-txt"><b>Tap Share on a video</b><span>In Instagram, TikTok, Facebook, YouTube, X or any app.</span></span><span class="demo-bar"></span></button></li>
+                <li><button type="button" class="demo-step" data-go="1"><span class="demo-num">2</span><span class="demo-txt"><b>Pick SIDM</b><span>Or copy the link and paste it in SIDM.</span></span><span class="demo-bar"></span></button></li>
+                <li><button type="button" class="demo-step" data-go="2"><span class="demo-num">3</span><span class="demo-txt"><b>Choose the quality</b><span>Original quality first, smaller ones, or MP3 audio.</span></span><span class="demo-bar"></span></button></li>
+                <li><button type="button" class="demo-step" data-go="3"><span class="demo-num">4</span><span class="demo-txt"><b>Find it in your Gallery</b><span>It downloads in the background and lands in Downloads/SIDM.</span></span><span class="demo-bar"></span></button></li>
+              </ol>
+              <div class="demo-stage" aria-hidden="true">
+                <div class="mk-phone">
+                  <div class="mk-notch"></div>
+                  <div class="mk-screen">
+                    <div class="mk-reel">
+                      <span class="hv-sun"></span><span class="hv-hill h1"></span><span class="hv-hill h2"></span>
+                      <span class="mk-side"><i></i><i></i><i class="sc sc0 mk-share" data-hot="1"></i></span>
+                    </div>
+                    <div class="sc sc1 mk-sheet">
+                      <span class="mk-grab"></span>
+                      <b>Share to</b>
+                      <span class="mk-apps"><span><i></i>Messages</span><span><i></i>Copy link</span><span class="on" data-hot="2"><i class="sidm">S</i>SIDM</span><span><i></i>More</span></span>
+                    </div>
+                    <div class="sc sc2 mk-sheet">
+                      <span class="mk-grab"></span>
+                      <b>Download video</b>
+                      <span class="mk-opt on">Original · 1080p <em>64 MB</em></span>
+                      <span class="mk-opt">720p <em>31 MB</em></span>
+                      <span class="mk-opt">Audio · MP3 <em>3 MB</em></span>
+                      <span class="mk-btn wide" data-hot="3">Download</span>
+                    </div>
+                    <div class="sc sc3 mk-gallery">
+                      <span class="mk-notif"><i class="sidm">S</i><span><b>Downloaded</b><small>video-1080p.mp4 · tap to open</small></span></span>
+                      <span class="mk-grid"><i class="new"></i><i></i><i></i><i></i><i></i><i></i></span>
+                      <span class="mk-btn wide" data-hot="0">Play again</span>
+                    </div>
+                  </div>
+                </div>
+                <p class="sc sc0 mk-tip">Try it: tap Share</p>
+                <p class="sc sc1 mk-tip">Try it: tap SIDM</p>
+                <p class="sc sc2 mk-tip">Try it: tap Download</p>
+                <p class="sc sc3 mk-tip">Saved to your Gallery</p>
+              </div>
             </div>
           </div>
         </div>
@@ -178,13 +418,13 @@
           <div class="shot-grid">
             <figure class="shot">
               <span class="shot-frame">
-                <img src="assets/popup-downloads.png" width="400" height="480" alt="The SIDM popup in light theme, open on the Downloads tab, with a tab for This page next to it.">
+                <img loading="lazy" src="assets/popup-downloads.png" width="400" height="480" alt="The SIDM popup in light theme, open on the Downloads tab, with a tab for This page next to it.">
               </span>
               <figcaption>Every download in one list, one click from the toolbar.</figcaption>
             </figure>
             <figure class="shot">
               <span class="shot-frame">
-                <img src="assets/popup-this-page.png" width="400" height="480" alt="The SIDM popup in dark theme, open on the This page tab, where videos and files found on the current page are listed.">
+                <img loading="lazy" src="assets/popup-this-page.png" width="400" height="480" alt="The SIDM popup in dark theme, open on the This page tab, where videos and files found on the current page are listed.">
               </span>
               <figcaption>The This page tab lists the media found on the site you are on.</figcaption>
             </figure>

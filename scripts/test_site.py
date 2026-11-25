@@ -158,7 +158,10 @@ def render_pages(pw, kwargs, base_url):
     try:
         for width in WIDTHS:
             for scheme in ("light", "dark"):
-                ctx = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme)
+                # Reduced motion: full-page shots show the finished, still state (no scroll reveals).
+                ctx = browser.new_context(
+                    viewport={"width": width, "height": 900}, color_scheme=scheme, reduced_motion="reduce"
+                )
                 page = ctx.new_page()
                 for name in PAGES:
                     page.goto(f"{base_url}/{name}")
@@ -177,6 +180,62 @@ def render_pages(pw, kwargs, base_url):
     finally:
         browser.close()
     report("PASS", "page renders", f"saved to {OUT.relative_to(ROOT)}")
+
+
+def check_home_demo(pw, kwargs, base_url):
+    """The home page's "How to use" demo: tabs, steps, hot spots, keys, motion on."""
+    browser = pw.chromium.launch(**kwargs)
+    try:
+        for width in WIDTHS:
+            ctx = browser.new_context(viewport={"width": width, "height": 900})
+            page = ctx.new_page()
+            errors = []
+            page.on("console", lambda m: m.type == "error" and errors.append(m.text))
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{base_url}/index.html")
+            page.locator("#how").scroll_into_view_if_needed()
+            step = lambda pid: page.get_attribute(f"#{pid}", "data-step")
+            problems = []
+            if step("demo-ext") != "0":
+                problems.append("extension demo does not start at step 1")
+            page.click("#demo-ext .demo-step[data-go='2']")
+            if step("demo-ext") != "2" or page.get_attribute("#demo-ext .demo-step[data-go='2']", "aria-current") != "step":
+                problems.append("clicking step 3 did not show it")
+            if not page.is_visible("#demo-ext .mk-menu"):
+                problems.append("quality menu not visible on step 3")
+            page.click("#demo-ext .mk-menu [data-hot='3']")
+            if step("demo-ext") != "3":
+                problems.append("clicking the menu's hot spot did not move to step 4")
+            page.click("#tab-win")
+            if not page.is_hidden("#demo-ext") or page.is_hidden("#demo-win"):
+                problems.append("Windows tab did not switch panels")
+            page.focus("#tab-win")
+            page.keyboard.press("ArrowRight")
+            if page.get_attribute("#tab-and", "aria-selected") != "true" or page.evaluate("document.activeElement.id") != "tab-and":
+                problems.append("ArrowRight did not move to the Android tab")
+            page.click("#demo-and .mk-share")
+            if step("demo-and") != "1":
+                problems.append("tapping Share in the phone demo did not move on")
+            # Auto-play: back on the extension tab, untouched, it moves on by itself.
+            page.mouse.move(0, 0)
+            ctx2 = browser.new_context(viewport={"width": width, "height": 900})
+            p2 = ctx2.new_page()
+            p2.goto(f"{base_url}/index.html")
+            p2.evaluate("document.querySelector('#how').scrollIntoView()")
+            p2.mouse.move(1, 1)
+            p2.wait_for_timeout(5200)
+            if p2.get_attribute("#demo-ext", "data-step") == "0":
+                problems.append("demo did not play by itself")
+            overflow = p2.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+            if overflow > 0:
+                problems.append(f"{overflow}px horizontal scroll with motion on")
+            ctx2.close()
+            if errors:
+                problems.append("console: " + "; ".join(errors))
+            report("FAIL" if problems else "PASS", f"home how-to demo @{width}", "; ".join(problems))
+            ctx.close()
+    finally:
+        browser.close()
 
 
 # ---------------------------------------------------------------------------
@@ -341,6 +400,7 @@ def main():
             if not args.no_popup:
                 capture_popup(pw, kwargs)
             render_pages(pw, kwargs, base_url)
+            check_home_demo(pw, kwargs, base_url)
         download_href = check_download(args.strict)
         check_links(base_url, download_href)
         validate_html()
