@@ -253,3 +253,10 @@ Use a profile **without** the companion installed (or run `uninstall.bat` first)
 - [ ] "Copy debug info" contains `program.version`, `program.features`, `programOutdated` and `lastVideoJobs`.
 - [ ] After SIDM Setup, `deno.exe` is in `%LOCALAPPDATA%\Programs\SIDM`, and Settings > Apps > Uninstall removes it.
 
+## M19 Exactly the clicked video (owner's report 2026-11-25)
+
+- [ ] Facebook / Instagram / X / TikTok feed: play a video, scroll to the next, click Download on the next one: the saved file is that video (check its length and picture), not the previous one.
+- [ ] Same, but the menu opened while the next video is preloading: still the clicked one.
+- [ ] YouTube watch page: hover a recommended video in the sidebar until its preview plays, click Download, pick a quality: the saved video is the recommended one, not the one on the page.
+- [ ] YouTube home feed: hover the third video's preview, download: that video, not the first in the feed.
+- [ ] After moving between videos without reloading (Shorts, Reels), the menu's first quality belongs to the video on screen.

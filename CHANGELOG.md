@@ -8,7 +8,11 @@ Add a new section with `python scripts/bump.py patch|minor|major`, then fill in 
 
 ### Extension
 
-- No changes.
+- The video button downloads the video it was clicked on, not an earlier or a preloaded one (owner's report 2026-11-25). Feeds and single-page sites play and preload many videos in one tab:
+  - Streams the tab played (HLS, DASH, MP4 pieces) are compared with the clicked video's length; another length means another video, and it is no longer offered. With several videos on screen and no length known, they are listed under "Other videos on this page" instead of as this video.
+  - The page's own video data is offered for the only video on screen only when its length is unknown or the same, so an earlier video's data no longer wins after moving to the next video.
+  - For the SIDM desktop program (YouTube and others), the post address now comes from the box around the clicked video and stops where the feed starts, so a preview in the sidebar or a feed item downloads that video, not the page's own video or the feed's first one.
+  - The menu keeps the video it was opened on, even if the pointer moves while it loads.
 
 ### Companion
 

@@ -125,17 +125,23 @@
     const ownUrls = new Set(own.map((o) => o.url));
     const all = [...pageSources.values()].reverse(); // newest first
     const single = visibleVideos().length <= 1;
+    const known = length > 1 && Number.isFinite(length);
+    const sameLength = (d) => Math.abs(d - length) < 1.5 || Math.abs(d / 1000 - length) < 1.5; // some sites give milliseconds
+    const candidates = []; // not tied to this video, but not another video's length either
     for (const src of [...metaSources(), ...all]) {
       if (src.url && ownUrls.has(src.url)) continue;
       const byPoster = poster && (src.images || []).some((img) => S.imageKey(img) === poster);
-      const byLength = length > 1 && Number.isFinite(length) && src.duration > 0 &&
-        (Math.abs(src.duration - length) < 1.5 || Math.abs(src.duration / 1000 - length) < 1.5); // some sites give milliseconds
+      const byLength = known && src.duration > 0 && sameLength(src.duration);
       if (byPoster || byLength) matched.push(src);
       else other.push(src);
+      if (!byPoster && !byLength && !(known && src.duration > 0)) candidates.push(src);
     }
-    // One video on the page (a post or watch page) and nothing tied to it: its page data is about it.
-    if (single && !matched.length && other.length) return { matched: other.slice(0, 40), other: [] };
-    return { matched: matched.slice(0, 40), other: other.slice(0, 20) };
+    // One video on screen (a post or watch page) and nothing tied to it: the page data may be about
+    // it, but feeds and single-page sites keep earlier and next videos' data too. A source with
+    // another length is another video, so only sources of unknown length are offered for it.
+    const page = { duration: known ? length : 0, single };
+    if (single && !matched.length && candidates.length) return { ...page, matched: candidates.slice(0, 40), other: [] };
+    return { ...page, matched: matched.slice(0, 40), other: other.slice(0, 20) };
   }
 
   let pageSaveTimer = 0;
@@ -224,17 +230,40 @@
     return POST_LINKS.some((re) => re.test(href));
   }
 
-  /** The address of the post or video page this <video> belongs to. */
+  /** One key per post, so "?v=abc&t=10" and "?v=abc" count as the same video. */
+  function postKey(href) {
+    try {
+      const u = new URL(href, location.href);
+      const v = u.searchParams.get('v');
+      return v ? `${u.hostname.replace(/^(www|m)\./, '')}|v=${v}` : `${u.hostname.replace(/^(www|m)\./, '')}${u.pathname.replace(/\/+$/, '')}`;
+    } catch {
+      return href;
+    }
+  }
+
+  /**
+   * The address of the post or video page this <video> belongs to. Walks up from the video
+   * and takes a post link only while the surrounding box holds links to one post: once a box
+   * holds links to several posts it is the feed, and its first link is some other video.
+   */
   function videoPageUrl(video) {
-    if (isPostLink(location.href)) return location.href;
     let node = video;
     // Walk up, stepping out of shadow roots into their host element.
     const up = (el) => el.parentElement || el.getRootNode?.().host || null;
     for (let depth = 0; node && depth < 14; depth += 1, node = up(node)) {
-      const own = node.closest?.('a[href]');
-      if (own && isPostLink(own.href)) return own.href;
+      // Inside a link to a post (a thumbnail with a preview playing in it): that post.
+      if (node.matches?.('a[href]') && isPostLink(node.href)) return node.href;
+      const links = new Map();
       for (const a of node.querySelectorAll?.('a[href]') || []) {
-        if (isPostLink(a.href)) return a.href;
+        if (isPostLink(a.href) && !links.has(postKey(a.href))) links.set(postKey(a.href), a.href);
+        if (links.size > 1) break;
+      }
+      if (links.size > 1) break; // past this video's own box
+      if (links.size === 1) {
+        const [href] = links.values();
+        // On a post page, a link to the same post (a timestamp, a share link) is that post.
+        if (isPostLink(location.href) && postKey(href) === postKey(location.href)) return location.href;
+        return href;
       }
     }
     return location.href;
@@ -466,7 +495,8 @@
     menu.classList.add('show');
     place();
 
-    const page = sourcesFor(currentVideo);
+    const video = currentVideo; // the video the menu was opened on; it stays the target
+    const page = sourcesFor(video);
     const reply = await send({ type: 'overlayMedia', page });
     const parts = [];
     const options = reply?.streams?.options || [];
@@ -498,7 +528,7 @@
         parts.push(note(s('overlayProgramOld').replace('{old}', reply.programVersion || '?').replace('{new}', reply.extensionVersion || '')));
         parts.push(item(s('overlayInstallUpdate'), '', () => send({ type: 'overlayCompanionHelp' }), { closeOnly: true }));
       }
-      const pageUrl = videoPageUrl(currentVideo);
+      const pageUrl = videoPageUrl(video);
       const rows = new Map();
       for (const [quality, key] of QUALITIES) {
         const defaultText = quality === info.quality ? s('overlayDefault') : '';

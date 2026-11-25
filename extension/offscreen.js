@@ -70,18 +70,27 @@ async function resolveHls(stream, seen) {
   const pl = parseM3u8(await fetchText(stream.url), stream.url);
   if (pl.type === 'master') {
     const out = [];
+    // Its length, to tell this video from the others a feed loaded (one extra small request).
+    let duration = 0;
+    if (pl.variants[0]) {
+      try {
+        duration = parseM3u8(await fetchText(pl.variants[0].url), pl.variants[0].url).duration || 0;
+      } catch {
+        duration = 0;
+      }
+    }
     for (const v of pl.variants) {
       seen.add(v.url);
       const group = pl.audio[v.audio] || [];
       const audio = group.find((a) => a.isDefault) || group[0] || null;
       if (audio) seen.add(audio.url);
-      out.push({ kind: 'hls', height: v.width && v.height ? Math.min(v.width, v.height) : v.height, bandwidth: v.bandwidth, video: v.url, audio: audio?.url || '' });
+      out.push({ kind: 'hls', height: v.width && v.height ? Math.min(v.width, v.height) : v.height, bandwidth: v.bandwidth, video: v.url, audio: audio?.url || '', duration });
     }
     return out;
   }
   if (pl.encrypted) return [{ kind: 'refused', reason: 'encrypted' }];
   if (pl.live) return [{ kind: 'refused', reason: 'live' }];
-  return [{ kind: 'hls', height: 0, bandwidth: 0, video: stream.url, audio: '', media: true }];
+  return [{ kind: 'hls', height: 0, bandwidth: 0, video: stream.url, audio: '', media: true, duration: pl.duration || 0 }];
 }
 
 async function resolveDash(stream) {
@@ -91,8 +100,9 @@ async function resolveDash(stream) {
   if (mpd.protected) return [{ kind: 'refused', reason: 'encrypted' }];
   if (mpd.live) return [{ kind: 'refused', reason: 'live' }];
   const audio = mpd.audio.slice().sort((a, b) => b.bandwidth - a.bandwidth)[0] || null;
-  const out = mpd.video.map((v) => ({ kind: 'dash', height: v.width && v.height ? Math.min(v.width, v.height) : v.height, bandwidth: v.bandwidth, video: v, audio }));
-  if (audio) out.push({ kind: 'dash', audioOnly: true, height: 0, bandwidth: audio.bandwidth, video: null, audio });
+  const duration = mpd.duration || 0;
+  const out = mpd.video.map((v) => ({ kind: 'dash', height: v.width && v.height ? Math.min(v.width, v.height) : v.height, bandwidth: v.bandwidth, video: v, audio, duration }));
+  if (audio) out.push({ kind: 'dash', audioOnly: true, height: 0, bandwidth: audio.bandwidth, video: null, audio, duration });
   return out;
 }
 
@@ -135,10 +145,10 @@ async function probePiece(stream) {
   const sound = info.tracks.some((t) => t.handler === 'soun');
   if (info.tracks.length > 1) {
     // Video and sound in one file (LinkedIn, plain MP4 players): save it as it is.
-    return { url: stream.url, at: stream.at, total, encrypted: info.encrypted, type: 'file', height: video ? shortSide(video) : 0, sound };
+    return { url: stream.url, at: stream.at, total, encrypted: info.encrypted, type: 'file', height: video ? shortSide(video) : 0, sound, duration: info.duration || 0 };
   }
   const t = info.tracks[0];
-  return { url: stream.url, at: stream.at, total, encrypted: info.encrypted, type: t.handler, height: t.height };
+  return { url: stream.url, at: stream.at, total, encrypted: info.encrypted, type: t.handler, height: t.height, duration: info.duration || 0 };
 }
 
 function shortSide(t) {
@@ -163,10 +173,10 @@ async function resolvePieces(streams) {
   const nearest = (v) => audios.slice().sort((a, b) => Math.abs(a.at - v.at) - Math.abs(b.at - v.at))[0] || null;
   const out = videos.map((v) => {
     const a = nearest(v);
-    return { kind: 'pieces', height: v.height, at: v.at, size: v.total + (a?.total || 0), video: v, audio: a };
+    return { kind: 'pieces', height: v.height, at: v.at, size: v.total + (a?.total || 0), video: v, audio: a, duration: v.duration || 0 };
   });
   for (const f of files) {
-    out.push({ kind: 'file', height: f.height, at: f.at, size: f.total, url: f.url, sound: f.sound });
+    out.push({ kind: 'file', height: f.height, at: f.at, size: f.total, url: f.url, sound: f.sound, duration: f.duration || 0 });
   }
   if (!videos.length && !files.length && audios.length) {
     const a = audios.sort((x, y) => y.at - x.at)[0];
@@ -264,7 +274,22 @@ async function resolveStreams(streams, page = {}) {
   const fromPieces = await resolvePieces(pieces);
   diag.push(...pieces.map((s) => ({ from: 'network', kind: 'piece', at: hostPath(s.url), result: '' })));
   network.push(...fromPieces);
-  const others = matched.length || network.some((o) => o.kind !== 'refused') ? [] : await resolvePageSources((page.other || []).slice(0, 8), diag, seen);
+  // A feed plays and preloads many videos in one tab. Keep only what can be the clicked video:
+  // a different length means another video. When the length is unknown and several videos are
+  // on screen, it may be any of them, so it is listed under "other videos", not as this one.
+  const want = Number(page.duration) > 1 && Number.isFinite(Number(page.duration)) ? Number(page.duration) : 0;
+  const sameLength = (o) => !want || !(o.duration > 1) || Math.abs(o.duration - want) <= Math.max(1, want * 0.02);
+  for (let i = network.length - 1; i >= 0; i -= 1) {
+    const o = network[i];
+    if (o.kind === 'refused') continue;
+    if (!sameLength(o)) {
+      diag.push({ from: 'network', kind: o.kind, at: '', result: `other video (${Math.round(o.duration)} s, this one ${Math.round(want)} s)` });
+      network.splice(i, 1);
+    } else if (page.single === false && !(want && o.duration > 1)) {
+      o.other = true;
+    }
+  }
+  const others = matched.length || network.some((o) => o.kind !== 'refused' && !o.other) ? [] : await resolvePageSources((page.other || []).slice(0, 8), diag, seen);
 
   const all = [...matched, ...network, ...others.map((o) => ({ ...o, other: true }))];
   const refused = all.find((o) => o.kind === 'refused');

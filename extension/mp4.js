@@ -106,6 +106,22 @@ function trakInfo(b, trak) {
   };
 }
 
+/** Length in seconds from mvhd (or mvex/mehd for fragmented files); 0 when unknown. */
+function movieSeconds(b, moov) {
+  const head = kid(b, moov, 'mvhd');
+  if (!head) return 0;
+  const v = b[head.start + head.hdr];
+  const at = head.start + head.hdr + (v === 1 ? 20 : 12);
+  const timescale = u32(b, at);
+  if (!timescale) return 0;
+  let units = v === 1 ? u64(b, at + 4) : u32(b, at + 4);
+  if (!units || units === 0xffffffff) {
+    const mehd = path(b, moov, ['mvex', 'mehd']);
+    if (mehd) units = b[mehd.start + mehd.hdr] === 1 ? u64(b, mehd.start + mehd.hdr + 4) : u32(b, mehd.start + mehd.hdr + 4);
+  }
+  return units && units !== 0xffffffff ? units / timescale : 0;
+}
+
 /**
  * What is in the MP4 header in `b` (the start of a file is enough as long as
  * the moov box is complete). Returns null if there is no complete moov.
@@ -117,6 +133,7 @@ export function readInit(b) {
   const tracks = kids(b, moov).filter((x) => x.type === 'trak').map((trak) => trakInfo(b, trak));
   return {
     tracks,
+    duration: movieSeconds(b, moov),
     fragmented: Boolean(kid(b, moov, 'mvex')),
     encrypted: contains(b, moov, 'encv') || contains(b, moov, 'enca') || contains(b, moov, 'pssh'),
   };
