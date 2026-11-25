@@ -42,6 +42,9 @@ class VideoFormatsTest {
         val q = Quality("mp3", "Audio", "ba/b", audioOnly = true, convertAudio = "mp3")
         val a = YtdlpArgs.forDownload(YtdlpArgs.Options("/out", q, 4, 1000, "/c.txt", null))
         assertTrue(a.containsAll(listOf("-x", "--audio-format", "mp3", "-r", "1000", "--cookies", "/c.txt")))
+        // Same single video as the quality picker showed (forInfo reads item 1).
+        assertEquals("1", a[a.indexOf("--playlist-items") + 1])
+        assertEquals("1", YtdlpArgs.forInfo(null, null).let { it[it.indexOf("--playlist-items") + 1] })
         val p = YtdlpArgs.parseProgress("[download]  42.0% of ~  12.30MiB at  1.00MiB/s ETA 00:07")!!
         assertEquals(42.0f, p.first)
         assertEquals((12.30 * 1024 * 1024).toLong(), p.second)

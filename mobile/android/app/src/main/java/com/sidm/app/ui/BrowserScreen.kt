@@ -69,6 +69,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.sidm.app.SidmApp
 import com.sidm.app.t
 import com.sidm.core.Links
+import com.sidm.core.OnScreenVideo
 import java.net.URLEncoder
 
 private val QUICK_SITES = listOf(
@@ -119,13 +120,13 @@ private fun createWebView(context: android.content.Context, app: SidmApp, model:
     }
     webViewClient = object : WebViewClient() {
         override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
-            if (url != model.pageUrl) model.found.clear()
+            if (url != model.pageUrl) model.clearFound()
             model.pageUrl = url
         }
 
         override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
             if (url != model.pageUrl) {
-                model.found.clear()
+                model.clearFound()
                 model.pageUrl = url
             }
             model.canGoBack = view.canGoBack()
@@ -134,7 +135,8 @@ private fun createWebView(context: android.content.Context, app: SidmApp, model:
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
             val u = request.url.toString()
             if (isMedia(u)) {
-                view.post { if (u !in model.found) model.found.add(u) }
+                val generation = model.foundGeneration
+                view.post { if (generation == model.foundGeneration && u !in model.found) model.found.add(u) }
             }
             return null
         }
@@ -160,7 +162,22 @@ fun BrowserScreen(app: SidmApp, model: AppModel) {
     val focus = LocalFocusManager.current
     var address by remember { mutableStateOf(model.pageUrl) }
     var showFound by remember { mutableStateOf(false) }
+    // The video on screen when Download was tapped (see OnScreenVideo).
+    var onScreen by remember { mutableStateOf<OnScreenVideo.Target?>(null) }
     val onPage = model.pageUrl.startsWith("http")
+
+    fun analyzeTarget(target: OnScreenVideo.Target) {
+        if (target.isFile) model.analyze(target.url, referer = model.pageUrl) else model.analyze(target.url)
+    }
+
+    /** Asks the page which video is on screen; [then] gets it, or null (no video, or the page did not answer). */
+    fun findOnScreen(then: (OnScreenVideo.Target?) -> Unit) {
+        val wv = model.webView ?: return then(null)
+        val page = model.pageUrl
+        wv.evaluateJavascript(OnScreenVideo.SCRIPT) { json ->
+            then(if (model.pageUrl == page) OnScreenVideo.fromScript(json, page) else null)
+        }
+    }
 
     fun load(input: String) {
         focus.clearFocus()
@@ -199,7 +216,7 @@ fun BrowserScreen(app: SidmApp, model: AppModel) {
                     model.webView?.stopLoading()
                     model.webView?.loadUrl("about:blank")
                     model.pageUrl = ""
-                    model.found.clear()
+                    model.clearFound()
                     model.canGoBack = false
                 }) { Icon(Icons.Filled.Home, t("brHomePage")) }
             }
@@ -240,10 +257,17 @@ fun BrowserScreen(app: SidmApp, model: AppModel) {
                 val drm = Links.isDrm(model.pageUrl)
                 ExtendedFloatingActionButton(
                     onClick = {
-                        when {
-                            drm -> model.toast = "brDrm" to emptyList()
-                            model.found.isEmpty() -> model.analyze(model.pageUrl)
-                            else -> showFound = true
+                        if (drm) {
+                            model.toast = "brDrm" to emptyList()
+                        } else {
+                            findOnScreen { target ->
+                                onScreen = target?.takeIf { it.url != model.pageUrl }
+                                when {
+                                    model.found.isNotEmpty() -> showFound = true
+                                    target != null -> analyzeTarget(target)
+                                    else -> model.analyze(model.pageUrl)
+                                }
+                            }
                         }
                     },
                     icon = { Icon(SidmIcons.Download, null) },
@@ -261,6 +285,12 @@ fun BrowserScreen(app: SidmApp, model: AppModel) {
         ModalBottomSheet(onDismissRequest = { showFound = false }, sheetState = sheet) {
             Column(Modifier.fillMaxWidth().padding(bottom = 16.dp).navigationBarsPadding()) {
                 Text(t("brFoundTitle"), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+                onScreen?.let { target ->
+                    FoundRow(t("brOnScreen"), Links.fileNameFromUrl(target.url)?.takeIf { target.isFile } ?: target.url, SidmIcons.Video) {
+                        showFound = false
+                        analyzeTarget(target)
+                    }
+                }
                 FoundRow(t("brPageVideo"), Links.hostOf(model.pageUrl), SidmIcons.Video) {
                     showFound = false
                     model.analyze(model.pageUrl)

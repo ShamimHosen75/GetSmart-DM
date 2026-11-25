@@ -146,7 +146,10 @@ object YtdlpArgs {
 
     fun forDownload(o: Options): List<String> {
         val args = mutableListOf(
+            // Only the video the quality picker showed: a post with several
+            // videos is a "playlist" to yt-dlp, and forInfo looked at item 1.
             "--no-playlist",
+            "--playlist-items", "1",
             "--newline",
             "--no-mtime",
             "--no-colors",
