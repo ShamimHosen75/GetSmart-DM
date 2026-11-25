@@ -23,7 +23,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val app = application as SidmApp
         model = AppModel(app)
-        handle(intent)
+        // After the system restarts SIDM (memory, a setting change) or it is opened
+        // from Recents, Android hands back the intent that first opened it: that is
+        // an old share, and acting on it again would download an earlier video.
+        if (savedInstanceState == null) handle(intent)
         setContent {
             val settings by app.settings.state.collectAsState()
             CompositionLocalProvider(LocalLang provides settings.language) {
@@ -42,6 +45,7 @@ class MainActivity : ComponentActivity() {
     /** A link shared from another app, an "Open with SIDM" link, or a tap on a notification. */
     private fun handle(intent: Intent?) {
         intent ?: return
+        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
         intent.getStringExtra(EXTRA_TAB)?.let { if (it == "downloads") model.tab = Tab.DOWNLOADS }
         val text = when (intent.action) {
             Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT) ?: intent.getStringExtra(Intent.EXTRA_SUBJECT)

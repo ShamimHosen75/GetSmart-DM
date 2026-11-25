@@ -8,6 +8,7 @@ import com.sidm.app.SidmApp
 import com.sidm.core.Links
 import com.sidm.core.Quality
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 enum class Tab { HOME, BROWSER, DOWNLOADS, SETTINGS }
@@ -24,6 +25,7 @@ class AppModel(private val app: SidmApp) {
     /** A page the browser should open (from a "sign in" hint). */
     var browserUrl by mutableStateOf<String?>(null)
     private var job: Job? = null
+    @Volatile private var requests = 0
 
     // The browser tab. The WebView lives here so switching tabs keeps the page.
     var webView: android.webkit.WebView? = null
@@ -32,6 +34,14 @@ class AppModel(private val app: SidmApp) {
     var canGoBack by mutableStateOf(false)
     /** Video and audio addresses the open page loaded (plain files and HLS/DASH playlists). */
     val found = androidx.compose.runtime.mutableStateListOf<String>()
+    /** Raised whenever [found] is cleared, so a file the previous page was still loading is not added to the new page. */
+    @Volatile var foundGeneration = 0
+        private set
+
+    fun clearFound() {
+        foundGeneration++
+        found.clear()
+    }
 
     /** Looks at a link (pasted, shared, or the page open in the browser). */
     fun analyze(raw: String, referer: String? = null) {
@@ -44,8 +54,13 @@ class AppModel(private val app: SidmApp) {
         job?.cancel()
         analyzing = true
         result = null
+        // yt-dlp cannot be interrupted, so a canceled look at an earlier link
+        // still finishes. Only the newest request may show or add its video,
+        // or a slow earlier link would replace the one just shared or tapped.
+        val request = ++requests
         job = app.appScope.launch {
             val r = app.engine.analyze(url, referer)
+            if (request != requests || !isActive) return@launch
             analyzing = false
             if (r is Analysis.Video && app.settings.value.alwaysBest) {
                 val best = r.info.qualities.first()
@@ -59,6 +74,7 @@ class AppModel(private val app: SidmApp) {
     }
 
     fun cancelAnalysis() {
+        requests++
         job?.cancel()
         analyzing = false
         result = null

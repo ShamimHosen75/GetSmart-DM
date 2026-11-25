@@ -4,7 +4,9 @@ All notable changes to SIDM. Newest version first. Each version has **Extension*
 
 Add a new section with `python scripts/bump.py patch|minor|major`, then fill in the bullets before running `scripts/release.py`. See `RELEASE.md`.
 
-## [Unreleased]
+## [0.5.2] - 2026-11-25
+
+One version for the extension, the Windows program and the Android app, with the owner's "download exactly the video I clicked" fix.
 
 ### Extension
 
@@ -16,11 +18,12 @@ Add a new section with `python scripts/bump.py patch|minor|major`, then fill in 
 
 ### Companion
 
-- No changes.
+- Checked for the "downloads a previous or random video" report: the program downloads exactly the address each request names, one yt-dlp run per request, with no saved or reused addresses, so it did not have this bug. A new test runs two different videos at the same time and checks each file holds its own video.
+- Version 0.5.2, so the Windows setup matches the extension.
 
 ### Website
 
-- The home page's extension download (`sidm-v0.5.1-extension.zip`) was rebuilt on 2026-11-25 with the clicked-video fix above, at the owner's request; same version number, new SHA-256.
+- 0.5.2 downloads on the home page (extension ZIP with the Windows setup inside, the Windows setup and companion ZIPs). On 2026-11-25 the 0.5.1 extension ZIP had already been rebuilt with the clicked-video fix; 0.5.2 gives it its own version so "Update available" reaches people who have 0.5.1.
 - New **MP4 to MP3** page (`online-downloader.html`, "MP4 to MP3" in the nav, footer and sitemap): converts a video file to MP3 at 128, 192 or 320 kbps right in the browser (Web Audio + lamejs); the file is never uploaded.
 - The same page has a paste-a-link video downloader (MP4 qualities, MP3, original audio; YouTube with the one-time notice; DRM sites refused). It stays hidden until the SIDM Online service runs: set `<meta name="sidm-api">` to its address to show it.
 - New `online/`, SIDM Online: the service that paste-a-link uses (`server.py`, standard-library Python + yt-dlp + ffmpeg + Deno, Docker image, deploy steps in `online/README.md`). Not deployed yet.
@@ -28,7 +31,12 @@ Add a new section with `python scripts/bump.py patch|minor|major`, then fill in 
 
 ### Android
 
-- No changes.
+- Downloads exactly the video that was chosen, never an earlier or a preloaded one (owner's report 2026-11-25):
+  - In SIDM's browser, **Download** asks the page which video is on your screen (the playing one, or the most visible) and downloads that video's own post, reel or watch link. Before, on feeds (Facebook, Instagram, TikTok, X, YouTube's home page) it used the page address or listed the newest file the page had preloaded, which was often the next video. The list's first row is now "The video on your screen".
+  - Video files a previous page was still loading are no longer listed on the next page.
+  - Sharing two links quickly: the second one always wins. Before, a slower look at the first link could replace it (and with "Always download the best quality" on, add the first video).
+  - Opening SIDM from Recents, or after Android restarted it, no longer runs an old share again.
+  - A post with several videos downloads the same video the quality list showed.
 
 
 ## [0.5.1] - 2026-11-19
