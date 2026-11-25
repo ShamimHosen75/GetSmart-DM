@@ -29,10 +29,12 @@ HOST_PY = os.path.join(ROOT, "companion", "host.py")
 
 CHUNK = 64 * 1024
 VIDEO = os.urandom(3 * 1024 * 1024)  # content is never decoded for a direct link
+OTHER_VIDEO = os.urandom(1024 * 1024)
 FILES = {
     # path: (bytes, seconds to sleep between chunks)
     "/clip.mp4": (VIDEO, 0.06),          # ~3 s, enough for several progress messages
     "/slow.mp4": (VIDEO * 4, 0.25),      # ~50 s, canceled long before the end
+    "/second.mp4": (OTHER_VIDEO, 0.02),  # a different video, for two downloads at once
 }
 
 
@@ -177,6 +179,23 @@ class HostTest(unittest.TestCase):
         self.assertTrue(all(g >= 0.4 for g in gaps), "progress not throttled: %s" % gaps)
         leftovers = [n for n in os.listdir(self.dir) if n.endswith((".part", ".ytdl"))]
         self.assertEqual(leftovers, [])
+
+    def test_two_videos_each_saved_as_itself(self):
+        # The program saves exactly the video each request names, even when two run at once
+        # (owner's report 2026-11-25: "downloads previous or random video").
+        self.add("job-first", "/clip.mp4")
+        self.add("job-second", "/second.mp4")
+        finals = {}
+        while len(finals) < 2:
+            msg = self.host.next(120, lambda m: m.get("type") == "progress" and m.get("id") in ("job-first", "job-second"))
+            if msg["state"] in ("done", "error", "canceled"):
+                finals[msg["id"]] = msg
+        for job_id, data in (("job-first", VIDEO), ("job-second", OTHER_VIDEO)):
+            final = finals[job_id]
+            self.assertEqual(final["state"], "done", final)
+            with open(final["filename"], "rb") as f:
+                self.assertEqual(f.read(), data, "%s saved another video's bytes" % job_id)
+        self.assertNotEqual(finals["job-first"]["filename"], finals["job-second"]["filename"])
 
     def test_404_is_friendly(self):
         self.add("job-404", "/missing.mp4")

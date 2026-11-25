@@ -26,7 +26,7 @@ import threading
 import time
 from urllib.parse import urlparse
 
-VERSION = "0.5.1"
+VERSION = "0.5.2"
 PROTOCOL_V = 1
 HOST_NAME = "com.sidm.host"
 
