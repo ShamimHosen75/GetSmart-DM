@@ -216,20 +216,32 @@ def check_home_demo(pw, kwargs, base_url):
             page.click("#demo-and .mk-share")
             if step("demo-and") != "1":
                 problems.append("tapping Share in the phone demo did not move on")
-            # Auto-play: back on the extension tab, untouched, it moves on by itself.
-            page.mouse.move(0, 0)
-            ctx2 = browser.new_context(viewport={"width": width, "height": 900})
-            p2 = ctx2.new_page()
-            p2.goto(f"{base_url}/index.html")
-            p2.evaluate("document.querySelector('#how').scrollIntoView()")
-            p2.mouse.move(1, 1)
-            p2.wait_for_timeout(5200)
-            if p2.get_attribute("#demo-ext", "data-step") == "0":
-                problems.append("demo did not play by itself")
-            overflow = p2.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
-            if overflow > 0:
-                problems.append(f"{overflow}px horizontal scroll with motion on")
-            ctx2.close()
+            # The tour plays by itself, also with the mouse over it and with reduced motion,
+            # and the Pause button stops it.
+            for motion in ("no-preference", "reduce"):
+                ctx2 = browser.new_context(viewport={"width": width, "height": 900}, reduced_motion=motion)
+                p2 = ctx2.new_page()
+                p2.goto(f"{base_url}/index.html")
+                p2.evaluate("document.querySelector('#how').scrollIntoView()")
+                box = p2.locator("#demo-ext .demo-stage").bounding_box()
+                p2.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+                seen = set()
+                for _ in range(14):
+                    p2.wait_for_timeout(1000)
+                    seen.add(p2.get_attribute("#demo-ext", "data-step"))
+                if not {"0", "1", "2", "3"} <= seen:
+                    problems.append(f"tour ({motion}) showed only steps {sorted(seen)} in 14 s")
+                if motion == "no-preference":
+                    overflow = p2.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+                    if overflow > 0:
+                        problems.append(f"{overflow}px horizontal scroll with motion on")
+                else:
+                    p2.click(".demo-toggle")
+                    held = p2.get_attribute("#demo-ext", "data-step")
+                    p2.wait_for_timeout(4500)
+                    if p2.get_attribute("#demo-ext", "data-step") != held or p2.text_content(".dt-label") != "Play demo":
+                        problems.append("Pause demo did not stop the tour")
+                ctx2.close()
             if errors:
                 problems.append("console: " + "; ".join(errors))
             report("FAIL" if problems else "PASS", f"home how-to demo @{width}", "; ".join(problems))

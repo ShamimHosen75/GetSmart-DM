@@ -674,6 +674,60 @@
   display: none;
 }
 
+.demo-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 32px;
+}
+
+.demo-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.demo-toggle[hidden] {
+  display: none;
+}
+
+.demo-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.demo-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* Two bars while playing, a triangle while paused. */
+.dt-icon {
+  width: 10px;
+  height: 12px;
+  border-left: 3px solid currentColor;
+  border-right: 3px solid currentColor;
+}
+
+.is-paused .dt-icon {
+  width: 0;
+  height: 0;
+  border-right: 0;
+  border-left: 10px solid var(--accent);
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+}
+
 .js .demo-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -681,7 +735,7 @@
   gap: 6px;
   width: fit-content;
   max-width: 100%;
-  margin: 0 auto 32px;
+  margin: 0 auto;
   padding: 6px;
   border-radius: 999px;
   background: var(--surface-2);
@@ -825,6 +879,10 @@
   background: var(--grad);
   transform: scaleX(0);
   transform-origin: left;
+}
+
+.demo-bar.run {
+  animation: stepbar linear forwards;
 }
 
 .demo-step[aria-current='step'] {
@@ -1443,6 +1501,93 @@ i.sidm {
   box-shadow: 0 0 0 2px var(--accent);
 }
 
+/* Pointer that "uses" the mock during the tour. */
+.mk-pointer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  width: 22px;
+  height: 22px;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.75s cubic-bezier(0.45, 0, 0.2, 1), opacity 0.25s ease;
+}
+
+.mk-pointer.jump {
+  transition: opacity 0.25s ease;
+}
+
+.mk-pointer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  clip-path: polygon(0 0, 0 100%, 30% 72%, 52% 100%, 66% 92%, 45% 66%, 85% 66%);
+  filter: drop-shadow(0 0 1px #000) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
+
+.mk-pointer::after {
+  content: '';
+  position: absolute;
+  left: -14px;
+  top: -14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  opacity: 0;
+}
+
+.mk-pointer.show {
+  opacity: 1;
+}
+
+.mk-pointer.press::after {
+  animation: click 0.45s ease-out;
+}
+
+.pressed {
+  filter: brightness(1.15);
+}
+
+/* Step 1 (extension): the video plays for a moment after the click. */
+[data-step='0'] .mk-track span {
+  transform: scaleX(0.04);
+}
+
+.playing[data-step='0'] .mk-track span {
+  transform: scaleX(0.38);
+  transition: transform 1.8s linear;
+}
+
+.playing .mk-bigplay {
+  opacity: 0 !important;
+}
+
+.playing .mk-video .hv-hill.h2 {
+  transform: translateX(-5%);
+  transition: transform 1.8s linear;
+}
+
+/* Windows step 1: Setup installs after the click. */
+.mk-install {
+  opacity: 0;
+}
+
+.mk-install span {
+  transform: scaleX(0);
+}
+
+.installing .mk-install {
+  opacity: 1;
+}
+
+.installing .mk-install span {
+  transform: scaleX(1);
+  transition: transform 1.5s ease-in-out;
+}
+
 /* ---------- Scroll reveal (added by home.js) ---------- */
 
 .reveal {
@@ -1520,13 +1665,9 @@ i.sidm {
   }
 
   /* Demo */
-  .auto .tick .demo-step[aria-current='step'] .demo-bar {
-    animation: stepbar 4.2s linear forwards;
-  }
 
   .js [data-hot] { animation: hot 1.8s ease-out infinite; }
 
-  [data-step='0'] .mk-track span { animation: track 4s linear forwards; }
   .sc.mk-dl { transform: scale(0.6); }
   [data-step='1'] .mk-dl,
   [data-step='2'] .mk-dl { transform: none; }
@@ -1614,7 +1755,10 @@ i.sidm {
   0% { box-shadow: 0 0 0 0 color-mix(in srgb, #8e84ff 70%, transparent); }
   100% { box-shadow: 0 0 0 14px transparent; }
 }
-@keyframes track { from { transform: scaleX(0.05); } to { transform: scaleX(0.4); } }
+@keyframes click {
+  from { opacity: 1; transform: scale(0.3); }
+  to { opacity: 0; transform: scale(1.4); }
+}
 @keyframes fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes part { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes drop-in { from { opacity: 0; transform: translateY(-16px); } }

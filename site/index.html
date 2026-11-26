@@ -235,6 +235,7 @@
           </div>
 
           <div class="demo" data-demo>
+            <div class="demo-top">
             <div class="demo-tabs" role="tablist" aria-label="Choose a device">
               <button type="button" role="tab" id="tab-ext" aria-controls="demo-ext" aria-selected="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18"/></svg>
@@ -249,6 +250,8 @@
                 Android
               </button>
             </div>
+            <button type="button" class="demo-toggle" hidden><span class="dt-icon" aria-hidden="true"></span><span class="dt-label">Pause demo</span></button>
+            </div>
 
             <!-- Extension -->
             <div class="demo-panel" id="demo-ext" role="tabpanel" aria-labelledby="tab-ext" data-step="0">
@@ -260,13 +263,14 @@
                 <li><button type="button" class="demo-step" data-go="3"><span class="demo-num">4</span><span class="demo-txt"><b>It's saved</b><span>Picture and sound joined into one MP4, filed in Downloads\SIDM\Video.</span></span><span class="demo-bar"></span></button></li>
               </ol>
               <div class="demo-stage" aria-hidden="true">
+                <span class="mk-pointer"></span>
                 <div class="mk-browser">
                   <div class="mk-bar"><i></i><i></i><i></i><span class="mk-url">a video post</span><span class="mk-ext">S</span></div>
                   <div class="mk-page">
                     <div class="mk-post"><span class="mk-avatar"></span><span class="mk-line w60"></span></div>
                     <div class="mk-video">
                       <span class="hv-sun"></span><span class="hv-hill h1"></span><span class="hv-hill h2"></span>
-                      <span class="sc sc0 mk-bigplay" data-hot="1"></span>
+                      <span class="sc sc0 mk-bigplay" data-hot="1" data-after="1800" data-state="playing"></span>
                       <span class="sc sc0 sc1 sc2 sc3 mk-track"><span></span></span>
                       <span class="sc sc1 sc2 mk-dl" data-hot="2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download</span>
                       <span class="sc sc2 mk-menu">
@@ -301,6 +305,7 @@
                 <li><button type="button" class="demo-step" data-go="3"><span class="demo-num">4</span><span class="demo-txt"><b>Fast, in parts</b><span>Big files come down over up to 16 connections at once.</span></span><span class="demo-bar"></span></button></li>
               </ol>
               <div class="demo-stage" aria-hidden="true">
+                <span class="mk-pointer"></span>
                 <div class="mk-desktop">
                   <div class="sc sc0 mk-win mk-setup">
                     <div class="mk-win-bar"><span class="mk-logo">S</span>SIDM Setup</div>
@@ -309,7 +314,8 @@
                       <span class="mk-line w90"></span><span class="mk-line w70"></span>
                       <span class="mk-checkrow"><span class="mk-box"></span>Chrome, Edge and Brave</span>
                       <span class="mk-checkrow"><span class="mk-box"></span>YouTube tools</span>
-                      <span class="mk-btn" data-hot="1">Install</span>
+                      <span class="mk-prog mk-install"><span></span></span>
+                      <span class="mk-btn" data-hot="1" data-after="1600" data-state="installing">Install</span>
                     </div>
                   </div>
                   <div class="sc sc1 mk-win mk-yt">
@@ -331,7 +337,7 @@
                       <ul class="mk-tree"><li>Desktop</li><li>Documents</li><li class="on">Videos</li><li>Music</li></ul>
                       <div class="mk-files"><span class="mk-dir">SIDM</span><span class="mk-dir">Trips</span><span class="mk-dir">Family</span></div>
                     </div>
-                    <div class="mk-win-foot"><span class="mk-path">C:\Users\you\Videos</span><span class="mk-btn" data-hot="3">Select folder</span></div>
+                    <div class="mk-win-foot"><span class="mk-path">C:\Users\you\Videos</span><span class="mk-btn" data-hot="3" data-after="300">Select folder</span></div>
                   </div>
                   <div class="sc sc3 mk-win mk-parts">
                     <div class="mk-win-bar"><span class="mk-logo">S</span>big-file.zip · 1.2 GB</div>
@@ -360,6 +366,7 @@
                 <li><button type="button" class="demo-step" data-go="3"><span class="demo-num">4</span><span class="demo-txt"><b>Find it in your Gallery</b><span>It downloads in the background and lands in Downloads/SIDM.</span></span><span class="demo-bar"></span></button></li>
               </ol>
               <div class="demo-stage" aria-hidden="true">
+                <span class="mk-pointer"></span>
                 <div class="mk-phone">
                   <div class="mk-notch"></div>
                   <div class="mk-screen">
@@ -378,7 +385,7 @@
                       <span class="mk-opt on">Original · 1080p <em>64 MB</em></span>
                       <span class="mk-opt">720p <em>31 MB</em></span>
                       <span class="mk-opt">Audio · MP3 <em>3 MB</em></span>
-                      <span class="mk-btn wide" data-hot="3">Download</span>
+                      <span class="mk-btn wide" data-hot="3" data-after="300">Download</span>
                     </div>
                     <div class="sc sc3 mk-gallery">
                       <span class="mk-notif"><i class="sidm">S</i><span><b>Downloaded</b><small>video-1080p.mp4 · tap to open</small></span></span>
