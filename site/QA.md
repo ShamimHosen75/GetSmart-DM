@@ -21,8 +21,8 @@
 - [ ] Footer links Privacy and Terms work; yt-dlp and ffmpeg links open their sites.
 - [ ] Privacy and Terms pages: nav links go back to the right sections of the home page.
 - [ ] Home hero: the demo window loops (play, Download, quality menu, Saved); the "Works with" strip scrolls; numbers count up once.
-- [ ] How to use: Extension / Windows / Android tabs switch with click and with the arrow keys; each demo plays by itself, pauses while the mouse is over it, and clicking a step or a glowing "Try it" spot jumps to that step.
-- [ ] Turn on "Reduce motion" (Windows: Settings > Accessibility > Visual effects > Animation effects off): nothing moves, everything is visible, the demo stays on the step you pick.
+- [ ] How to use: Extension / Windows / Android tabs switch with click and with the arrow keys. Each demo plays like a recording (a pointer moves to the button, clicks, the next step follows, then it starts over), also with the mouse over it. Clicking a step or a glowing "Try it" spot jumps there and pauses the tour; **Pause demo / Play demo** stops and restarts it.
+- [ ] Turn on "Reduce motion" (Windows: Settings > Accessibility > Visual effects > Animation effects off): background effects stop and everything is visible; the How to use tour still steps through (fades only, the pointer jumps instead of gliding) and Pause demo stops it.
 - [ ] On a phone: the hero, the demo and the tabs fit without sideways scrolling and scroll smoothly.
 - [ ] Guides: every guide page opens from the home Guides section, the nav and the footer; breadcrumbs, "More guides" cards and the Download buttons work.
 - [ ] Each guide keeps the "Download only what you have the right to" note and makes no DRM claims.
