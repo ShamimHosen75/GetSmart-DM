@@ -123,6 +123,7 @@
     const matched = [...own];
     const other = [];
     const ownUrls = new Set(own.map((o) => o.url));
+    const ownFile = /^https?:/i.test(video?.currentSrc || video?.src || '');
     const all = [...pageSources.values()].reverse(); // newest first
     const single = visibleVideos().length <= 1;
     const known = length > 1 && Number.isFinite(length);
@@ -131,7 +132,9 @@
     for (const src of [...metaSources(), ...all]) {
       if (src.url && ownUrls.has(src.url)) continue;
       const byPoster = poster && (src.images || []).some((img) => S.imageKey(img) === poster);
-      const byLength = known && src.duration > 0 && sameLength(src.duration);
+      // When the video plays a real file address, that file is the video: another source that only
+      // has the same length is a neighbour (galleries are full of loops of the same length).
+      const byLength = !ownFile && known && src.duration > 0 && sameLength(src.duration);
       if (byPoster || byLength) matched.push(src);
       else other.push(src);
       if (!byPoster && !byLength && !(known && src.duration > 0)) candidates.push(src);
@@ -139,7 +142,7 @@
     // One video on screen (a post or watch page) and nothing tied to it: the page data may be about
     // it, but feeds and single-page sites keep earlier and next videos' data too. A source with
     // another length is another video, so only sources of unknown length are offered for it.
-    const page = { duration: known ? length : 0, single };
+    const page = { duration: known ? length : 0, single, height: Math.min(Number(video?.videoWidth) || 0, Number(video?.videoHeight) || 0) };
     if (single && !matched.length && candidates.length) return { ...page, matched: candidates.slice(0, 40), other: [] };
     return { ...page, matched: matched.slice(0, 40), other: other.slice(0, 20) };
   }
@@ -310,16 +313,74 @@
     return videos.filter((v) => {
       if (!v.isConnected) return false;
       const r = v.getBoundingClientRect();
-      return r.width >= MIN_WIDTH && r.height >= MIN_HEIGHT && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
+      return r.width >= MIN_WIDTH && r.height >= MIN_HEIGHT && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth && shown(v);
     });
   }
 
-  function videoAt(x, y) {
-    for (const video of visibleVideos()) {
-      const r = video.getBoundingClientRect();
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return video;
+  /**
+   * False for a video the user cannot see although it has a size: sliders and landing pages
+   * stack their slides' videos in one place and hide all but one with opacity or visibility.
+   */
+  function shown(video) {
+    if (typeof video.checkVisibility === 'function') {
+      try {
+        // Chrome 121+; older versions ignore the options they do not know, so check by hand too.
+        if (!video.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return false;
+      } catch {
+        // fall through to the manual check
+      }
     }
-    return null;
+    let el = video;
+    for (let depth = 0; el && depth < 40; depth += 1) {
+      const style = getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || Number(style.opacity) < 0.05) return false;
+      el = el.parentElement || el.getRootNode?.()?.host || null; // step out of shadow roots
+    }
+    return true;
+  }
+
+  /** Elements under a point, topmost first, also inside open shadow roots. */
+  function stackAt(x, y) {
+    const out = [];
+    const walk = (scope, depth) => {
+      for (const el of scope.elementsFromPoint(x, y)) {
+        if (out.includes(el)) continue;
+        out.push(el);
+        if (el.shadowRoot && depth < 4) walk(el.shadowRoot, depth + 1);
+      }
+    };
+    try {
+      walk(document, 0);
+    } catch {
+      // elementsFromPoint is missing or failed: keep page order
+    }
+    return out;
+  }
+
+  /** The video under the pointer: the one drawn on top, not the first one in the page. */
+  function videoAt(x, y) {
+    const under = visibleVideos().filter((video) => {
+      const r = video.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    });
+    if (under.length <= 1) return under[0] || null;
+    const stack = stackAt(x, y);
+    // A video's place in the stack: itself, or else the closest box around it (players often put
+    // a transparent layer over the video that takes the pointer).
+    const depth = (video) => {
+      for (let el = video, i = 0; el && i < 12; i += 1, el = el.parentElement || el.getRootNode?.()?.host || null) {
+        const at = stack.indexOf(el);
+        if (at >= 0) return at;
+      }
+      return Infinity;
+    };
+    const area = (v) => {
+      const r = v.getBoundingClientRect();
+      return r.width * r.height;
+    };
+    return under
+      .map((video, order) => ({ video, order, depth: depth(video), playing: !video.paused && !video.ended }))
+      .sort((a, b) => a.depth - b.depth || Number(b.playing) - Number(a.playing) || area(b.video) - area(a.video) || a.order - b.order)[0].video;
   }
 
   function place() {
@@ -551,7 +612,9 @@
     const seen = new Set();
     const files = [];
     for (const m of reply?.media || []) files.push(m); // detected files first: they carry size and type
-    const unique = files.filter((f) => !seen.has(f.url) && seen.add(f.url));
+    // When the video plays a file address, only that file is this video; the others are its neighbours.
+    const ownPath = /^https?:/i.test(video?.currentSrc || '') ? cleanUrl(video.currentSrc) : '';
+    const unique = files.filter((f) => !seen.has(f.url) && seen.add(f.url) && (!ownPath || cleanUrl(f.url) === ownPath));
     if (unique.length) {
       parts.push(head(s('overlayFiles')));
       for (const f of unique.slice(0, 12)) {

@@ -4,6 +4,23 @@ All notable changes to SIDM. Newest version first. Each version has **Extension*
 
 Add a new section with `python scripts/bump.py patch|minor|major`, then fill in the bullets before running `scripts/release.py`. See `RELEASE.md`.
 
+## [Unreleased]
+
+### Extension
+
+- The video button picks the video you see under the pointer, also on pages with several animations or a slider (owner's report 2026-11-26, "downloaded another random video"):
+  - Sliders and landing pages stack their videos in one place and hide all but one (opacity, visibility). The button now takes the shown video on top, not the first one in the page, which was often a hidden slide.
+  - When the video plays a file address, that file is the video: other files of the same length (a gallery of same-length loops) are no longer offered as it, and the "Files" list shows only that file.
+  - Streams the tab played that have the same length as the clicked video are told apart by the size the video is playing at. When nothing tells them apart, they are listed under "Other videos on this page" instead of saving one at random.
+
+### Companion
+
+- No change.
+
+### Website
+
+- The home page's 0.5.2 extension ZIP is rebuilt with this fix (same version number, so the Android app's update check is not affected).
+
 ## [0.5.2] - 2026-11-25
 
 One version for the extension, the Windows program and the Android app, with the owner's "download exactly the video I clicked" fix.

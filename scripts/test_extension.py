@@ -124,12 +124,36 @@ PAGES.update({
         "fetch('/sv/v.mp4?bytestart=0&byteend=9999'); fetch('/sv/a.mp4?bytestart=0&byteend=9999');"),
     # A feed: the tab played this 6 s video, then preloaded the next one (8 s).
     "/s-feed.html": STREAM_PAGE % ("Feed Test", "fetch('/sv/v360.m3u8').then(() => setTimeout(() => fetch('/sv/o8.m3u8'), 300));"),
+    # Two videos of the same length played in one tab (a gallery of loops): 360p and 240p.
+    "/s-twins.html": STREAM_PAGE % ("Twins Test", "fetch('/sv/one240.m3u8').then(() => setTimeout(() => fetch('/sv/one360.m3u8'), 300));"),
     "/s-enc.html": STREAM_PAGE % ("Encrypted Test", "fetch('/sv/enc.m3u8');"),
     # LinkedIn-style (M16): the player shows a blob: URL; every quality is in the page's API reply.
     "/s-linkedin.html": STREAM_PAGE % ("LinkedIn Test",
         "v.poster = '/sv/thumb-li-abcdef123.jpg'; v.muted = true;"
         "fetch('/sv/m360.mp4').then((r) => r.blob()).then((b) => { v.src = URL.createObjectURL(b); });"
         "setTimeout(() => fetch('/api/li-feed.json').then((r) => r.json()), 300);"),
+    # A design gallery (owner's report 2026-11-26): several short looping animations of the same
+    # length, each a plain MP4 in <video src>. The clicked (first) one must be saved, not a neighbour.
+    "/s-gallery.html": """<!doctype html><html><head><title>Gallery Test</title></head><body style="margin:0">
+<div style="display:grid;grid-template-columns:420px 420px;gap:20px;padding:20px">
+<video id="first" src="/sv/m360.mp4" autoplay muted loop playsinline style="width:420px;height:236px;background:#123"></video>
+<video id="second" src="/sv/m720.mp4" autoplay muted loop playsinline style="width:420px;height:236px;background:#321"></video>
+</div></body></html>""",
+    # A landing-page slider: the slides' videos sit on top of each other and only the shown one is
+    # visible (the others have opacity 0). The hidden one comes first in the page, the shown one is "first".
+    "/s-slides.html": """<!doctype html><html><head><title>Gallery Test</title></head><body style="margin:0">
+<div style="position:relative;width:640px;height:360px;margin:20px">
+<div style="position:absolute;inset:0;opacity:0"><video id="second" src="/sv/m720.mp4" autoplay muted loop playsinline style="width:640px;height:360px"></video></div>
+<div style="position:absolute;inset:0"><video id="first" src="/sv/m360.mp4" autoplay muted loop playsinline style="width:640px;height:360px"></video></div>
+</div></body></html>""",
+    # The same, but the slides are both opaque and the shown one is simply drawn on top, under a
+    # transparent layer that takes the pointer.
+    "/s-stack.html": """<!doctype html><html><head><title>Gallery Test</title></head><body style="margin:0">
+<div style="position:relative;width:640px;height:360px;margin:20px">
+<video id="second" src="/sv/m720.mp4" autoplay muted loop playsinline style="position:absolute;inset:0;width:640px;height:360px"></video>
+<video id="first" src="/sv/m360.mp4" autoplay muted loop playsinline style="position:absolute;inset:0;width:640px;height:360px"></video>
+<div style="position:absolute;inset:0"></div>
+</div></body></html>""",
     # A plain MP4 (sound inside, header at the end) that the player fetches in parts with Range.
     "/s-progressive.html": STREAM_PAGE % ("Progressive Test",
         "const x = new XMLHttpRequest(); x.open('GET', '/sv/mend.mp4'); x.setRequestHeader('Range', 'bytes=0-99999'); x.send();"),
@@ -175,6 +199,10 @@ def make_stream_fixtures():
         f.write('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="English",DEFAULT=YES,URI="aud.m3u8"\n'
                 '#EXT-X-STREAM-INF:BANDWIDTH=900000,RESOLUTION=640x360,AUDIO="aud"\nv360.m3u8\n'
                 '#EXT-X-STREAM-INF:BANDWIDTH=400000,RESOLUTION=426x240,AUDIO="aud"\nv240.m3u8\n')
+    # One master playlist per video, as players fetch them: the resolution says how big each plays.
+    for name, res in (("one360", "640x360"), ("one240", "426x240")):
+        with open(os.path.join(d, name + ".m3u8"), "w") as f:
+            f.write('#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=900000,RESOLUTION=%s\nv%s.m3u8\n' % (res, res.split("x")[1]))
     with open(os.path.join(d, "enc.m3u8"), "w") as f:
         f.write('#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"\n#EXTINF:2,\nts-0.ts\n#EXT-X-ENDLIST\n')
     STREAM_DIR = d
@@ -890,6 +918,47 @@ def check_feed_picks_clicked_video(b, base):
     assert unsure.get("options") and all(o.get("other") for o in unsure["options"]), unsure
     page.close()
 
+    # Two videos of the same length, several on screen: the clicked one plays at 240p, so that one is it.
+    page = b.page()
+    page.goto(base + "/s-twins.html")
+    tab = tab_id_for(b, base + "/s-twins.html")
+    wait_for(lambda: len(b.call("(k) => chrome.storage.session.get(k).then((r) => r[k] || [])", "streams:%d" % tab) or []) >= 2,
+             what="both twin streams seen")
+    twins = {"matched": [], "other": [], "duration": 6.0, "single": False}
+    reply = b.message({"type": "streamOptions", "tabId": tab, "page": dict(twins, height=240)})
+    mine = [o["label"] for o in reply.get("options") or [] if not o.get("other")]
+    assert mine == ["240p"], "the 240p video playing on screen must be the only choice, got %r (%r)" % (reply, b.message({"type": "streamDebug", "tabId": tab}))
+    # Nothing tells them apart: neither is offered as this video, both are listed as other videos.
+    reply = b.message({"type": "streamOptions", "tabId": tab, "page": twins})
+    assert reply.get("options") and all(o.get("other") for o in reply["options"]), reply
+    page.close()
+
+
+def check_gallery_picks_clicked_video(b, base, path="/s-gallery.html"):
+    """Two same-length animations on one page: the button on the shown one saves that one."""
+    page = b.page()
+    page.set_viewport_size({"width": 1000, "height": 600})
+    page.goto(base + path)
+    tab = tab_id_for(b, base + path)
+    page.wait_for_function("() => [...document.querySelectorAll('video')].every((v) => v.readyState >= 2)")
+    time.sleep(2.5)  # the button's scan runs every 2 s
+    box = page.evaluate("() => { const r = document.getElementById('first').getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; }")
+    page.mouse.move((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
+    time.sleep(0.4)
+    page.mouse.move(box[2] - 30, box[1] + 24)
+    page.mouse.click(box[2] - 30, box[1] + 24)
+    time.sleep(3)
+    page.keyboard.press("Tab")
+    page.keyboard.press("Enter")
+    debug = lambda: b.message({"type": "streamDebug", "tabId": tab})
+    rel = wait_for(lambda: next((f for f in files_on_disk(b.downloads) if f.startswith("SIDM/Video/Gallery Test") and not f.endswith(".crdownload")), None),
+                   timeout=60, what="gallery video on disk (have %r, %r)" % (files_on_disk(b.downloads), debug()))
+    if shutil.which("ffprobe"):
+        out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=height", "-of", "csv=p=0",
+                              os.path.join(b.downloads, rel)], capture_output=True, text=True).stdout.strip()
+        assert out == "360", "saved the neighbour: %s is %sp, the clicked video is 360p (%r)" % (rel, out, debug())
+    page.close()
+
 
 def check_stream_videos(b, base):
     if not STREAM_DIR:
@@ -903,6 +972,9 @@ def check_stream_videos(b, base):
     stream_download(b, base, "/s-pieces.html", with_audio("360p"), "SIDM/Video/Pieces Test (360p).mp4", ["audio", "video"])
     stream_download(b, base, "/s-ts.html", lambda opts: opts[0] if opts else None, "SIDM/Video/TS Test.ts", ["audio", "video"])
     check_feed_picks_clicked_video(b, base)
+    check_gallery_picks_clicked_video(b, base)
+    check_gallery_picks_clicked_video(b, base, "/s-slides.html")
+    check_gallery_picks_clicked_video(b, base, "/s-stack.html")
 
     # Encrypted HLS is refused, never downloaded.
     page = b.page()
