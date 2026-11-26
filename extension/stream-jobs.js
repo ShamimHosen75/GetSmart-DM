@@ -213,6 +213,8 @@ export async function streamOptions(msg, sender) {
     // The clicked video's length and whether it is alone on screen: they keep other videos out.
     duration: Number(raw.duration) > 0 && Number.isFinite(Number(raw.duration)) ? Number(raw.duration) : 0,
     single: raw.single !== false,
+    // The height the clicked video is playing at: tells apart videos of the same length.
+    height: Number(raw.height) > 0 && Number.isFinite(Number(raw.height)) ? Math.round(Number(raw.height)) : 0,
   };
   if (!streams.length && !page.matched.length && !page.other.length) return { options: [], refused: '' };
   const reply = await toOffscreen({ type: 'streamResolve', streams, page });

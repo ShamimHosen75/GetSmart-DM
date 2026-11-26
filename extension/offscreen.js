@@ -247,6 +247,62 @@ function extOf(url, mime) {
  * Choices, best first, for one video: the page's own data for that video
  * (`page.matched`), the streams the tab played, then the page's other videos.
  */
+/** Which video the tab played an option for: its playlist or manifest, or its file. */
+function videoOf(o) {
+  return pathKey(o.from || o.video?.url || o.url || '');
+}
+
+function pathKey(url) {
+  try {
+    const u = new URL(url);
+    return `${u.hostname}${u.pathname}`;
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Several videos on screen, and the tab played more than one video of about the clicked one's
+ * length (a gallery of short loops): keep the closest in length, then the one playing at the
+ * clicked video's height. Whatever still cannot be told apart is listed under "other videos",
+ * because saving a random one of them is worse than asking.
+ */
+function markLookalikes(network, page, want, diag) {
+  if (page.single !== false) return;
+  const mine = network.filter((o) => o.kind !== 'refused' && !o.other && !o.audioOnly);
+  // A player fetches the master playlist and then one of its variants: both are one video.
+  const alias = new Map();
+  for (const o of network) if (o.kind === 'hls' && o.from && typeof o.video === 'string') alias.set(pathKey(o.video), pathKey(o.from));
+  const keyOf = (o) => alias.get(videoOf(o)) || videoOf(o);
+  const groups = new Map();
+  for (const o of mine) {
+    const key = keyOf(o);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(o);
+  }
+  if (groups.size < 2) return;
+  let keep = [...groups.keys()];
+  if (want) {
+    const gap = (key) => Math.min(...groups.get(key).map((o) => (o.duration > 1 ? Math.abs(o.duration - want) : Infinity)));
+    const closest = Math.min(...keep.map(gap));
+    if (Number.isFinite(closest)) keep = keep.filter((key) => gap(key) <= closest + 0.25);
+  }
+  if (keep.length > 1 && page.height > 0) {
+    const sameHeight = keep.filter((key) => groups.get(key).some((o) => Math.abs((o.height || 0) - page.height) <= 2));
+    if (sameHeight.length) keep = sameHeight;
+  }
+  const sure = keep.length === 1;
+  for (const [key, list] of groups) {
+    if (sure && key === keep[0]) continue;
+    for (const o of list) o.other = true;
+    diag.push({ from: 'network', kind: list[0].kind, at: key.slice(0, 80), result: sure ? 'other video (looks alike)' : 'cannot tell which video it is' });
+  }
+  if (sure) {
+    // Audio heard with another video is not this one's sound.
+    for (const o of network) if (o.audioOnly && !o.other && keyOf(o) !== keep[0] && groups.has(keyOf(o))) o.other = true;
+  }
+}
+
 async function resolveStreams(streams, page = {}) {
   const seen = new Set();
   const diag = [];
@@ -256,7 +312,7 @@ async function resolveStreams(streams, page = {}) {
   for (const s of byKind('hls')) {
     if (seen.has(s.url)) continue;
     try {
-      network.push(...(await resolveHls(s, seen)).map((o) => ({ ...o, at: s.at })));
+      network.push(...(await resolveHls(s, seen)).map((o) => ({ ...o, at: s.at, from: s.url })));
       diag.push({ from: 'network', kind: 'hls', at: hostPath(s.url), result: 'ok' });
     } catch (err) {
       diag.push({ from: 'network', kind: 'hls', at: hostPath(s.url), result: String(err?.message || err) });
@@ -264,7 +320,7 @@ async function resolveStreams(streams, page = {}) {
   }
   for (const s of byKind('dash')) {
     try {
-      network.push(...(await resolveDash(s)).map((o) => ({ ...o, at: s.at })));
+      network.push(...(await resolveDash(s)).map((o) => ({ ...o, at: s.at, from: s.url })));
       diag.push({ from: 'network', kind: 'dash', at: hostPath(s.url), result: 'ok' });
     } catch (err) {
       diag.push({ from: 'network', kind: 'dash', at: hostPath(s.url), result: String(err?.message || err) });
@@ -289,6 +345,7 @@ async function resolveStreams(streams, page = {}) {
       o.other = true;
     }
   }
+  markLookalikes(network, page, want, diag);
   const others = matched.length || network.some((o) => o.kind !== 'refused' && !o.other) ? [] : await resolvePageSources((page.other || []).slice(0, 8), diag, seen);
 
   const all = [...matched, ...network, ...others.map((o) => ({ ...o, other: true }))];

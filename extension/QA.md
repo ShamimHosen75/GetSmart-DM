@@ -260,3 +260,10 @@ Use a profile **without** the companion installed (or run `uninstall.bat` first)
 - [ ] YouTube watch page: hover a recommended video in the sidebar until its preview plays, click Download, pick a quality: the saved video is the recommended one, not the one on the page.
 - [ ] YouTube home feed: hover the third video's preview, download: that video, not the first in the feed.
 - [ ] After moving between videos without reloading (Shorts, Reels), the menu's first quality belongs to the video on screen.
+
+## M20 Exactly the shown video on pages with many animations (owner's report 2026-11-26)
+
+- [ ] A landing page with a slider of videos (one shown at a time): on the second slide, click Download, pick the first choice: the saved file is the slide on screen.
+- [ ] A gallery with several short looping videos of the same length: Download on the first one saves the first one; on the third one saves the third one.
+- [ ] The "Files" part of the menu lists only the clicked video's file when the video plays a plain MP4.
+- [ ] A gallery whose videos are HLS streams: the first choice is the clicked video, or the choices are under "Other videos on this page" when SIDM cannot tell.
